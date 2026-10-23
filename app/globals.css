@@ -1,0 +1,1173 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Open+Sans:wght@400;600;700&display=swap');
+
+:root {
+  --primary-navy: #07152b;
+  --secondary-navy: #0e2246;
+  --govt-blue: #003366; /* Official Indian National Portal / MCA Navy Blue */
+  --govt-blue-accent: #0b5ed7;
+  --govt-maroon: #8b1515; /* Official Government Seal Maroon */
+  --gold-primary: #d97706;
+  --gold-accent: #f59e0b;
+  --gold-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
+  --text-dark: #212529; /* High-contrast Government standard */
+  --text-muted: #4b5563;
+  --bg-light: #f8fafc;
+  --border-light: #d1d5db;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, 'Segoe UI', 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  color: var(--text-dark);
+  background-color: #ffffff;
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: Arial, 'Segoe UI', 'Noto Sans', sans-serif;
+  color: var(--govt-blue);
+  font-weight: 700;
+  letter-spacing: 0.1px;
+}
+
+button, input, select, textarea {
+  font-family: Arial, 'Segoe UI', 'Noto Sans', sans-serif;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.container {
+  max-width: 1260px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* ========================================================
+   HEADER & NAVBAR (EXACT REPLICA OF WHATSAPP IMAGE)
+   ======================================================== */
+
+/* 1. Topmost Utility Bar (Dark Navy) */
+.top-utility-bar {
+  background: #060e1e;
+  color: #94a3b8;
+  font-size: 0.76rem;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.top-utility-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 16px;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.top-utility-inner::-webkit-scrollbar {
+  display: none;
+}
+
+.top-utility-left, .top-utility-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.top-info-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #cbd5e1;
+}
+
+.top-badge-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #fbbf24;
+  font-family: monospace;
+  font-size: 0.74rem;
+}
+
+/* Language Switcher in Utility Bar */
+.lang-toggle-box {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 2px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  gap: 3px;
+}
+
+.lang-toggle-btn {
+  background: none;
+  border: none;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #cbd5e1;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lang-toggle-btn.active {
+  background: #f59e0b;
+  color: #000000;
+}
+
+/* 2. Main White Institutional Header */
+.main-header-white {
+  background: #ffffff;
+  padding: 14px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.main-header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.header-brand-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-logo {
+  height: 64px;
+  width: auto;
+  object-fit: contain;
+}
+
+.header-hi-title {
+  font-family: 'Mangal', 'Noto Sans Devanagari', 'Nirmala UI', Arial, sans-serif;
+  font-size: 1.14rem;
+  font-weight: 700;
+  color: var(--govt-maroon);
+  letter-spacing: 0.15px;
+  line-height: 1.25;
+  margin-bottom: 2px;
+}
+
+.header-en-title {
+  font-family: Arial, "Helvetica Neue", Helvetica, 'Segoe UI', 'Noto Sans', sans-serif;
+  font-size: 1.34rem;
+  font-weight: 800;
+  color: var(--govt-blue);
+  letter-spacing: 0.25px;
+  line-height: 1.2;
+  margin-bottom: 3px;
+}
+
+.header-subtext {
+  font-family: Arial, 'Segoe UI', sans-serif;
+  font-size: 0.76rem;
+  color: #4b5563;
+  font-weight: 600;
+  margin: 2px 0 6px;
+  letter-spacing: 0.1px;
+}
+
+.header-badges-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mca-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.header-contact-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.header-contact-box {
+  border-left: 2px solid #f1f5f9;
+  padding-left: 18px;
+}
+
+.header-phone {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.header-email {
+  font-size: 0.78rem;
+  color: #d97706;
+  font-weight: 600;
+}
+
+.header-location {
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+/* 3. Dark Horizontal Navigation Bar */
+.navbar-dark {
+  background: #09152b;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0;
+}
+
+.nav-links-list {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-links-list li a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #e2e8f0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 15px 18px;
+  transition: all 0.2s ease;
+  border-bottom: 3px solid transparent;
+}
+
+.nav-links-list li a:hover, .nav-links-list li.active a {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom-color: #f59e0b;
+}
+
+.btn-donate-nav {
+  background: var(--gold-gradient);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.86rem;
+  padding: 9px 20px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(217, 119, 6, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-donate-nav:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(217, 119, 6, 0.45);
+}
+
+/* 4. Amber Notice Ticker Bar */
+.notice-ticker-bar {
+  background: #fffbeb;
+  border-bottom: 1px solid #fef3c7;
+  padding: 7px 0;
+  font-size: 0.8rem;
+  color: #92400e;
+  overflow: hidden;
+}
+
+.ticker-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ticker-label {
+  background: #d97706;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ticker-text {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ========================================================
+   HERO SECTION (LEFT-ALIGNED WITH UNDERPRIVILEGED CHILDREN BG)
+   ======================================================== */
+.hero-section {
+  position: relative;
+  background: 
+    linear-gradient(90deg, rgba(5, 12, 28, 0.94) 0%, rgba(7, 16, 38, 0.88) 55%, rgba(5, 11, 26, 0.55) 100%),
+    url('/hero-bg.jpg') center right / cover no-repeat;
+  color: #ffffff;
+  padding: 95px 0 105px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.hero-inner-left {
+  max-width: 800px;
+  position: relative;
+  z-index: 2;
+  text-align: left;
+}
+
+.hindi-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+  padding: 7px 16px;
+  border-radius: 50px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  margin-bottom: 22px;
+  backdrop-filter: blur(8px);
+}
+
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 20px;
+  letter-spacing: -0.5px;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+  text-align: left;
+}
+
+.hero-title span {
+  background: var(--gold-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+.hero-desc {
+  font-size: 1.12rem;
+  color: #e2e8f0;
+  margin: 0 0 34px 0;
+  line-height: 1.75;
+  max-width: 720px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+  font-weight: 400;
+  text-align: left;
+}
+
+.hero-cta {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 26px;
+  border-radius: 7px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border: none;
+}
+
+.btn-primary {
+  background: var(--gold-gradient);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(217, 119, 6, 0.45);
+}
+
+.btn-outline {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  backdrop-filter: blur(8px);
+}
+
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.btn-dark {
+  background: #09152b;
+  color: #ffffff;
+}
+
+.btn-dark:hover {
+  background: #172a45;
+  transform: translateY(-2px);
+}
+
+/* Stats Ribbon */
+.stats-ribbon {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  padding: 30px 0;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 0 16px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.stat-item:last-child {
+  border-right: none;
+}
+
+.stat-num {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.stat-num span {
+  color: #d97706;
+}
+
+.stat-text {
+  font-size: 0.88rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* Section Common */
+.section {
+  padding: 90px 0;
+}
+
+.section-bg-light {
+  background: #f8fafc;
+}
+
+.section-header {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto 55px;
+}
+
+.section-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #d97706;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 10px;
+}
+
+.section-title {
+  font-family: Arial, 'Segoe UI', 'Noto Sans', sans-serif;
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--govt-blue);
+  line-height: 1.25;
+  margin-bottom: 16px;
+  letter-spacing: -0.2px;
+}
+
+.section-desc {
+  font-size: 1.05rem;
+  color: #64748b;
+  line-height: 1.7;
+}
+
+/* About Layout */
+.about-grid {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 50px;
+  align-items: center;
+}
+
+.about-card-featured {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.about-card-featured::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: var(--gold-gradient);
+}
+
+.about-logo {
+  max-width: 170px;
+  margin: 0 auto 20px;
+  display: block;
+}
+
+.about-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.about-pill {
+  font-size: 0.8rem;
+  padding: 5px 14px;
+  border-radius: 20px;
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Mission & Vision Cards */
+.mv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.mv-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 36px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+  position: relative;
+}
+
+.mv-card.mission {
+  border-top: 4px solid #f59e0b;
+}
+
+.mv-card.vision {
+  border-top: 4px solid #2563eb;
+}
+
+.mv-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+}
+
+.mv-badge.mission {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.mv-badge.vision {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.goal-banner {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 38px 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 12 Core Initiatives Grid */
+.initiatives-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.initiative-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 28px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.initiative-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e1;
+}
+
+.initiative-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.initiative-num {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #d97706;
+  background: #fffbeb;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #fef3c7;
+}
+
+.initiative-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d97706;
+}
+
+.initiative-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+  line-height: 1.35;
+}
+
+.initiative-subtitle {
+  color: #b45309;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.initiative-desc {
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.6;
+  flex-grow: 1;
+  margin-bottom: 16px;
+}
+
+.initiative-footer {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #d97706;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Moments of Transformation Gallery */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.gallery-card {
+  background: #ffffff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  transition: transform 0.3s;
+}
+
+.gallery-card:hover {
+  transform: translateY(-4px);
+}
+
+.gallery-img-box {
+  height: 180px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  color: #ffffff;
+  padding: 16px;
+  text-align: center;
+}
+
+.gallery-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.gallery-info {
+  padding: 18px;
+}
+
+.gallery-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+
+.gallery-sub {
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* Legal Vault Dark Section */
+.legal-vault {
+  background: #090f1f;
+  color: #ffffff;
+  padding: 85px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.vault-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.vault-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 22px;
+  transition: all 0.3s;
+}
+
+.vault-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.vault-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.vault-tag {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #94a3b8;
+}
+
+.vault-val {
+  font-family: monospace;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 6px;
+}
+
+.vault-desc {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+/* Leadership Section */
+.leadership-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 30px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.leader-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 32px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.leader-avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--gold-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 1.3rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);
+}
+
+.leader-info h4 {
+  font-size: 1.2rem;
+  color: #0f172a;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.leader-role {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #d97706;
+  margin-bottom: 10px;
+}
+
+.leader-quote {
+  font-size: 0.88rem;
+  color: #64748b;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+/* Contact & Connect Section */
+.contact-grid {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 40px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.contact-info-panel {
+  background: linear-gradient(135deg, #0a1128 0%, #1e293b 100%);
+  color: #ffffff;
+  padding: 44px;
+}
+
+.contact-info-panel h3 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.contact-items {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.contact-item {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.contact-icon-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+
+.contact-form-panel {
+  padding: 44px;
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-family: inherit;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-control:focus {
+  border-color: #d97706;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+}
+
+/* Footer & Social Media */
+.site-footer {
+  background: #040812;
+  color: #94a3b8;
+  padding: 70px 0 25px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1.2fr;
+  gap: 40px;
+  margin-bottom: 50px;
+}
+
+.footer-col h5 {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  position: relative;
+  padding-bottom: 8px;
+}
+
+.footer-col h5::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 30px;
+  height: 2px;
+  background: #d97706;
+}
+
+.footer-links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.88rem;
+}
+
+.footer-links a:hover {
+  color: #f59e0b;
+}
+
+.social-icons {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+  flex-wrap: wrap;
+}
+
+.social-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #cbd5e1;
+  transition: all 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.social-btn:hover {
+  transform: translateY(-2px);
+  color: #ffffff;
+}
+
+.social-btn.facebook:hover { background: #1877f2; border-color: #1877f2; }
+.social-btn.instagram:hover { background: #e4405f; border-color: #e4405f; }
+.social-btn.youtube:hover { background: #ff0000; border-color: #ff0000; }
+.social-btn.linkedin:hover { background: #0a66c2; border-color: #0a66c2; }
+.social-btn.twitter:hover { background: #000000; border-color: #ffffff; }
+.social-btn.whatsapp:hover { background: #25d366; border-color: #25d366; }
+.social-btn.telegram:hover { background: #229ed9; border-color: #229ed9; }
+.social-btn.snapchat:hover { background: #fffc00; color: #000000; border-color: #fffc00; }
+
+.footer-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.modal-box {
+  background: #ffffff;
+  border-radius: 16px;
+  max-width: 520px;
+  width: 100%;
+  padding: 32px;
+  position: relative;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #64748b;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .main-header-inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .header-contact-right {
+    display: none;
+  }
+  .about-grid, .contact-grid {
+    grid-template-columns: 1fr;
+  }
+  .initiatives-grid, .gallery-grid, .vault-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .mv-grid, .leadership-grid {
+    grid-template-columns: 1fr;
+  }
+  .footer-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .nav-links-list {
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 600px) {
+  .initiatives-grid, .gallery-grid, .vault-grid, .footer-grid, .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .hero-title {
+    font-size: 2.3rem;
+  }
+  .stat-item {
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 16px;
+  }
+}
