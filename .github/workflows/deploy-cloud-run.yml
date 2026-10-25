@@ -1,0 +1,68 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: aitryout-485605
+  REGION: asia-south1
+  SERVICE: gsdd-foundation
+  AR_REPOSITORY: ngo-apps
+  WIF_PROVIDER: projects/42733239266/locations/global/workloadIdentityPools/ngo-github-pool/providers/github-actions
+  DEPLOYER_SERVICE_ACCOUNT: ngo-github-deployer@aitryout-485605.iam.gserviceaccount.com
+  RUNTIME_SERVICE_ACCOUNT: ngo-cloud-run-runtime@aitryout-485605.iam.gserviceaccount.com
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Artifact Registry authentication
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push container
+        env:
+          IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}
+        run: |
+          docker build --tag "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Deploy to Cloud Run
+        env:
+          IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}
+        run: >-
+          gcloud run deploy "$SERVICE"
+          --project="$PROJECT_ID"
+          --region="$REGION"
+          --image="$IMAGE"
+          --service-account="$RUNTIME_SERVICE_ACCOUNT"
+          --port=8080
+          --memory=512Mi
+          --cpu=1
+          --max=10
+          --quiet
