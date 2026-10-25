@@ -16,7 +16,7 @@ export default function TransparencyPage() {
         <div className="section-heading section-heading-row"><div><p className="eyebrow"><span /> Statutory directory</p><h2>Organization details.</h2></div><p>GLOBAL SKILLS &amp; DIGITAL DEVELOPMENT FOUNDATION (GSDD FOUNDATION)</p></div>
         <div className="credentials-grid">
           {credentials.map(([label, value, authority], index) => <article className="credential-card" key={label}>
-            <span className={`credential-icon${index === 3 ? ' credential-icon-green' : ''}`}><BadgeCheck size={19} aria-hidden="true" /></span>
+            <span className={`credential-icon${index === 3 ? ' credential-icon-emphasis' : ''}`}><BadgeCheck size={19} aria-hidden="true" /></span>
             <div><p>{label}</p><strong>{value}</strong><small>{authority}</small></div>
           </article>)}
         </div>

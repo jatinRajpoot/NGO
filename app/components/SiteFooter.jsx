@@ -34,12 +34,9 @@ export default function SiteFooter() {
           </div>
         </div>
         <div className="footer-links-column footer-compliance">
-          <h2>Registration details</h2>
-          <p>CIN <strong>{organization.cin}</strong></p>
-          <p>NITI Aayog Darpan <strong>{organization.darpan}</strong></p>
-          <p>12A <strong>{organization.tax12a}</strong></p>
-          <p>80G <strong>{organization.tax80g}</strong></p>
-          <Link href="/transparency">View statutory directory <ArrowUpRight size={14} aria-hidden="true" /></Link>
+          <h2>Transparency</h2>
+          <p>Registration details, governance documents and audit filings.</p>
+          <Link href="/transparency">See records and request documents <ArrowUpRight size={14} aria-hidden="true" /></Link>
         </div>
       </div>
       <div className="footer-bottom container">
