@@ -28,6 +28,12 @@
   transform: translateY(-7px) rotate(-45deg);
 }
 
+@media (max-width: 900px) {
+  .photo-collage {
+    width: 100%;
+  }
+}
+
 @media (max-width: 620px) {
   .container {
     width: min(var(--content), calc(100% - 24px));
