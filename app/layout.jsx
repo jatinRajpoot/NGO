@@ -1,4 +1,5 @@
 import './globals.css';
+import './mobile-layout.css';
 import { MessageCircle } from 'lucide-react';
 import SiteHeader from './components/SiteHeader';
 import SiteFooter from './components/SiteFooter';
