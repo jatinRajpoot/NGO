@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Quote } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import PageHero from '../components/PageHero';
 import { aims, organization, visionPillars } from '../data/site-data';
 
@@ -75,11 +75,12 @@ export default function AboutPage() {
     <section className="section-pad leadership-section" id="leadership">
       <div className="container">
         <div className="section-heading section-heading-centered"><p className="eyebrow"><span /> Leadership</p><h2>Founders guiding the work.</h2><p>Founding leadership of {organization.legalName}.</p></div>
+        <p className="team-content-note">The public information supplied for this website includes the founders’ names and designations. Individual biographies and portraits were not provided.</p>
         <div className="leadership-grid">
-          <article className="leader-card"><div className="leader-avatar">MB</div><div className="leader-info"><span>Founder &amp; Chief Executive Officer</span><h3>Manoj Kumar Bishwas</h3><p>Global Skills &amp; Digital Development Foundation</p></div><Quote size={24} aria-hidden="true" /><blockquote>“True progress begins when rural and underserved communities gain the digital tools, practical skills, and awareness of public services needed to stand on their own feet with dignity.”</blockquote></article>
-          <article className="leader-card leader-card-gold"><div className="leader-avatar">AK</div><div className="leader-info"><span>Founder &amp; Managing Director</span><h3>Arvind Kumar</h3><p>Global Skills &amp; Digital Development Foundation</p></div><Quote size={24} aria-hidden="true" /><blockquote>“Through grassroots action in Bihar and across India, our focus is on measurable community transformation—connecting youth, women, and families with education, healthcare awareness, and sustainable livelihoods.”</blockquote></article>
+          <article className="leader-card"><div className="leader-avatar" aria-hidden="true">MB</div><div className="leader-info"><span>Founder / CEO</span><h3>Manoj Kumar Bishwas</h3><p>Global Skills &amp; Digital Development Foundation</p></div></article>
+          <article className="leader-card leader-card-gold"><div className="leader-avatar" aria-hidden="true">AK</div><div className="leader-info"><span>Founder / MD</span><h3>Arvind Kumar</h3><p>Global Skills &amp; Digital Development Foundation</p></div></article>
         </div>
-        <div className="section-action"><Link className="button button-blue" href="/transparency">View statutory registrations <ArrowRight size={16} aria-hidden="true" /></Link></div>
+        <div className="section-action"><Link className="button button-outline-blue" href="/team">View management team <ArrowRight size={16} aria-hidden="true" /></Link><Link className="button button-blue" href="/transparency">View statutory registrations <ArrowRight size={16} aria-hidden="true" /></Link></div>
       </div>
     </section>
   </>;
