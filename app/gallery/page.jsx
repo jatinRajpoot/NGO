@@ -8,13 +8,13 @@ export const metadata = {
   description: 'Browse photographs in the GSDD Foundation media gallery.',
 };
 
-const mediaDirectory = path.join(process.cwd(), 'Media');
+const mediaDirectory = path.join(process.cwd(), 'public', 'media', 'gallery');
 const imageNames = readdirSync(mediaDirectory)
-  .filter((name) => /^IMG-\d{8}-WA\d+\.jpg$/i.test(name))
+  .filter((name) => /^IMG-\d{8}-WA\d+\.webp$/i.test(name))
   .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
 const photosByDate = imageNames.reduce((groups, name, index) => {
-  const dateMatch = name.match(/^IMG-(\d{4})(\d{2})(\d{2})-WA(\d+)\.jpg$/i);
+  const dateMatch = name.match(/^IMG-(\d{4})(\d{2})(\d{2})-WA(\d+)\.webp$/i);
   if (!dateMatch) return groups;
 
   const [, year, month, day, photoNumber] = dateMatch;
@@ -27,7 +27,7 @@ const photosByDate = imageNames.reduce((groups, name, index) => {
   }
 
   groups.get(dateKey).photos.push({
-    src: `/media/gallery/${name.replace(/\.jpg$/i, '.webp')}`,
+    src: `/media/gallery/${name}`,
     alt: `Photo ${photoNumber} from ${Number(day)} ${new Date(Number(year), Number(month) - 1).toLocaleString('en-IN', { month: 'long' })} ${year}`,
     label: `Photo ${String(index + 1).padStart(3, '0')}`,
   });
