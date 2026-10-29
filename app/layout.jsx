@@ -3,6 +3,7 @@ import './mobile-layout.css';
 import './public-pages.css';
 import './classic-portal.css';
 import './redesign.css';
+import './admin/admin-dashboard.css';
 import { MessageCircle } from 'lucide-react';
 import SiteHeader from './components/SiteHeader';
 import SiteFooter from './components/SiteFooter';

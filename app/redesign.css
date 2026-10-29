@@ -67,7 +67,10 @@
 .redesigned-site-header .nav-dropdown-menu a:hover { color: var(--redesign-green); background: var(--redesign-green-soft); }
 .portal-login-options { display: grid; min-width: 250px; gap: 6px; }
 .portal-login-option { display: flex; min-height: 38px; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 9px; background: #f6f8f5; border-radius: 4px; }
-.portal-login-option button { padding: 0; color: var(--redesign-navy); background: transparent; border: 0; font-size: 11px; font-weight: 700; cursor: not-allowed; }
+.portal-login-option a, .portal-login-option button { padding: 0; color: var(--redesign-navy); background: transparent; border: 0; font-size: 11px; font-weight: 700; text-decoration: none; }
+.portal-login-option a { cursor: pointer; }
+.portal-login-option a:hover { color: var(--redesign-blue); text-decoration: underline; }
+.portal-login-option button { cursor: not-allowed; }
 .portal-coming-soon { padding: 3px 6px; color: #536159; background: #e7ede5; border-radius: 3px; font-size: 9px; font-weight: 800; letter-spacing: .035em; text-transform: uppercase; white-space: nowrap; }
 .redesign-nav-donate { display: none; }
 
