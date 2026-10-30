@@ -168,7 +168,7 @@ export default function Home() {
                 {t('नागरिक पंजीकरण', 'Citizen Registration')} <ArrowRight size={15} aria-hidden="true" />
               </Link>
               <Link className="gov-btn-secondary" href="/donate">
-                {t('दान करें (80G कर छूट)', 'Donate (80G Tax Benefit)')} <Heart size={14} fill="currentColor" aria-hidden="true" />
+                {t('दान करें', 'Donate')} <Heart size={14} fill="currentColor" aria-hidden="true" />
               </Link>
               <Link className="gov-btn-outline" href="/transparency">
                 {t('वैधानिक प्रमाणपत्र', 'Statutory Certificates')} <FileText size={14} aria-hidden="true" />
@@ -484,7 +484,7 @@ export default function Home() {
           </div>
           <div className="gov-mandate-buttons">
             <Link className="gov-btn-saffron" href="/donate">
-              {t('80G दान करें (50% कर छूट)', 'Donate Now (80G Tax Benefit)')}
+              {t('दान करें', 'Donate Now')}
             </Link>
             <Link className="gov-btn-white" href="/get-involved">
               {t('स्वयंसेवक / सीएसआर भागीदारी', 'Volunteer / CSR Partnership')}

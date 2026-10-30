@@ -164,7 +164,7 @@ export default function SiteHeader() {
             </a>
             <Link className="gov-btn-donate" href="/donate">
               <Heart size={14} fill="currentColor" aria-hidden="true" />
-              <span>{t('दान करें (80G)', 'Donate (80G)')}</span>
+              <span>{t('दान करें', 'Donate')}</span>
             </Link>
           </div>
 
@@ -175,7 +175,7 @@ export default function SiteHeader() {
                 <Phone size={14} aria-hidden="true" /> {t('हेल्पलाइन', 'Helpline')}: {organization.phone}
               </a>
               <Link className="gov-btn-donate mobile-donate" href="/donate">
-                <Heart size={15} fill="currentColor" aria-hidden="true" /> {t('दान करें (80G लाभ)', 'Donate (80G Benefit)')}
+                <Heart size={15} fill="currentColor" aria-hidden="true" /> {t('दान करें', 'Donate')}
               </Link>
             </div>
           </MobileNavigation>

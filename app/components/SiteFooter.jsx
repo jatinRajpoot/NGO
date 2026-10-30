@@ -87,7 +87,7 @@ export default function SiteFooter() {
             <li><Link href="/work-sectors">{t('12 विकास क्षेत्र', '12 Work Sectors')}</Link></li>
             <li><Link href="/projects">{t('प्रस्तावित परियोजनाएं', 'Proposed Projects')}</Link></li>
             <li><Link href="/transparency">{t('वैधानिक पंजीकरण', 'Transparency & Registry')}</Link></li>
-            <li><Link href="/donate">{t('80G कर छूट दान', 'Donate (80G Tax Benefit)')}</Link></li>
+            <li><Link href="/donate">{t('दान करें', 'Donate Online')}</Link></li>
           </ul>
         </div>
 
