@@ -1,10 +1,32 @@
+/* Base mobile layout, touch targets, and responsive primitives */
+
+/* Mobile navigation summary & hamburger toggle */
 .mobile-nav > summary {
+  display: grid;
   width: 44px;
   height: 44px;
-  background: #F4F7FB;
-  border: 1px solid #D8E0EB;
-  border-radius: 9px;
+  min-width: 44px;
+  min-height: 44px;
+  align-content: center;
+  justify-items: center;
+  gap: 5px;
+  list-style: none;
+  background: #f4f7fb;
+  border: 1px solid #d8e0eb;
+  border-radius: 8px;
   box-shadow: 0 1px 3px rgba(9, 21, 47, .08);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav > summary::-webkit-details-marker {
+  display: none;
+}
+
+.mobile-nav > summary:focus-visible {
+  outline: 3px solid #d49b27;
+  outline-offset: 2px;
 }
 
 .mobile-nav-line {
@@ -12,8 +34,9 @@
   width: 20px;
   height: 2px;
   border-radius: 99px;
-  background: var(--gsdd-navy-dark);
-  transition: transform .18s ease, opacity .15s ease;
+  background: var(--gsdd-navy-dark, #09152f);
+  transition: transform .2s ease, opacity .18s ease;
+  transform-origin: center;
 }
 
 .mobile-nav[open] > summary .mobile-nav-line:first-child {
@@ -22,21 +45,51 @@
 
 .mobile-nav[open] > summary .mobile-nav-line:nth-child(2) {
   opacity: 0;
+  transform: scaleX(0);
 }
 
 .mobile-nav[open] > summary .mobile-nav-line:nth-child(3) {
   transform: translateY(-7px) rotate(-45deg);
 }
 
+/* Mobile navigation drawer base styles */
+.mobile-nav > nav {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.mobile-nav .nav-link {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  touch-action: manipulation;
+}
+
+.mobile-nav .nav-dropdown-menu a {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  touch-action: manipulation;
+}
+
+/* Touch targets and form controls on touch screens */
+button, a, input, select, textarea, summary {
+  touch-action: manipulation;
+}
+
 @media (max-width: 900px) {
   .photo-collage {
     width: 100%;
   }
+
+  .container {
+    width: min(var(--content, 1260px), calc(100% - 36px));
+  }
 }
 
-@media (max-width: 620px) {
+@media (max-width: 680px) {
   .container {
-    width: min(var(--content), calc(100% - 24px));
+    width: min(var(--content, 1260px), calc(100% - 28px));
   }
 
   .main-header-inner {
@@ -46,11 +99,13 @@
   .mobile-nav > summary {
     width: 44px;
     height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .mobile-nav > nav {
     right: 0;
-    width: min(390px, 100%);
+    width: min(390px, calc(100vw - 20px));
   }
 
   .home-hero .container.hero-grid {
@@ -59,5 +114,31 @@
 
   .hero-photo-panel {
     border-radius: 0;
+  }
+
+  /* Prevent auto-zoom on iOS for form inputs */
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="number"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 360px) {
+  .container {
+    width: calc(100% - 20px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-nav-line,
+  .mobile-nav[open] > summary .mobile-nav-line:first-child,
+  .mobile-nav[open] > summary .mobile-nav-line:nth-child(2),
+  .mobile-nav[open] > summary .mobile-nav-line:nth-child(3) {
+    transition: none !important;
   }
 }

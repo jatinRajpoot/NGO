@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 
 const sitePages = [
   { label: 'Home', href: '/', terms: 'home foundation welcome' },
@@ -26,14 +26,34 @@ const sitePages = [
   { label: 'Refund policy', href: '/refund-policy', terms: 'refund donation policy' },
 ];
 
+const fontSizes = [12, 13, 14, 15, 16];
+const defaultFontSize = 13;
+
+function readStorage(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    // Treat unavailable storage as "no preference saved" instead of crashing.
+    return null;
+  }
+}
+
+function writeStorage(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // The control still works for this visit when storage is unavailable.
+  }
+}
+
 export function PortalAccessibilityControls() {
-  const [fontSize, setFontSize] = useState(13);
+  const [fontSize, setFontSize] = useState(defaultFontSize);
   const [highContrast, setHighContrast] = useState(false);
 
   useEffect(() => {
-    const savedFont = Number(window.localStorage.getItem('gsdd-portal-font-size'));
-    const savedContrast = window.localStorage.getItem('gsdd-portal-high-contrast') === 'true';
-    const nextFont = [12, 13, 14, 15, 16].includes(savedFont) ? savedFont : 13;
+    const savedFont = Number(readStorage('gsdd-portal-font-size'));
+    const savedContrast = readStorage('gsdd-portal-high-contrast') === 'true';
+    const nextFont = fontSizes.includes(savedFont) ? savedFont : defaultFontSize;
     setFontSize(nextFont);
     setHighContrast(savedContrast);
     document.documentElement.style.setProperty('--base-font-size', `${nextFont}px`);
@@ -44,28 +64,31 @@ export function PortalAccessibilityControls() {
     const nextFont = Math.max(12, Math.min(16, fontSize + delta));
     setFontSize(nextFont);
     document.documentElement.style.setProperty('--base-font-size', `${nextFont}px`);
-    window.localStorage.setItem('gsdd-portal-font-size', String(nextFont));
+    writeStorage('gsdd-portal-font-size', String(nextFont));
   }
 
   function resetFont() {
-    setFontSize(13);
-    document.documentElement.style.setProperty('--base-font-size', '13px');
-    window.localStorage.setItem('gsdd-portal-font-size', '13');
+    setFontSize(defaultFontSize);
+    document.documentElement.style.setProperty('--base-font-size', `${defaultFontSize}px`);
+    writeStorage('gsdd-portal-font-size', String(defaultFontSize));
   }
 
   function toggleContrast() {
     const next = !highContrast;
     setHighContrast(next);
     document.body.classList.toggle('high-contrast', next);
-    window.localStorage.setItem('gsdd-portal-high-contrast', String(next));
+    writeStorage('gsdd-portal-high-contrast', String(next));
   }
 
-  return <div className="portal-accessibility" aria-label="Accessibility controls">
+  return <div className="portal-accessibility" role="group" aria-label="Accessibility controls">
     <span className="portal-control-label">Text size</span>
     <button type="button" onClick={() => changeFont(-1)} aria-label="Decrease text size" disabled={fontSize <= 12}>A−</button>
-    <button type="button" onClick={resetFont} aria-label="Reset text size">A</button>
+    <button type="button" onClick={resetFont} aria-label={`Reset text size to ${defaultFontSize} pixels`}>A</button>
     <button type="button" onClick={() => changeFont(1)} aria-label="Increase text size" disabled={fontSize >= 16}>A+</button>
     <button type="button" className="portal-contrast-toggle" onClick={toggleContrast} aria-pressed={highContrast}>{highContrast ? 'Standard view' : 'High contrast'}</button>
+    <span className="sr-only" role="status">
+      {`Text size ${fontSize} pixels. ${highContrast ? 'High contrast on.' : 'Standard contrast.'}`}
+    </span>
   </div>;
 }
 
@@ -90,35 +113,61 @@ export function PortalClock() {
   return <time className="portal-clock" aria-label={dateTime ? `Current Indian Standard Time: ${dateTime}` : 'Indian Standard Time clock'}>{dateTime || 'IST clock loading'} <strong>IST</strong></time>;
 }
 
+function searchSitePages(value) {
+  const normalized = String(value).trim().toLowerCase();
+  if (!normalized) return [];
+  return sitePages.filter((page) => `${page.label} ${page.terms}`.toLowerCase().includes(normalized));
+}
+
 export function PortalSearch() {
   const router = useRouter();
+  const pathname = usePathname();
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
-  const results = useMemo(() => {
-    const normalized = submittedQuery.trim().toLowerCase();
-    if (!normalized) return [];
-    return sitePages.filter((page) => `${page.label} ${page.terms}`.toLowerCase().includes(normalized)).slice(0, 6);
+  const inputRef = useRef(null);
+  const resultsRef = useRef(null);
+  const results = useMemo(() => searchSitePages(submittedQuery).slice(0, 6), [submittedQuery]);
+
+  // Search results belong to the page where the search was made, so clear
+  // them whenever navigation takes the visitor elsewhere.
+  useEffect(() => {
+    setSubmittedQuery('');
+  }, [pathname]);
+
+  useEffect(() => {
+    if (submittedQuery) resultsRef.current?.focus();
   }, [submittedQuery]);
+
+  function closeResults(refocus = false) {
+    setSubmittedQuery('');
+    if (refocus && inputRef.current) inputRef.current.focus();
+  }
 
   function submitSearch(event) {
     event.preventDefault();
     const value = query.trim();
     if (!value) return;
-    const matches = sitePages.filter((page) => `${page.label} ${page.terms}`.toLowerCase().includes(value.toLowerCase()));
+    const matches = searchSitePages(value);
+    if (matches.length === 1) {
+      // A single confident match jumps straight to the page; skip the panel
+      // so it does not follow the visitor into the navigation.
+      setSubmittedQuery('');
+      router.push(matches[0].href);
+      return;
+    }
     setSubmittedQuery(value);
-    if (matches.length === 1) router.push(matches[0].href);
   }
 
-  return <div className="portal-search-wrap">
+  return <div className="portal-search-wrap" onKeyDown={(event) => { if (event.key === 'Escape' && submittedQuery) { event.preventDefault(); closeResults(true); } }}>
     <form className="portal-search" role="search" onSubmit={submitSearch}>
       <label className="sr-only" htmlFor="portal-site-search">Search this website</label>
-      <input id="portal-site-search" value={query} onChange={(event) => { setQuery(event.target.value); setSubmittedQuery(''); }} placeholder="Search this website" autoComplete="off" />
+      <input ref={inputRef} id="portal-site-search" value={query} onChange={(event) => { setQuery(event.target.value); setSubmittedQuery(''); }} placeholder="Search this website" autoComplete="off" />
       <button type="submit">Search</button>
     </form>
-    {submittedQuery && <div className="portal-search-results" role="region" aria-label="Search results">
+    {submittedQuery && <div ref={resultsRef} tabIndex={-1} className="portal-search-results" role="region" aria-label="Search results">
       <strong>Results for “{submittedQuery}”</strong>
-      {results.length ? <ul>{results.map((page) => <li key={page.href}><Link href={page.href} onClick={() => setSubmittedQuery('')}>{page.label}</Link></li>)}</ul> : <p>No matching pages. Try “news”, “projects” or “contact”.</p>}
-      <button type="button" className="portal-search-close" onClick={() => setSubmittedQuery('')}>Close results</button>
+      {results.length ? <ul>{results.map((page) => <li key={page.href}><Link href={page.href} onClick={() => closeResults()}>{page.label}</Link></li>)}</ul> : <p>No matching pages. Try “news”, “projects” or “contact”.</p>}
+      <button type="button" className="portal-search-close" onClick={() => closeResults(true)}>Close results</button>
     </div>}
   </div>;
 }
