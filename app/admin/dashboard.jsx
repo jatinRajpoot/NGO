@@ -4,9 +4,10 @@ import { useMemo, useState } from 'react';
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays,
   Check, ChevronDown, ChevronRight, CircleHelp, Clock3, FileText, FolderKanban,
-  HandCoins, LayoutDashboard, MapPin, Megaphone, Menu, MoreHorizontal, Plus,
+  HandCoins, Image as ImageIcon, LayoutDashboard, Loader2, LogOut, MapPin, Megaphone, Menu, MoreHorizontal, Plus,
   Search, Settings, Target, UploadCloud, Users, X,
 } from 'lucide-react';
+import GalleryManager from './GalleryManager';
 
 const initialPrograms = [
   { name: 'Digital Skills for Youth', area: 'Skills & livelihoods', location: 'Raniganj', progress: 74, people: '248 people', status: 'On track', initials: 'DS', tint: 'blue' },
@@ -29,6 +30,7 @@ const navGroups = [
     { label: 'Donations', href: '#donations', icon: HandCoins },
   ] },
   { label: 'Manage', items: [
+    { label: 'Gallery', href: '#gallery', icon: ImageIcon },
     { label: 'Reports', href: '#reports', icon: FileText, count: '3' },
     { label: 'Campaigns', href: '#campaigns', icon: Megaphone },
     { label: 'Events', href: '#events', icon: CalendarDays },
@@ -97,9 +99,47 @@ export default function AdminDashboard() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showPreviewNotice, setShowPreviewNotice] = useState(true);
   const [toast, setToast] = useState('');
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
+
   const filteredPrograms = useMemo(() => programs.filter((program) => `${program.name} ${program.area} ${program.location}`.toLowerCase().includes(query.toLowerCase())), [programs, query]);
   const notify = (message) => { setToast(message); window.setTimeout(() => setToast(''), 2800); };
   const createProgram = (program) => { setPrograms((current) => [program, ...current]); setDialogOpen(false); notify('Sample program added to this preview.'); };
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    setLogoutError('');
+
+    try {
+      const response = await fetch('/api/admin/auth/logout/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        let message = 'Unable to sign out. Please try again.';
+        try {
+          const data = await response.json();
+          if (data?.error === 'forbidden_origin') {
+            message = 'Unable to sign out. Refresh the page and try again.';
+          }
+        } catch {}
+        setLogoutError(message);
+        notify(message);
+        return;
+      }
+      window.location.assign('/admin/login/');
+    } catch (error) {
+      const message = 'Unable to sign out. Check your connection and try again.';
+      setLogoutError(message);
+      notify(message);
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   return <div className="admin-root" id="overview">
     <aside className={`admin-sidebar${menuOpen ? ' admin-sidebar-open' : ''}`}>
@@ -116,8 +156,22 @@ export default function AdminDashboard() {
       <div className="admin-sidebar-spacer" />
       <div className="admin-sidebar-note"><span className="admin-help-icon"><CircleHelp size={16} /></span><span><strong>Need a hand?</strong><small>Visit the help centre</small></span><ArrowRight size={14} /></div>
       <a className="admin-nav-link admin-settings-link" href="#settings" onClick={() => { setActiveNav('Settings'); setMenuOpen(false); }}><Settings size={17} strokeWidth={1.8} /><span>Settings</span></a>
-      <div className="admin-user-card"><span className="admin-user-avatar">FA</span><span><strong>Foundation Admin</strong><small>Administrator</small></span><MoreHorizontal size={18} /></div>
-      <div className="admin-sidebar-foot">GSDD FOUNDATION <span>•</span> ADMIN PREVIEW</div>
+      <div className="admin-user-card">
+        <span className="admin-user-avatar">FA</span>
+        <span><strong>Foundation Admin</strong><small>Administrator</small></span>
+        <button
+          className="admin-icon-button"
+          type="button"
+          onClick={handleLogout}
+          disabled={loggingOut}
+          aria-label="Sign out"
+          title="Sign out"
+          style={{ marginLeft: 'auto', color: '#aab3c7', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}
+        >
+          {loggingOut ? <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} /> : <LogOut size={17} />}
+        </button>
+      </div>
+      <div className="admin-sidebar-foot">GSDD FOUNDATION <span>•</span> ADMIN OPERATIONS</div>
     </aside>
 
     <main className="admin-main">
@@ -130,16 +184,37 @@ export default function AdminDashboard() {
             {notificationsOpen && <div className="admin-notification-popover"><div><strong>Notifications</strong><button type="button" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications"><X size={15} /></button></div><p><span className="admin-notice-dot" /><span><b>Report review due</b><small>Education Centre · 2 hours ago</small></span></p><p><span className="admin-notice-dot admin-notice-dot-gold" /><span><b>New volunteer application</b><small>Community outreach · Yesterday</small></span></p><button className="admin-notifications-link" type="button" onClick={() => { setNotificationsOpen(false); notify('You’re viewing all sample notifications.'); }}>View all notifications <ArrowRight size={13} /></button></div>}
           </div>
           <a className="admin-view-site" href="/" target="_blank" rel="noreferrer">View website <ArrowUpRight size={14} /></a>
+          <button
+            className="admin-button admin-button-outline"
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            aria-busy={loggingOut}
+            title="Sign out of administration dashboard"
+          >
+            {loggingOut ? (
+              <>
+                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                <span>Signing out…</span>
+              </>
+            ) : (
+              <>
+                <LogOut size={14} />
+                <span>Sign out</span>
+              </>
+            )}
+          </button>
         </div>
       </header>
 
       <div className="admin-content">
         <section className="admin-welcome">
           <div><p className="admin-date"><CalendarDays size={14} /> {formatToday()}</p><h1>Good morning, team <span>✦</span></h1><p className="admin-welcome-copy">Here’s what’s happening across your foundation.</p></div>
-          <div className="admin-welcome-actions"><span className="admin-sync-status"><i /> Sample overview</span><button className="admin-button admin-button-primary" type="button" onClick={() => setDialogOpen(true)}><Plus size={16} /> New program</button></div>
+          <div className="admin-welcome-actions"><span className="admin-sync-status"><i /> Sample overview · Live gallery</span><button className="admin-button admin-button-primary" type="button" onClick={() => setDialogOpen(true)}><Plus size={16} /> New program</button></div>
         </section>
 
-        {showPreviewNotice && <div className="admin-preview-banner"><span className="admin-preview-symbol">i</span><p><strong>Dashboard preview</strong><span>All figures are illustrative sample data. No live donations, beneficiary records, or admin actions are connected.</span></p><button type="button" onClick={() => setShowPreviewNotice(false)} aria-label="Dismiss preview notice"><X size={15} /></button></div>}
+        {showPreviewNotice && <div className="admin-preview-banner"><span className="admin-preview-symbol">i</span><p><strong>Dashboard preview</strong><span>Overview metrics, programs, and donation records are illustrative sample data. The Media Gallery is live and connected to active storage.</span></p><button type="button" onClick={() => setShowPreviewNotice(false)} aria-label="Dismiss preview notice"><X size={15} /></button></div>}
+        {logoutError && <div className="admin-preview-banner" role="alert" style={{ borderColor: '#fca5a5', background: '#fef2f2', color: '#991b1b', marginBottom: 16 }}><span className="admin-preview-symbol" style={{ background: '#ef4444', color: '#fff' }}>!</span><p><strong>Sign out notice</strong><span>{logoutError}</span></p></div>}
 
         <section className="admin-metrics" id="impact" aria-label="Foundation overview statistics">
           <article className="admin-metric-card"><div className="admin-metric-top"><span>Active programs</span><span className="admin-metric-icon admin-icon-blue"><FolderKanban size={17} /></span></div><div className="admin-metric-value">08 <span className="admin-metric-delta admin-delta-neutral">across 4 focus areas</span></div><div className="admin-metric-bottom"><span className="admin-mini-progress"><i style={{ width: '69%' }} /></span><span>5 on track</span></div></article>
@@ -172,6 +247,8 @@ export default function AdminDashboard() {
           <div className="admin-table-footer"><span>Showing <strong>{filteredPrograms.length}</strong> of <strong>{programs.length}</strong> sample programs</span><button className="admin-text-link" type="button" onClick={() => { setQuery(''); notify('Showing all sample programs.'); }}>View all programs <ArrowRight size={14} /></button></div>
         </section>
 
+        <GalleryManager />
+
         <section className="admin-bottom-grid">
           <article className="admin-panel admin-events-panel" id="events">
             <div className="admin-panel-heading"><div><p className="admin-eyebrow">COMING UP</p><h2>Upcoming activities</h2></div><button className="admin-text-link" type="button" onClick={() => { setActiveNav('Events'); notify('Showing sample events.'); }}>All events <ArrowRight size={14} /></button></div>
@@ -192,7 +269,7 @@ export default function AdminDashboard() {
           </article>
         </section>
 
-        <footer className="admin-footer"><span>GSDD Foundation <b>·</b> Internal dashboard preview</span><span>Sample data only <i /> Built for better community outcomes</span></footer>
+        <footer className="admin-footer"><span>GSDD Foundation <b>·</b> Internal dashboard</span><span>Sample overview data <i /> Live Media Gallery</span></footer>
       </div>
     </main>
     {dialogOpen && <NewProgramDialog onClose={() => setDialogOpen(false)} onSave={createProgram} />}

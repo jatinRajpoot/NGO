@@ -111,10 +111,21 @@ export default function LanguageProvider({ children }) {
 
   useEffect(() => {
     try {
-      if (window.localStorage.getItem('gsdd-language') === 'hi') setLanguageState('hi');
+      const stored = window.localStorage.getItem('gsdd-language');
+      if (stored === 'hi') setLanguageState('hi');
+      else if (stored === 'en') setLanguageState('en');
     } catch {
       // Keep English as the default when storage is unavailable.
     }
+
+    function handleStorage(event) {
+      if (event.key !== 'gsdd-language' || (event.newValue !== 'en' && event.newValue !== 'hi')) return;
+      setLanguageState(event.newValue);
+    }
+
+    // Follow language changes made in other tabs so every tab stays in step.
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
   useEffect(() => {

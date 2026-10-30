@@ -1,8 +1,30 @@
 node_modules
 .next
+out
+coverage
 .git
 .github
+.vscode
+.idea
 .env
 .env.*
 *.log
 AGENTS.md
+README.md
+.data
+tests
+docs
+scripts
+Media
+sites-release
+sites-release-*.tar.gz
+*.tar.gz
+project-scope.html
+extracted_content.txt
+WEBSITE CONTENT.docx
+WhatsApp Image *.jpeg
+.agents
+.openai
+.sites-admin-worktree
+.sites-remote-check
+NUL
