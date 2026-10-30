@@ -3,6 +3,7 @@ import { ArrowRight, HandHeart, UsersRound } from 'lucide-react';
 import PageHero from '../components/PageHero';
 import { VolunteerForm } from '../components/InquiryForm';
 import { organization, socialLinks } from '../data/site-data';
+import { SocialIcon } from '../components/SocialIcons';
 
 export const metadata = {
   title: 'Get Involved | GSDD Foundation',
@@ -27,7 +28,27 @@ export default function GetInvolvedPage() {
     <section className="section-pad community-section" id="community">
       <div className="container">
         <div className="section-heading section-heading-row"><div><p className="eyebrow"><span /> Join our digital community</p><h2>Stay connected with GSDD.</h2></div><p>Follow the foundation’s official channels for announcements and updates.</p></div>
-        <div className="social-card-grid">{socialLinks.map((social, index) => <a href={social.href} target="_blank" rel="noreferrer" className="social-card" key={social.label}><span>{String(index + 1).padStart(2, '0')}</span><strong>{social.label}</strong><ArrowRight size={16} aria-hidden="true" /></a>)}</div>
+        <div className="social-card-grid">
+          {socialLinks.map((social) => (
+            <a
+              href={social.href}
+              target="_blank"
+              rel="noreferrer"
+              className={`social-card social-card-${social.platform}`}
+              key={social.label}
+              style={{ '--brand-color': social.color }}
+            >
+              <span className="social-card-icon">
+                <SocialIcon platform={social.platform} size={22} />
+              </span>
+              <div className="social-card-info">
+                <strong>{social.label}</strong>
+                <small>{social.handle || 'Official Profile'}</small>
+              </div>
+              <ArrowRight size={16} aria-hidden="true" className="social-card-arrow" />
+            </a>
+          ))}
+        </div>
         <div className="involved-bottom"><HandHeart size={24} aria-hidden="true" /><p>Want to support the mission financially? Contact the foundation for official donation instructions and receipt information.</p><Link href="/donate">Contribution information <ArrowRight size={15} aria-hidden="true" /></Link></div>
       </div>
     </section>

@@ -4,6 +4,7 @@ import { ArrowRight, MapPin } from 'lucide-react';
 import PageHero from '../components/PageHero';
 import ProjectGallery from '../components/ProjectGallery';
 import { projects } from '../data/site-data';
+import { YouTubeIcon, InstagramIcon } from '../components/SocialIcons';
 
 export const metadata = {
   title: 'Projects & Activities | GSDD Foundation',
@@ -28,7 +29,14 @@ export default function ProjectsPage() {
       <div className="container">
         <div className="section-heading section-heading-row"><div><p className="eyebrow"><span /> Moments of transformation</p><h2>Focus areas in pictures.</h2></div><p>Browse illustrative images by program theme, then follow official channels for GSDD Foundation updates.</p></div>
         <ProjectGallery />
-        <div className="gallery-social-links"><a href="https://www.youtube.com/@gsddfoundation" target="_blank" rel="noreferrer">Official YouTube updates <ArrowRight size={15} aria-hidden="true" /></a><a href="https://www.instagram.com/gsddfoundation" target="_blank" rel="noreferrer">Official Instagram <ArrowRight size={15} aria-hidden="true" /></a></div>
+        <div className="gallery-social-links">
+          <a href="https://www.youtube.com/@gsddfoundation" target="_blank" rel="noreferrer" className="gallery-social-btn gallery-social-youtube">
+            <YouTubeIcon size={18} className="social-icon-youtube" /> Official YouTube Updates <ArrowRight size={15} aria-hidden="true" />
+          </a>
+          <a href="https://www.instagram.com/gsddfoundation" target="_blank" rel="noreferrer" className="gallery-social-btn gallery-social-instagram">
+            <InstagramIcon size={18} className="social-icon-instagram" /> Official Instagram Updates <ArrowRight size={15} aria-hidden="true" />
+          </a>
+        </div>
       </div>
     </section>
   </>;

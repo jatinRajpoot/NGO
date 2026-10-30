@@ -16,14 +16,14 @@ export const organization = {
 };
 
 export const socialLinks = [
-  { label: 'WhatsApp Channel', href: 'https://whatsapp.com/channel/0029VbDI7zjElagzRp0vTp0t' },
-  { label: 'Telegram', href: 'https://web.telegram.org/gsddfoundation/' },
-  { label: 'YouTube', href: 'https://www.youtube.com/@gsddfoundation' },
-  { label: 'LinkedIn', href: 'https://www.linkedin.com/company/gsddfoundation/' },
-  { label: 'Facebook', href: 'https://www.facebook.com/gsddfoundation' },
-  { label: 'Instagram', href: 'https://www.instagram.com/gsddfoundation' },
-  { label: 'X', href: 'https://x.com/gsddfoundation' },
-  { label: 'Snapchat', href: 'https://www.snapchat.com/@gsddfoundation' },
+  { label: 'WhatsApp Channel', platform: 'whatsapp', href: 'https://whatsapp.com/channel/0029VbDI7zjElagzRp0vTp0t', color: '#25D366', handle: 'GSDD Channel' },
+  { label: 'Telegram', platform: 'telegram', href: 'https://web.telegram.org/gsddfoundation/', color: '#229ED9', handle: '@gsddfoundation' },
+  { label: 'YouTube', platform: 'youtube', href: 'https://www.youtube.com/@gsddfoundation', color: '#FF0000', handle: '@gsddfoundation' },
+  { label: 'LinkedIn', platform: 'linkedin', href: 'https://www.linkedin.com/company/gsddfoundation/', color: '#0A66C2', handle: 'gsddfoundation' },
+  { label: 'Facebook', platform: 'facebook', href: 'https://www.facebook.com/gsddfoundation', color: '#1877F2', handle: 'gsddfoundation' },
+  { label: 'Instagram', platform: 'instagram', href: 'https://www.instagram.com/gsddfoundation', color: '#E4405F', handle: '@gsddfoundation' },
+  { label: 'X', platform: 'x', href: 'https://x.com/gsddfoundation', color: '#0F1419', handle: '@gsddfoundation' },
+  { label: 'Snapchat', platform: 'snapchat', href: 'https://www.snapchat.com/@gsddfoundation', color: '#FFFC00', handle: '@gsddfoundation' },
 ];
 
 export const coreAreas = [
