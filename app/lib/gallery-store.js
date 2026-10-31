@@ -149,6 +149,7 @@ function createEmptyManifest() {
     version: 1,
     uploaded: [],
     hiddenOriginals: [],
+    customizedOriginals: [],
   };
 }
 
@@ -160,6 +161,7 @@ function normalizeManifest(data) {
     version: 1,
     uploaded: data.uploaded,
     hiddenOriginals: data.hiddenOriginals,
+    customizedOriginals: Array.isArray(data.customizedOriginals) ? data.customizedOriginals : [],
   };
 }
 
@@ -428,8 +430,9 @@ async function writeLocalManifestAtomic(dataDir, manifest) {
 // Seed Original Photos
 // -----------------------------------------------------------------------------
 
-async function listOriginalPhotos(hiddenOriginals) {
+async function listOriginalPhotos(hiddenOriginals, customizedOriginals = []) {
   const hiddenSet = new Set(Array.isArray(hiddenOriginals) ? hiddenOriginals : []);
+  const customMap = new Map((Array.isArray(customizedOriginals) ? customizedOriginals : []).map((c) => [c.id, c]));
   const mediaDir = path.join(process.cwd(), 'public', 'media', 'gallery');
 
   let entries;
@@ -459,11 +462,15 @@ async function listOriginalPhotos(hiddenOriginals) {
       year: 'numeric',
     });
 
+    const custom = customMap.get(name);
+    const effectiveDate = custom?.date && parseDateString(custom.date) ? custom.date : dateKey;
+    const effectiveAlt = custom?.alt && typeof custom.alt === 'string' ? custom.alt : `Gallery photograph from ${dateLabel}`;
+
     originals.push({
       id: name,
       src: `/media/gallery/${name}`,
-      alt: `Gallery photograph from ${dateLabel}`,
-      date: dateKey,
+      alt: effectiveAlt,
+      date: effectiveDate,
     });
   }
 
@@ -552,7 +559,7 @@ export async function listGalleryPhotos() {
     }
   }
 
-  const originals = await listOriginalPhotos(manifest.hiddenOriginals);
+  const originals = await listOriginalPhotos(manifest.hiddenOriginals, manifest.customizedOriginals);
 
   const uploaded = [];
   const seenIds = new Set();
@@ -887,3 +894,246 @@ export async function readGalleryImage(id) {
     }
   }
 }
+
+/**
+ * Update an existing photograph's metadata (alt text, date) and/or image content.
+ * Supports both uploaded photos and original seed photos.
+ *
+ * @param {{
+ *   id: string,
+ *   alt?: string,
+ *   date?: string,
+ *   buffer?: Buffer | Uint8Array,
+ *   contentType?: string,
+ *   extension?: string,
+ * }} params
+ * @returns {Promise<{ id: string, src: string, alt: string, date: string } | null>}
+ */
+export async function updateGalleryPhoto({ id, alt, date, buffer, contentType, extension } = {}) {
+  if (isProductionWithoutBucket()) {
+    throw new Error('Gallery mutations are disabled: storage bucket is not configured in production');
+  }
+
+  const normalizedId = normalizeImageId(id);
+  if (!normalizedId) return null;
+
+  let cleanAlt = undefined;
+  if (alt !== undefined) {
+    cleanAlt = normalizeAltText(alt);
+    if (cleanAlt.length === 0 || cleanAlt.length > MAX_ALT_LENGTH || CONTROL_CHARACTER_PATTERN.test(cleanAlt)) {
+      throw new Error('Invalid gallery photograph: description is required and must be 300 characters or fewer');
+    }
+  }
+
+  let cleanDate = undefined;
+  if (date !== undefined) {
+    cleanDate = validateDateString(date);
+  }
+
+  let rawBuffer = null;
+  let canonicalContentType = null;
+  let cleanExtension = null;
+  if (buffer) {
+    if (!Buffer.isBuffer(buffer) && !(buffer instanceof Uint8Array)) {
+      throw new Error('Invalid gallery photograph: image data is required');
+    }
+    rawBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+    if (rawBuffer.length === 0 || rawBuffer.length > MAX_IMAGE_BYTES) {
+      throw new Error('Invalid gallery photograph: image must be between 1 byte and 10 MiB');
+    }
+    const cleanCt = typeof contentType === 'string' ? contentType.split(';')[0].trim().toLowerCase() : '';
+    cleanExtension = resolveExtension(extension, cleanCt);
+    canonicalContentType = CONTENT_TYPE_BY_EXTENSION[cleanExtension];
+    validateImageBuffer(rawBuffer, canonicalContentType);
+  }
+
+  const isOriginal =
+    ORIGINAL_FILENAME_PATTERN.test(normalizedId) &&
+    (await listOriginalPhotos([])).some((photo) => photo.id === normalizedId);
+
+  const bucket = getBucket();
+  if (bucket) {
+    return mutateManifestGcs(bucket, async (currentManifest) => {
+      const uploadedList = Array.isArray(currentManifest.uploaded) ? [...currentManifest.uploaded] : [];
+      const matchIndex = findUploadedIndex(uploadedList, normalizedId);
+
+      if (matchIndex !== -1) {
+        const existing = uploadedList[matchIndex];
+        let filename = existing.filename;
+        let oldFilenameToDelete = null;
+
+        if (rawBuffer) {
+          const newFilename = `${existing.id}.${cleanExtension}`;
+          const file = bucket.file(newFilename);
+          await file.save(rawBuffer, {
+            contentType: canonicalContentType,
+            resumable: false,
+            metadata: { cacheControl: 'no-store, max-age=0, must-revalidate' },
+          });
+          if (newFilename !== existing.filename) {
+            oldFilenameToDelete = existing.filename;
+            filename = newFilename;
+          }
+        }
+
+        const updatedRecord = {
+          ...existing,
+          filename,
+          src: `/api/gallery/images/${filename}`,
+          alt: cleanAlt !== undefined ? cleanAlt : existing.alt,
+          date: cleanDate !== undefined ? cleanDate : existing.date,
+          contentType: canonicalContentType || existing.contentType,
+          size: rawBuffer ? rawBuffer.length : existing.size,
+          updatedAt: new Date().toISOString(),
+        };
+
+        uploadedList[matchIndex] = updatedRecord;
+
+        if (oldFilenameToDelete) {
+          try {
+            await bucket.file(oldFilenameToDelete).delete({ ignoreNotFound: true });
+          } catch {}
+        }
+
+        const resultPhoto = {
+          id: existing.id,
+          src: updatedRecord.src,
+          alt: updatedRecord.alt,
+          date: updatedRecord.date,
+        };
+
+        return {
+          updatedManifest: { ...currentManifest, uploaded: uploadedList },
+          result: resultPhoto,
+        };
+      }
+
+      if (isOriginal) {
+        const customizedList = Array.isArray(currentManifest.customizedOriginals)
+          ? [...currentManifest.customizedOriginals]
+          : [];
+        const existingIdx = customizedList.findIndex((c) => c.id === normalizedId);
+
+        const currentCustom = existingIdx !== -1 ? customizedList[existingIdx] : {};
+        const updatedCustom = {
+          id: normalizedId,
+          alt: cleanAlt !== undefined ? cleanAlt : (currentCustom.alt || `Gallery photograph from ${normalizedId}`),
+          date: cleanDate !== undefined ? cleanDate : (currentCustom.date || '2026-10-24'),
+          updatedAt: new Date().toISOString(),
+        };
+
+        if (existingIdx !== -1) {
+          customizedList[existingIdx] = updatedCustom;
+        } else {
+          customizedList.push(updatedCustom);
+        }
+
+        return {
+          updatedManifest: { ...currentManifest, customizedOriginals: customizedList },
+          result: {
+            id: normalizedId,
+            src: `/media/gallery/${normalizedId}`,
+            alt: updatedCustom.alt,
+            date: updatedCustom.date,
+          },
+        };
+      }
+
+      return { updatedManifest: currentManifest, result: null };
+    });
+  } else {
+    return withLocalLock(async () => {
+      const dataDir = getLocalDataDir();
+      await mkdir(dataDir, { recursive: true });
+      const currentManifest = await readLocalManifest(dataDir);
+      const uploadedList = Array.isArray(currentManifest.uploaded) ? [...currentManifest.uploaded] : [];
+      const matchIndex = findUploadedIndex(uploadedList, normalizedId);
+
+      if (matchIndex !== -1) {
+        const existing = uploadedList[matchIndex];
+        let filename = existing.filename;
+        let oldFilenameToDelete = null;
+
+        if (rawBuffer) {
+          const newFilename = `${existing.id}.${cleanExtension}`;
+          const targetFilePath = path.join(dataDir, newFilename);
+          const tempFilePath = path.join(dataDir, `${newFilename}.tmp.${randomUUID()}`);
+          await writeFile(tempFilePath, rawBuffer);
+          await rename(tempFilePath, targetFilePath);
+
+          if (newFilename !== existing.filename) {
+            oldFilenameToDelete = path.join(dataDir, existing.filename);
+            filename = newFilename;
+          }
+        }
+
+        const updatedRecord = {
+          ...existing,
+          filename,
+          src: `/api/gallery/images/${filename}`,
+          alt: cleanAlt !== undefined ? cleanAlt : existing.alt,
+          date: cleanDate !== undefined ? cleanDate : existing.date,
+          contentType: canonicalContentType || existing.contentType,
+          size: rawBuffer ? rawBuffer.length : existing.size,
+          updatedAt: new Date().toISOString(),
+        };
+
+        uploadedList[matchIndex] = updatedRecord;
+
+        const updatedManifest = { ...currentManifest, uploaded: uploadedList };
+        await writeLocalManifestAtomic(dataDir, updatedManifest);
+
+        if (oldFilenameToDelete) {
+          try {
+            await unlink(oldFilenameToDelete);
+          } catch (err) {
+            if (!isNotFoundError(err)) {
+              console.error('Gallery: failed to clean up old image file', err);
+            }
+          }
+        }
+
+        return {
+          id: existing.id,
+          src: updatedRecord.src,
+          alt: updatedRecord.alt,
+          date: updatedRecord.date,
+        };
+      }
+
+      if (isOriginal) {
+        const customizedList = Array.isArray(currentManifest.customizedOriginals)
+          ? [...currentManifest.customizedOriginals]
+          : [];
+        const existingIdx = customizedList.findIndex((c) => c.id === normalizedId);
+
+        const currentCustom = existingIdx !== -1 ? customizedList[existingIdx] : {};
+        const updatedCustom = {
+          id: normalizedId,
+          alt: cleanAlt !== undefined ? cleanAlt : (currentCustom.alt || `Gallery photograph from ${normalizedId}`),
+          date: cleanDate !== undefined ? cleanDate : (currentCustom.date || '2026-10-24'),
+          updatedAt: new Date().toISOString(),
+        };
+
+        if (existingIdx !== -1) {
+          customizedList[existingIdx] = updatedCustom;
+        } else {
+          customizedList.push(updatedCustom);
+        }
+
+        const updatedManifest = { ...currentManifest, customizedOriginals: customizedList };
+        await writeLocalManifestAtomic(dataDir, updatedManifest);
+
+        return {
+          id: normalizedId,
+          src: `/media/gallery/${normalizedId}`,
+          alt: updatedCustom.alt,
+          date: updatedCustom.date,
+        };
+      }
+
+      return null;
+    });
+  }
+}
+

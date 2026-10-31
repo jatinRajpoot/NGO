@@ -9,6 +9,7 @@ import {
   addGalleryPhoto,
   listGalleryPhotos,
   removeGalleryPhoto,
+  updateGalleryPhoto,
 } from '../../../lib/gallery-store';
 
 export const runtime = 'nodejs';
@@ -390,3 +391,191 @@ export async function DELETE(request) {
     return failure(503, 'storage_error');
   }
 }
+
+export async function PATCH(request) {
+  if (!isSameOrigin(request)) {
+    return failure(403, 'forbidden_origin');
+  }
+
+  const isAuth = await requireAdminSession();
+  if (!isAuth) {
+    return failure(401, 'unauthorized');
+  }
+
+  if (hasJsonContentType(request)) {
+    const readResult = await readBodyBytes(request, MAX_JSON_BYTES);
+    if (!readResult.ok) {
+      return failure(readResult.status, readResult.error);
+    }
+
+    let data;
+    try {
+      data = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(readResult.buffer));
+    } catch {
+      return failure(400, 'invalid_json');
+    }
+
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return failure(400, 'invalid_body');
+    }
+
+    const { id, alt, date } = data;
+    if (typeof id !== 'string' || id.trim().length === 0 || id.length > 256) {
+      return failure(400, 'invalid_id');
+    }
+    const cleanId = id.trim();
+
+    if (alt !== undefined) {
+      const cleanAlt = typeof alt === 'string' ? alt.replace(/\s+/g, ' ').trim() : '';
+      if (cleanAlt.length === 0 || cleanAlt.length > MAX_ALT_LENGTH || CONTROL_CHARACTER_PATTERN.test(cleanAlt)) {
+        return failure(400, 'invalid_alt');
+      }
+    }
+
+    if (date !== undefined) {
+      if (typeof date !== 'string' || !isValidCalendarDate(date.trim())) {
+        return failure(400, 'invalid_date');
+      }
+    }
+
+    try {
+      const photo = await updateGalleryPhoto({
+        id: cleanId,
+        alt: alt !== undefined ? alt.trim() : undefined,
+        date: date !== undefined ? date.trim() : undefined,
+      });
+
+      if (!photo) {
+        return failure(404, 'not_found');
+      }
+
+      return send({ ok: true, photo }, 200);
+    } catch (err) {
+      console.error('Gallery: failed to update photo', err);
+      return failure(503, 'storage_error');
+    }
+  } else if (isMultipartContentType(request)) {
+    const readResult = await readBodyBytes(request, MAX_MULTIPART_BYTES);
+    if (!readResult.ok) {
+      return failure(readResult.status, readResult.error);
+    }
+
+    let formData;
+    try {
+      const parsedResponse = new Response(readResult.buffer, {
+        headers: { 'content-type': request.headers.get('content-type') },
+      });
+      formData = await parsedResponse.formData();
+    } catch {
+      return failure(400, 'invalid_multipart_body');
+    }
+
+    const rawId = formData.get('id');
+    if (typeof rawId !== 'string' || rawId.trim().length === 0 || rawId.length > 256) {
+      return failure(400, 'invalid_id');
+    }
+    const cleanId = rawId.trim();
+
+    const rawAlt = formData.get('alt');
+    let cleanAlt;
+    if (rawAlt !== null && rawAlt !== undefined) {
+      if (typeof rawAlt !== 'string') return failure(400, 'invalid_alt');
+      cleanAlt = rawAlt.replace(/\s+/g, ' ').trim();
+      if (cleanAlt.length === 0 || cleanAlt.length > MAX_ALT_LENGTH || CONTROL_CHARACTER_PATTERN.test(cleanAlt)) {
+        return failure(400, 'invalid_alt');
+      }
+    }
+
+    const rawDate = formData.get('date');
+    let cleanDate;
+    if (rawDate !== null && rawDate !== undefined) {
+      if (typeof rawDate !== 'string' || !isValidCalendarDate(rawDate.trim())) {
+        return failure(400, 'invalid_date');
+      }
+      cleanDate = rawDate.trim();
+    }
+
+    const file = formData.get('file');
+    let fileBuffer;
+    let canonicalContentType;
+    let canonicalExt;
+
+    if (file && typeof file === 'object' && typeof file.arrayBuffer === 'function' && file.size > 0) {
+      if (file.size > MAX_FILE_BYTES) {
+        return failure(413, 'file_too_large');
+      }
+      try {
+        fileBuffer = Buffer.from(await file.arrayBuffer());
+      } catch {
+        return failure(400, 'file_read_error');
+      }
+      if (fileBuffer.length > MAX_FILE_BYTES) {
+        return failure(413, 'file_too_large');
+      }
+
+      const detectedFormat = detectImageFormat(fileBuffer);
+      if (!detectedFormat) {
+        return failure(400, 'invalid_image_format');
+      }
+
+      const rawMime = typeof file.type === 'string' ? file.type.split(';')[0].trim().toLowerCase() : '';
+      const filename = typeof file.name === 'string' ? file.name.trim() : '';
+      const extMatch = filename.match(/\.([a-z0-9]+)$/i);
+      const fileExt = extMatch ? extMatch[1].toLowerCase() : '';
+
+      if (detectedFormat === 'jpeg') {
+        if (rawMime && rawMime !== 'image/jpeg' && rawMime !== 'image/jpg') {
+          return failure(400, 'mismatched_content_type');
+        }
+        if (fileExt && fileExt !== 'jpg' && fileExt !== 'jpeg') {
+          return failure(400, 'mismatched_extension');
+        }
+        canonicalContentType = 'image/jpeg';
+        canonicalExt = fileExt === 'jpeg' ? 'jpeg' : 'jpg';
+      } else if (detectedFormat === 'png') {
+        if (rawMime && rawMime !== 'image/png') {
+          return failure(400, 'mismatched_content_type');
+        }
+        if (fileExt && fileExt !== 'png') {
+          return failure(400, 'mismatched_extension');
+        }
+        canonicalContentType = 'image/png';
+        canonicalExt = 'png';
+      } else if (detectedFormat === 'webp') {
+        if (rawMime && rawMime !== 'image/webp') {
+          return failure(400, 'mismatched_content_type');
+        }
+        if (fileExt && fileExt !== 'webp') {
+          return failure(400, 'mismatched_extension');
+        }
+        canonicalContentType = 'image/webp';
+        canonicalExt = 'webp';
+      } else {
+        return failure(400, 'unsupported_image_format');
+      }
+    }
+
+    try {
+      const photo = await updateGalleryPhoto({
+        id: cleanId,
+        alt: cleanAlt,
+        date: cleanDate,
+        buffer: fileBuffer,
+        contentType: canonicalContentType,
+        extension: canonicalExt,
+      });
+
+      if (!photo) {
+        return failure(404, 'not_found');
+      }
+
+      return send({ ok: true, photo }, 200);
+    } catch (err) {
+      console.error('Gallery: failed to update photo', err);
+      return failure(503, 'storage_error');
+    }
+  } else {
+    return failure(400, 'invalid_content_type');
+  }
+}
+
