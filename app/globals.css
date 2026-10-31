@@ -339,7 +339,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .credentials-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 11px; }
 .credential-card { display: flex; min-height: 112px; align-items: flex-start; gap: 13px; padding: 18px; background: #FCFBF9; border: 1px solid #EAE6DE; border-radius: 7px; }
 .credential-icon { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; color: var(--gsdd-blue-primary); background: #EAF0FA; border-radius: 8px; }
-.credential-icon-green { color: var(--gsdd-verified-green); background: #EAF6ED; }
+.credential-icon-green, .credential-icon-emphasis { color: var(--gsdd-verified-green); background: #EAF6ED; }
 .credential-card > div { display: grid; gap: 3px; }
 .credential-card p { margin: 0; color: var(--gsdd-text-muted); font-size: 10px; font-weight: 600; }
 .credential-card strong { color: var(--gsdd-navy-dark); font-size: 14px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
