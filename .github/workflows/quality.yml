@@ -1,0 +1,134 @@
+name: Quality checks
+
+# Read-only verification. This workflow never authenticates to Google Cloud,
+# builds no deployable artifact, and does not modify the Cloud Run service.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  build:
+    name: Build, test, and dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Audit dependencies
+        run: npm audit --omit=dev
+
+      - name: Run source checks
+        run: npm run check
+
+      - name: Run admin integration tests
+        run: npm run test:admin
+
+      - name: Run storage regression tests
+        run: npm run test:storage
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Run public smoke tests
+        run: npm run test:public
+
+  container:
+    name: Container build, scan, and smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build runtime image
+        run: docker build --tag ngo-app:ci .
+
+      - name: Verify image runs unprivileged without npm
+        run: |
+          set -euo pipefail
+          uid="$(docker run --rm --entrypoint id ngo-app:ci -u)"
+          echo "Container uid: ${uid}"
+          test "${uid}" != "0"
+          if docker run --rm --entrypoint sh ngo-app:ci -c 'command -v npm || command -v npx || command -v corepack'; then
+            echo "::error::Runtime image must not ship npm, npx, or corepack"
+            exit 1
+          fi
+
+      # Third-party action pinned to the v0.36.0 commit.
+      - name: Scan image for critical vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ngo-app:ci
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL
+
+      - name: Start container
+        run: |
+          docker run --detach --name app --publish 8080:8080 \
+            --env GALLERY_BUCKET= ngo-app:ci
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --output /dev/null http://127.0.0.1:8080/; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Container did not become ready within 60 seconds"
+          docker logs app
+          exit 1
+
+      - name: Assert security headers and rendered content
+        run: |
+          set -euo pipefail
+          headers="$(curl --fail --silent --show-error --dump-header - --output "${RUNNER_TEMP}/body.html" http://127.0.0.1:8080/)"
+          echo "${headers}"
+          grep -qi '^x-content-type-options: nosniff' <<<"${headers}"
+          grep -qi '^x-frame-options: DENY' <<<"${headers}"
+          grep -qi '^referrer-policy: strict-origin-when-cross-origin' <<<"${headers}"
+          grep -qi '^content-security-policy: .*frame-ancestors' <<<"${headers}"
+          grep -qi '^strict-transport-security: max-age=31536000' <<<"${headers}"
+          if grep -qi '^x-powered-by:' <<<"${headers}"; then
+            echo "::error::x-powered-by must not be exposed"
+            exit 1
+          fi
+          grep -qi 'gsdd foundation' "${RUNNER_TEMP}/body.html"
+
+      # Proves the unprivileged user can write .next/cache and that sharp is
+      # present in the Linux dependency tree.
+      - name: Verify image optimizer works as the runtime user
+        run: |
+          curl --fail --silent --show-error --output /dev/null \
+            "http://127.0.0.1:8080/_next/image?url=%2Fhero-bg.jpg&w=640&q=75"
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs app || true
+
+      - name: Stop container
+        if: always()
+        run: docker rm --force app || true

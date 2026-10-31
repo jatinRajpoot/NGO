@@ -5,12 +5,21 @@
   "scripts": {
     "dev": "node ./node_modules/next/dist/bin/next dev",
     "build": "next build",
-    "start": "node ./node_modules/next/dist/bin/next start"
+    "start": "node ./node_modules/next/dist/bin/next start",
+    "check": "node scripts/check-source.mjs",
+    "test:admin": "node tests/admin-gallery.integration.mjs",
+    "test:storage": "node tests/gallery-store.regression.mjs",
+    "test:profile": "node tests/admin-profile-and-image-edit.test.mjs",
+    "test:public": "node tests/public-pages.integration.mjs"
+  },
+  "overrides": {
+    "postcss": "8.5.32"
   },
   "dependencies": {
+    "@google-cloud/storage": "^8.4.0",
+    "lucide-react": "^1.0.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "lucide-react": "^1.0.0"
+    "react-dom": "^19.0.0"
   }
 }

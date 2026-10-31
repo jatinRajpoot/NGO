@@ -1,3 +1,11 @@
+## Deployment target
+
+Production runs on Google Cloud Run: project `aitryout-485605`, region `asia-south1`, service `gsdd-foundation`. Use `.github/workflows/deploy-cloud-run.yml` as the source of truth for deployment settings. It deploys on pushes to `main` and on manual `workflow_dispatch`; a push to `main` is a production deployment.
+
+The workflow authenticates with GitHub Actions Workload Identity Federation, builds and pushes an Artifact Registry image tagged with the commit SHA, then runs `gcloud run deploy`. `Dockerfile` builds with `npm ci` and `npm run build`, then runs `npm run start -- --hostname 0.0.0.0` on port 8080. Keep `next.config.mjs` compatible with the Next.js server runtime; this deployment does not use static export.
+
+Before any production deployment, check the workflow for current project, region, service, identity, and resource settings. Push to `main` or manually dispatch the workflow only when deployment is requested. Do not use ChatGPT Sites to host this repository; `.openai/hosting.json` is not the production deployment configuration.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

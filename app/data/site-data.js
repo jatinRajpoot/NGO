@@ -15,6 +15,60 @@ export const organization = {
   address: 'Dhak Bangla, Near Maa Ashawaar Mandir, Raniganj, NH 327E, Araria, Bihar, India',
 };
 
+export const sampleUpdates = [
+  {
+    id: 'community-learning',
+    image: '/media/community-learning.jpg',
+    imageAlt: {
+      en: 'Children and educators gathered in a classroom',
+      hi: 'कक्षा में साथ बैठे बच्चे और शिक्षक',
+    },
+    category: { en: 'Education', hi: 'शिक्षा' },
+    title: {
+      en: 'Community learning, one step at a time',
+      hi: 'सामुदायिक सीखने की एक नई शुरुआत',
+    },
+    summary: {
+      en: 'Dummy news example for the homepage preview. Replace with a verified story before publishing.',
+      hi: 'मुखपृष्ठ पूर्वावलोकन के लिए नमूना खबर। प्रकाशित करने से पहले सत्यापित जानकारी से बदलें।',
+    },
+  },
+  {
+    id: 'digital-awareness',
+    image: '/images/computer-lab.jpg',
+    imageAlt: {
+      en: 'Students learning together in a computer lab',
+      hi: 'कंप्यूटर लैब में साथ सीखते विद्यार्थी',
+    },
+    category: { en: 'Skills', hi: 'कौशल' },
+    title: {
+      en: 'Digital awareness, step by step',
+      hi: 'डिजिटल जागरूकता, एक-एक कदम',
+    },
+    summary: {
+      en: 'Dummy update example showing where a future digital-skills story could appear.',
+      hi: 'नमूना अपडेट, जो दिखाता है कि डिजिटल कौशल से जुड़ी खबर कहाँ दिखाई जा सकती है।',
+    },
+  },
+  {
+    id: 'women-skills',
+    image: '/media/women-workshop.jpg',
+    imageAlt: {
+      en: 'Women and children gathered at a community event',
+      hi: 'सामुदायिक कार्यक्रम में एकत्रित महिलाएँ और बच्चे',
+    },
+    category: { en: 'Community', hi: 'समुदाय' },
+    title: {
+      en: 'Women’s skills and livelihood ideas',
+      hi: 'महिलाओं के कौशल और आजीविका के विचार',
+    },
+    summary: {
+      en: 'Dummy news example for layout preview. Replace with a verified foundation update before publishing.',
+      hi: 'लेआउट पूर्वावलोकन के लिए नमूना खबर। प्रकाशित करने से पहले सत्यापित संस्था अपडेट से बदलें।',
+    },
+  },
+];
+
 export const socialLinks = [
   { label: 'WhatsApp Channel', href: 'https://whatsapp.com/channel/0029VbDI7zjElagzRp0vTp0t' },
   { label: 'Telegram', href: 'https://web.telegram.org/gsddfoundation/' },
@@ -113,39 +167,43 @@ export const aims = [
 export const projects = [
   {
     number: '01',
-    title: 'Gramin Digital Saksharta & Cyber Awareness Abhiyan',
+    slug: 'digital-literacy-and-cyber-awareness',
+    title: 'Digital Literacy & Cyber Awareness',
     area: 'Digital Empowerment',
-    location: 'Raniganj, Araria & adjoining rural blocks in Bihar',
-    objective: 'Bridge the rural digital divide with basic computer skills, smartphone safety, UPI and digital banking literacy, and online public service awareness.',
+    location: null,
+    objective: 'A concept for promoting digital literacy, safer technology use, and awareness of relevant digital services.',
     image: '/images/computer-lab.jpg',
-    cta: 'Sponsor a rural digital literacy batch',
+    cta: 'Discuss a possible digital literacy programme',
   },
   {
     number: '02',
-    title: 'Nari Kaushal & Aajeevika Kendra',
+    slug: 'womens-skills-and-livelihoods',
+    title: 'Women’s Skills & Livelihood Development',
     area: 'Women Empowerment',
-    location: 'Underserved rural and semi-urban clusters',
-    objective: 'Support tailoring, handicraft, digital entrepreneurship, and financial literacy skills that can promote self-employment and family dignity.',
+    location: null,
+    objective: 'A concept for supporting women’s skill development, livelihood awareness, and opportunities for greater self-reliance.',
     image: '/images/rural-woman.jpg',
-    cta: 'Support women’s skill training',
+    cta: 'Discuss possible skills support',
   },
   {
     number: '03',
-    title: 'Jan Kalyan & Sarkari Yojana Awareness Camps',
+    slug: 'public-services-awareness',
+    title: 'Public Services Awareness',
     area: 'Community & Public Services',
-    location: 'Panchayat-level helpdesks across Araria & Bihar',
-    objective: 'Share clear information about eligibility and application procedures for welfare schemes, scholarships, health cards, and social security benefits.',
+    location: null,
+    objective: 'A concept for helping people find clear information about public services and relevant welfare schemes.',
     image: '/images/rural-community.jpg',
-    cta: 'Partner for a village awareness camp',
+    cta: 'Discuss public services awareness',
   },
   {
     number: '04',
-    title: 'Swasth Samaj Preventive Health & Hygiene Drives',
+    slug: 'health-and-hygiene-awareness',
+    title: 'Preventive Health & Hygiene Awareness',
     area: 'Health Awareness',
-    location: 'Rural schools and community centers',
-    objective: 'Plan preventive health checkups, menstrual hygiene awareness, maternal nutrition guidance, and community sanitation activities.',
+    location: null,
+    objective: 'A concept for sharing health awareness, preventive care information, hygiene knowledge, and community well-being resources.',
     image: '/images/health-check.jpg',
-    cta: 'Fund a community health camp',
+    cta: 'Discuss health awareness work',
   },
 ];
 
@@ -153,7 +211,7 @@ export const credentials = [
   ['Corporate Identity Number (CIN)', organization.cin, 'Ministry of Corporate Affairs · Section 8 Company, Bihar'],
   ['NITI Aayog NGO Darpan ID', organization.darpan, 'NITI Aayog, Government of India'],
   ['Section 12A Registration', organization.tax12a, 'Income Tax Department of India'],
-  ['Section 80G Tax Exemption', organization.tax80g, 'Income Tax Department of India · 50% deduction as stated by the foundation'],
+  ['Section 80G identifier', organization.tax80g, 'Identifier supplied by the foundation; confirm current eligibility and documentation directly'],
   ['Permanent Account Number (PAN)', organization.pan, 'Income Tax Department of India'],
   ['Tax Deduction Account Number (TAN)', organization.tan, 'Income Tax Department of India'],
   ['MSME / Udyam Registration', organization.udyam, 'Ministry of Micro, Small & Medium Enterprises'],

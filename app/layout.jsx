@@ -1,7 +1,13 @@
 import './globals.css';
+import './mobile-layout.css';
+import './public-pages.css';
+import './classic-portal.css';
+import './redesign.css';
+import './admin/admin-dashboard.css';
 import { MessageCircle } from 'lucide-react';
 import SiteHeader from './components/SiteHeader';
 import SiteFooter from './components/SiteFooter';
+import LanguageProvider from './components/LanguageProvider';
 import { organization } from './data/site-data';
 
 const organizationSchema = {
@@ -51,9 +57,13 @@ export default function RootLayout({ children }) {
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema).replace(/</g, '\\u003c') }} />
         <a className="skip-link" href="#main">Skip to content</a>
-        <SiteHeader />
-        <main id="main">{children}</main>
-        <SiteFooter />
+        <LanguageProvider>
+          <div className="portal-wrapper">
+            <SiteHeader />
+            <main id="main">{children}</main>
+            <SiteFooter />
+          </div>
+        </LanguageProvider>
         <a className="floating-whatsapp" href="https://wa.me/919546752915" target="_blank" rel="noreferrer" aria-label="Chat with GSDD Foundation on WhatsApp"><MessageCircle size={21} aria-hidden="true" /><span>Chat with us</span></a>
       </body>
     </html>

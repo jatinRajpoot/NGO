@@ -1,56 +1,65 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowUpRight, Heart, Mail, MapPin, Phone } from 'lucide-react';
+import { ArrowUpRight, Mail, MapPin, Phone } from 'lucide-react';
 import { organization, socialLinks } from '../data/site-data';
 
+const usefulLinks = [
+  ['About us', '/about'],
+  ['Focus areas', '/core-areas'],
+  ['Projects', '/projects'],
+  ['Photo gallery', '/gallery'],
+  ['News & updates', '/news'],
+  ['Events', '/events'],
+  ['Membership', '/membership'],
+  ['Donate', '/donate'],
+  ['Contact us', '/contact'],
+  ['Transparency', '/transparency'],
+];
+
 export default function SiteFooter() {
-  return (
-    <footer className="site-footer">
-      <div className="footer-main container">
-        <div className="footer-brand-block">
-          <Link href="/" className="footer-brand">
-            <Image src="/logo.png" alt="" width={53} height={53} />
-            <span><strong>GSDD FOUNDATION</strong><small>GLOBAL SKILLS &amp; DIGITAL DEVELOPMENT FOUNDATION</small></span>
-          </Link>
-          <p>{organization.tagline}</p>
-          <p className="footer-legal-name">{organization.legalName}</p>
-          <Link className="button button-outline-light footer-cta" href="/get-involved"><Heart size={15} aria-hidden="true" /> Join the work</Link>
-        </div>
-        <div className="footer-links-column">
-          <h2>Explore</h2>
-          <Link href="/about">About the foundation</Link>
-          <Link href="/core-areas">Our core areas</Link>
-          <Link href="/work-sectors">12 work sectors</Link>
-          <Link href="/projects">Projects &amp; activities</Link>
-          <Link href="/transparency">Transparency</Link>
-        </div>
-        <div className="footer-links-column">
-          <h2>Connect</h2>
-          <a href={`mailto:${organization.email}`}><Mail size={14} aria-hidden="true" /> {organization.email}</a>
-          <a href={`tel:${organization.phoneHref}`}><Phone size={14} aria-hidden="true" /> {organization.phone}</a>
-          <span className="footer-address"><MapPin size={14} aria-hidden="true" /> {organization.address}</span>
-          <div className="footer-socials" aria-label="Social channels">
-            {socialLinks.map((social) => <a key={social.label} href={social.href} target="_blank" rel="noreferrer" aria-label={social.label}>{social.label}</a>)}
-          </div>
-        </div>
-        <div className="footer-links-column footer-compliance">
-          <h2>Transparency</h2>
-          <p>Registration details, governance documents and audit filings.</p>
-          <Link href="/transparency">See records and request documents <ArrowUpRight size={14} aria-hidden="true" /></Link>
-        </div>
+  return <footer className="site-footer redesigned-site-footer">
+    <div className="redesign-footer-contact">
+      <div className="home-container redesign-footer-contact-grid">
+        <div><MapPin size={20} aria-hidden="true" /><span><strong>Office address</strong><small>{organization.address}</small></span></div>
+        <div><Phone size={20} aria-hidden="true" /><span><strong>Contact with us</strong><a href={`tel:${organization.phoneHref}`}>{organization.phone}</a></span></div>
+        <div><Mail size={20} aria-hidden="true" /><span><strong>Email</strong><a href={`mailto:${organization.email}`}>{organization.email}</a></span></div>
       </div>
-      <div className="footer-bottom container">
+    </div>
+
+    <div className="home-container redesign-footer-main">
+      <div className="redesign-footer-about">
+        <Link href="/" className="footer-brand">
+          <Image src="/logo.png" alt="" width={52} height={52} />
+          <span><strong>GSDD FOUNDATION</strong><small>{organization.legalName}</small></span>
+        </Link>
+        <p>{organization.tagline}</p>
+        <p className="redesign-footer-location">A Section 8 organisation based in Raniganj, Araria, Bihar.</p>
+      </div>
+      <div className="redesign-footer-links">
+        <h2>Useful links</h2>
+        <div>{usefulLinks.map(([label, href]) => <Link href={href} key={href}>{label}</Link>)}</div>
+      </div>
+      <div className="redesign-footer-follow">
+        <h2>Follow us</h2>
+        <p>Connect with GSDD Foundation through our social channels.</p>
+        <div className="footer-socials" aria-label="Social channels">
+          {socialLinks.map((social) => <a key={social.label} href={social.href} target="_blank" rel="noreferrer">{social.label}<ArrowUpRight size={12} aria-hidden="true" /></a>)}
+        </div>
+        <Link className="redesign-footer-join" href="/get-involved">Get involved <ArrowUpRight size={15} aria-hidden="true" /></Link>
+      </div>
+    </div>
+
+    <div className="redesign-footer-bottom">
+      <div className="home-container redesign-footer-bottom-inner">
         <span>© {new Date().getFullYear()} {organization.legalName}</span>
+        <span>CIN {organization.cin} · NGO Darpan ID {organization.darpan}</span>
         <nav aria-label="Legal policies">
-          <Link href="/privacy-policy">Privacy</Link>
           <Link href="/terms">Terms</Link>
+          <Link href="/privacy-policy">Privacy</Link>
           <Link href="/refund-policy">Refund policy</Link>
         </nav>
-        <span>Raniganj, Araria, Bihar, India</span>
       </div>
-      <div className="photo-credit container">
-        Illustrative community photographs: <a href="https://unsplash.com/@haseebmodi" target="_blank" rel="noreferrer">Haseeb Modi</a>, <a href="https://unsplash.com/@vitgar" target="_blank" rel="noreferrer">Vitaly Gariev</a>, <a href="https://unsplash.com/@kedige" target="_blank" rel="noreferrer">Vasanth Kedige</a> and <a href="https://unsplash.com/@rohitdey" target="_blank" rel="noreferrer">Rohit Dey</a> via Unsplash.
-      </div>
-    </footer>
-  );
+    </div>
+    <p className="home-container redesign-photo-credit">Representative community imagery. Photo credits: <a href="https://unsplash.com/@haseebmodi" target="_blank" rel="noreferrer">Haseeb Modi</a>, <a href="https://unsplash.com/@vitgar" target="_blank" rel="noreferrer">Vitaly Gariev</a>, <a href="https://unsplash.com/@kedige" target="_blank" rel="noreferrer">Vasanth Kedige</a> and <a href="https://unsplash.com/@rohitdey" target="_blank" rel="noreferrer">Rohit Dey</a> via Unsplash. Images illustrate community themes and are not presented as records of foundation-led activities.</p>
+  </footer>;
 }

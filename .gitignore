@@ -26,6 +26,9 @@ yarn-error.log*
 .env*.local
 .env
 
+# local gallery uploads and manifest
+/.data/
+
 # vercel
 .vercel
 
