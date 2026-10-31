@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import {
   ArrowRight, ArrowUpRight, Bell, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp,
   FileText, FolderKanban, HandCoins, Image as ImageIcon, LayoutDashboard, Loader2, LogOut,
-  Megaphone, Menu, Settings, Users, X,
+  Megaphone, Menu, Settings, User, Users, X,
 } from 'lucide-react';
 import GalleryManager from './GalleryManager';
+import AdminProfile from './profile/AdminProfile';
 
 const sections = [
   {
@@ -89,11 +90,21 @@ const sections = [
     description: 'Manage the foundation profile, team access, and dashboard preferences.',
     features: ['Foundation profile and contact details', 'Team members and permissions', 'Notification preferences'],
   },
+  {
+    key: 'profile',
+    label: 'Profile',
+    group: 'Account',
+    icon: User,
+    title: 'Admin Profile',
+    description: 'Manage administrator details and reset your portal password.',
+    live: true,
+  },
 ];
 
 const navGroups = [
   { label: 'Workspace', keys: ['overview', 'programs', 'impact', 'donations'] },
   { label: 'Manage', keys: ['gallery', 'reports', 'campaigns', 'events'] },
+  { label: 'Account', keys: ['profile'] },
 ];
 
 const sectionByKey = Object.fromEntries(sections.map((section) => [section.key, section]));
@@ -211,9 +222,16 @@ export default function AdminDashboard() {
       <div className="admin-sidebar-spacer" />
       <div className="admin-sidebar-note"><span className="admin-help-icon"><CircleHelp size={16} /></span><span><strong>Need a hand?</strong><small>Visit the help centre</small></span><ArrowRight size={14} /></div>
       {renderNavLink(sectionByKey.settings, 'admin-settings-link')}
-      <div className="admin-user-card">
-        <span className="admin-user-avatar">FA</span>
-        <span><strong>Foundation Admin</strong><small>Administrator</small></span>
+      <div className={`admin-user-card${activeKey === 'profile' ? ' is-active' : ''}`}>
+        <button
+          type="button"
+          className="admin-user-card-main"
+          onClick={() => selectSection('profile')}
+          aria-label="View administrator profile and change password"
+        >
+          <span className="admin-user-avatar">FA</span>
+          <span><strong>Foundation Admin</strong><small>Administrator</small></span>
+        </button>
         <button
           className="admin-icon-button"
           type="button"
@@ -262,7 +280,8 @@ export default function AdminDashboard() {
       </header>
 
       <div className="admin-content">
-        {activeSection.live && <GalleryManager />}
+        {activeSection.key === 'gallery' && <GalleryManager />}
+        {activeSection.key === 'profile' && <AdminProfile onPasswordChanged={() => notify('Password updated successfully.')} />}
         {!activeSection.live && <section className="admin-welcome">
           <div>
             <p className="admin-date"><CalendarDays size={14} /> {formatToday()}</p>
@@ -272,12 +291,12 @@ export default function AdminDashboard() {
           <div className="admin-welcome-actions"><span className="admin-sync-status admin-sync-soon"><i /> Coming soon</span></div>
         </section>}
 
-        {showPreviewNotice && <div className="admin-preview-banner"><span className="admin-preview-symbol">i</span><p><strong>Dashboard preview</strong><span>Only the Media Gallery is live and connected to active storage. Every other section is marked coming soon.</span></p><button type="button" onClick={() => setShowPreviewNotice(false)} aria-label="Dismiss preview notice"><X size={15} /></button></div>}
+        {showPreviewNotice && <div className="admin-preview-banner"><span className="admin-preview-symbol">i</span><p><strong>Dashboard preview</strong><span>Media Gallery and Profile sections are live and connected to active storage. Other sections are marked coming soon.</span></p><button type="button" onClick={() => setShowPreviewNotice(false)} aria-label="Dismiss preview notice"><X size={15} /></button></div>}
         {logoutError && <div className="admin-preview-banner" role="alert" style={{ borderColor: '#fca5a5', background: '#fef2f2', color: '#991b1b', marginBottom: 16 }}><span className="admin-preview-symbol" style={{ background: '#ef4444', color: '#fff' }}>!</span><p><strong>Sign out notice</strong><span>{logoutError}</span></p></div>}
 
         {!activeSection.live && <ComingSoonSection section={activeSection} onOpenGallery={() => selectSection('gallery')} />}
 
-        <footer className="admin-footer"><span>GSDD Foundation <b>·</b> Internal dashboard</span><span>Live Media Gallery <i /> Other sections coming soon</span></footer>
+        <footer className="admin-footer"><span>GSDD Foundation <b>·</b> Internal dashboard</span><span>Live Media Gallery &amp; Profile <i /> Other sections coming soon</span></footer>
       </div>
     </main>
     {toast && <div className="admin-toast" role="status"><span><Check size={15} /></span>{toast}</div>}

@@ -13,6 +13,7 @@ import {
   X,
   Search,
   FileImage,
+  Pencil,
 } from 'lucide-react';
 import './gallery-manager.css';
 
@@ -293,6 +294,16 @@ export default function GalleryManager({ id = 'gallery', className = '' } = {}) 
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
+
+  // Edit (Modify) state
+  const [editingPhoto, setEditingPhoto] = useState(null);
+  const [editAlt, setEditAlt] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editFile, setEditFile] = useState(null);
+  const [editPreviewUrl, setEditPreviewUrl] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState(null);
+  const editFileInputRef = useRef(null);
 
   // Pagination & Search
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -676,6 +687,143 @@ export default function GalleryManager({ id = 'gallery', className = '' } = {}) 
       }
     }
   }
+
+  const openEditModal = (photo) => {
+    setEditingPhoto(photo);
+    setEditAlt(photo.alt || '');
+    setEditDate(photo.date || getTodayDateString());
+    setEditFile(null);
+    setEditPreviewUrl(photo.src || null);
+    setEditError(null);
+  };
+
+  const closeEditModal = () => {
+    if (editPreviewUrl && editPreviewUrl.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(editPreviewUrl);
+      } catch {}
+    }
+    setEditingPhoto(null);
+    setEditFile(null);
+    setEditPreviewUrl(null);
+    setEditError(null);
+    setSavingEdit(false);
+    if (editFileInputRef.current) editFileInputRef.current.value = '';
+  };
+
+  const handleEditFileSelection = async (selectedFile) => {
+    if (savingEdit) return;
+    setEditError(null);
+
+    if (!selectedFile) {
+      if (editPreviewUrl && editPreviewUrl.startsWith('blob:')) {
+        try {
+          URL.revokeObjectURL(editPreviewUrl);
+        } catch {}
+      }
+      setEditFile(null);
+      setEditPreviewUrl(editingPhoto ? editingPhoto.src : null);
+      if (editFileInputRef.current) editFileInputRef.current.value = '';
+      return;
+    }
+
+    const validation = await validateImageFile(selectedFile);
+    if (!validation.ok) {
+      setEditError(validation.error);
+      if (editFileInputRef.current) editFileInputRef.current.value = '';
+      return;
+    }
+
+    setEditFile(selectedFile);
+    try {
+      const url = URL.createObjectURL(selectedFile);
+      setEditPreviewUrl(url);
+    } catch {
+      setEditPreviewUrl(editingPhoto ? editingPhoto.src : null);
+    }
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingPhoto || savingEdit) return;
+
+    setEditError(null);
+
+    const trimmedDate = editDate.trim();
+    if (!isValidCalendarDate(trimmedDate)) {
+      setEditError('Please enter a valid calendar date between 1900 and 2100 in YYYY-MM-DD format.');
+      return;
+    }
+
+    const trimmedAlt = editAlt.trim();
+    if (!trimmedAlt) {
+      setEditError('Please provide a description (alternative text) for the photograph.');
+      return;
+    }
+
+    if (trimmedAlt.length > 300) {
+      setEditError('Description cannot exceed 300 characters.');
+      return;
+    }
+
+    if (CONTROL_CHARACTER_PATTERN.test(trimmedAlt)) {
+      setEditError('Description cannot contain control characters.');
+      return;
+    }
+
+    setSavingEdit(true);
+
+    try {
+      let response;
+      if (editFile) {
+        const formData = new FormData();
+        formData.set('id', editingPhoto.id);
+        formData.set('date', trimmedDate);
+        formData.set('alt', trimmedAlt);
+        formData.set('file', editFile);
+
+        response = await fetch('/api/admin/gallery/', {
+          method: 'PATCH',
+          body: formData,
+        });
+      } else {
+        response = await fetch('/api/admin/gallery/', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingPhoto.id,
+            date: trimmedDate,
+            alt: trimmedAlt,
+          }),
+        });
+      }
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      if (response.ok) {
+        const data = await response.json();
+        const updated = data?.photo;
+        if (updated) {
+          listVersionRef.current += 1;
+          setPhotos((prev) => prev.map((p) => (p.id === editingPhoto.id ? { ...p, ...updated } : p)));
+          setSuccessMessage('Photograph modified and updated successfully.');
+          closeEditModal();
+        } else {
+          throw new Error('Update succeeded but server did not return the updated record.');
+        }
+      } else {
+        const errorCode = await responseErrorCode(response);
+        throw new Error(requestError(response, 'update photograph', errorCode));
+      }
+    } catch (err) {
+      setEditError(err.message || 'Unable to update photograph. Please try again.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const filteredPhotos = useMemo(() => {
     if (!searchQuery.trim()) return photos;
@@ -1168,16 +1316,29 @@ export default function GalleryManager({ id = 'gallery', className = '' } = {}) 
                           {photo.id}
                         </span>
 
-                        <button
-                          type="button"
-                          className="admin-gallery-manager-btn admin-gallery-manager-btn-quiet admin-gallery-card-delete-btn"
-                          onClick={() => setConfirmDeleteId(photo.id)}
-                          disabled={isDeleteDisabled}
-                          aria-label={`Delete photograph ${photo.id}`}
-                        >
-                          <Trash2 size={15} aria-hidden="true" />
-                          <span>Delete</span>
-                        </button>
+                        <div className="admin-gallery-card-actions">
+                          <button
+                            type="button"
+                            className="admin-gallery-manager-btn admin-gallery-manager-btn-quiet admin-gallery-card-edit-btn"
+                            onClick={() => openEditModal(photo)}
+                            disabled={isDeleteDisabled || savingEdit}
+                            aria-label={`Edit photograph ${photo.id}`}
+                          >
+                            <Pencil size={14} aria-hidden="true" />
+                            <span>Edit</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="admin-gallery-manager-btn admin-gallery-manager-btn-quiet admin-gallery-card-delete-btn"
+                            onClick={() => setConfirmDeleteId(photo.id)}
+                            disabled={isDeleteDisabled || savingEdit}
+                            aria-label={`Delete photograph ${photo.id}`}
+                          >
+                            <Trash2 size={14} aria-hidden="true" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1212,6 +1373,188 @@ export default function GalleryManager({ id = 'gallery', className = '' } = {}) 
           </div>
         )}
       </section>
+
+      {/* Edit (Modify) Photograph Modal */}
+      {editingPhoto && (
+        <div
+          className="admin-gallery-modal-backdrop"
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !savingEdit) closeEditModal();
+          }}
+        >
+          <section
+            className="admin-gallery-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-photo-dialog-title"
+          >
+            <div className="admin-gallery-modal-header">
+              <div>
+                <p className="admin-gallery-manager-eyebrow">MODIFY PHOTOGRAPH</p>
+                <h3 id="edit-photo-dialog-title" className="admin-gallery-modal-title">
+                  Edit Photograph Details
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="admin-gallery-modal-close-btn"
+                onClick={closeEditModal}
+                disabled={savingEdit}
+                aria-label="Close edit dialog"
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            {editError && (
+              <div
+                className="admin-gallery-manager-alert admin-gallery-manager-alert-error"
+                role="alert"
+                aria-live="assertive"
+              >
+                <AlertCircle size={16} aria-hidden="true" />
+                <div className="admin-gallery-manager-alert-content">
+                  <span>{editError}</span>
+                </div>
+                <button
+                  type="button"
+                  className="admin-gallery-manager-alert-close"
+                  onClick={() => setEditError(null)}
+                  aria-label="Dismiss error"
+                >
+                  <X size={14} aria-hidden="true" />
+                </button>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEdit} className="admin-gallery-edit-form">
+              {/* Image Preview & Replacement */}
+              <div className="admin-gallery-edit-preview-row">
+                <div className="admin-gallery-edit-thumbnail">
+                  {editPreviewUrl ? (
+                    <img src={editPreviewUrl} alt="Preview of photograph being edited" />
+                  ) : (
+                    <FileImage size={32} color="#94a3b8" />
+                  )}
+                </div>
+                <div className="admin-gallery-edit-file-controls">
+                  <strong>{editFile ? editFile.name : editingPhoto.id}</strong>
+                  <span className="admin-gallery-edit-file-hint">
+                    {editFile ? formatFileSize(editFile.size) : 'Current image from gallery'}
+                  </span>
+                  <div className="admin-gallery-edit-file-buttons">
+                    <button
+                      type="button"
+                      className="admin-gallery-manager-btn admin-gallery-manager-btn-outline admin-gallery-btn-sm"
+                      onClick={() => editFileInputRef.current?.click()}
+                      disabled={savingEdit}
+                    >
+                      <UploadCloud size={14} aria-hidden="true" />
+                      <span>{editFile ? 'Change image' : 'Replace image (optional)'}</span>
+                    </button>
+                    {editFile && (
+                      <button
+                        type="button"
+                        className="admin-gallery-manager-btn admin-gallery-manager-btn-quiet admin-gallery-btn-sm"
+                        onClick={() => handleEditFileSelection(null)}
+                        disabled={savingEdit}
+                      >
+                        <X size={14} aria-hidden="true" />
+                        <span>Revert</span>
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    ref={editFileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                    className="admin-gallery-file-input"
+                    disabled={savingEdit}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        handleEditFileSelection(e.target.files[0]);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Date Input */}
+              <div className="admin-gallery-form-group">
+                <label htmlFor="admin-edit-date-input" className="admin-gallery-form-label">
+                  Date <span aria-hidden="true">*</span>
+                </label>
+                <input
+                  id="admin-edit-date-input"
+                  name="editDate"
+                  type="date"
+                  min="1900-01-01"
+                  max="2100-12-31"
+                  required
+                  className="admin-gallery-input"
+                  value={editDate}
+                  disabled={savingEdit}
+                  onChange={(e) => {
+                    setEditDate(e.target.value);
+                    if (editError) setEditError(null);
+                  }}
+                />
+              </div>
+
+              {/* Description Input */}
+              <div className="admin-gallery-form-group">
+                <div className="admin-gallery-form-label-row">
+                  <label htmlFor="admin-edit-alt-input" className="admin-gallery-form-label">
+                    Description (alternative text) <span aria-hidden="true">*</span>
+                  </label>
+                  <span className="admin-gallery-char-count">{editAlt.length}/300</span>
+                </div>
+                <input
+                  id="admin-edit-alt-input"
+                  name="editAlt"
+                  type="text"
+                  maxLength={300}
+                  required
+                  className="admin-gallery-input"
+                  value={editAlt}
+                  disabled={savingEdit}
+                  onChange={(e) => {
+                    setEditAlt(e.target.value);
+                    if (editError) setEditError(null);
+                  }}
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="admin-gallery-modal-actions">
+                <button
+                  type="button"
+                  className="admin-gallery-manager-btn admin-gallery-manager-btn-quiet"
+                  onClick={closeEditModal}
+                  disabled={savingEdit}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="admin-gallery-manager-btn admin-gallery-manager-btn-primary"
+                  disabled={savingEdit}
+                >
+                  {savingEdit ? (
+                    <>
+                      <Loader2 size={15} className="admin-gallery-spinner" aria-hidden="true" />
+                      <span>Saving changes...</span>
+                    </>
+                  ) : (
+                    <span>Save Changes</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </section>
   );
 }

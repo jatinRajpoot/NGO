@@ -66,7 +66,11 @@ body:has(.admin-root) #main { min-height: 100vh; margin: 0; }
 .admin-sidebar-note small { color: #aab3c7; font-size: 9px; }
 .admin-sidebar-note > svg { margin-left: auto; color: #aab3c7; }
 .admin-settings-link { min-height: 38px; margin-bottom: 10px; }
-.admin-user-card { display: flex; align-items: center; gap: 9px; padding: 12px 4px 13px; border-top: 1px solid rgba(255,255,255,.11); }
+.admin-user-card { display: flex; align-items: center; gap: 9px; padding: 10px 6px; border-top: 1px solid rgba(255,255,255,.11); border-radius: 8px; transition: background .16s ease; }
+.admin-user-card.is-active { background: rgba(255,255,255,.09); box-shadow: inset 2px 0 #f0c461; }
+.admin-user-card-main { display: flex; align-items: center; gap: 9px; background: transparent; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; flex: 1; min-width: 0; border-radius: 6px; }
+.admin-user-card-main:hover strong { color: #f2cb70; }
+.admin-user-card-main:focus-visible { outline: 2px solid #a6b9ff; outline-offset: 2px; }
 .admin-user-avatar { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; color: #fff; background: linear-gradient(135deg, #cf8465, #8a4e54); border: 2px solid rgba(255,255,255,.18); border-radius: 50%; font-size: 10px; font-weight: 750; }
 .admin-user-card strong { color: #f5f6fa; font-size: 10px; font-weight: 650; }
 .admin-user-card small { color: #aab3c7; font-size: 9px; }

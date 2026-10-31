@@ -37,7 +37,9 @@
 //     those requests.
 
 import { createHash, createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
-import { cookies } from 'next/headers';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { cookies } from 'next/headers.js';
 
 export const ADMIN_COOKIE_NAME = 'gsdd_admin_session';
 export const SESSION_MAX_AGE = 28800; // 8 hours, in seconds
@@ -107,10 +109,35 @@ function parsePasswordHash(value) {
   return { salt, hash: hash.toLowerCase() };
 }
 
+let inMemoryPasswordHash = null;
+
+function getCredentialsDir() {
+  return process.env.ADMIN_DATA_DIR || path.join(process.cwd(), '.data');
+}
+
+function getStoredPasswordHash() {
+  if (inMemoryPasswordHash) return inMemoryPasswordHash;
+  try {
+    const credsPath = path.join(getCredentialsDir(), 'admin-credentials.json');
+    if (existsSync(credsPath)) {
+      const data = JSON.parse(readFileSync(credsPath, 'utf8'));
+      if (typeof data.passwordHash === 'string') {
+        const parsed = parsePasswordHash(data.passwordHash);
+        if (parsed) {
+          inMemoryPasswordHash = parsed;
+          return parsed;
+        }
+      }
+    }
+  } catch {}
+  return null;
+}
+
 function readConfig() {
   const username = readEnvString('ADMIN_USERNAME');
   const secret = readEnvString('ADMIN_SESSION_SECRET');
-  const password = parsePasswordHash(readEnvString('ADMIN_PASSWORD_HASH'));
+  const customPassword = getStoredPasswordHash();
+  const password = customPassword || parsePasswordHash(readEnvString('ADMIN_PASSWORD_HASH'));
   if (typeof username !== 'string' || username.length > MAX_USERNAME_LENGTH) return null;
   if (!PRINTABLE_PATTERN.test(username)) return null;
   if (typeof secret !== 'string' || isWeakSecret(secret)) return null;
@@ -399,4 +426,79 @@ export function cookieOptions(requestOrSecure) {
     expires: new Date(Date.now() + SESSION_MAX_AGE * 1000),
     priority: 'high',
   };
+}
+
+/**
+ * Returns basic public profile details for the authenticated administrator.
+ *
+ * @returns {{ username: string, role: string, organization: string, sessionMaxAgeHours: number } | null}
+ */
+export function getAdminProfile() {
+  const config = readConfig();
+  if (!config) return null;
+  return {
+    username: config.username,
+    role: 'Super Administrator',
+    organization: 'Global Skills & Digital Development Foundation',
+    sessionMaxAgeHours: SESSION_MAX_AGE / 3600,
+  };
+}
+
+/**
+ * Update the administrative password. Requires old password verification.
+ * Computes scrypt key derivation with a fresh cryptographic salt and persists
+ * the new hash to local credentials store.
+ *
+ * @param {string} oldPassword
+ * @param {string} newPassword
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+export async function updateAdminPassword(oldPassword, newPassword) {
+  const config = readConfig();
+  if (!config) {
+    return { ok: false, error: 'not_configured' };
+  }
+
+  if (typeof oldPassword !== 'string' || oldPassword.length === 0 || oldPassword.length > MAX_PASSWORD_LENGTH) {
+    return { ok: false, error: 'invalid_current_password' };
+  }
+
+  const isOldValid = await verifyCredentials(config.username, oldPassword);
+  if (!isOldValid) {
+    return { ok: false, error: 'invalid_current_password' };
+  }
+
+  if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > MAX_PASSWORD_LENGTH) {
+    return { ok: false, error: 'invalid_new_password' };
+  }
+
+  if (oldPassword === newPassword) {
+    return { ok: false, error: 'same_as_current' };
+  }
+
+  try {
+    const salt = randomBytes(16).toString('hex');
+    const derived = await deriveKey(newPassword, salt);
+    const hashHex = derived.toString('hex').toLowerCase();
+    const hashString = `${salt}:${hashHex}`;
+
+    // Persist to local data directory
+    const dir = getCredentialsDir();
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+    const credsPath = path.join(dir, 'admin-credentials.json');
+    writeFileSync(
+      credsPath,
+      JSON.stringify({ passwordHash: hashString, updatedAt: new Date().toISOString() }, null, 2),
+      'utf8'
+    );
+
+    // Update in-memory hash immediately so following checks use new credential
+    inMemoryPasswordHash = { salt, hash: hashHex };
+    return { ok: true };
+  } catch (err) {
+    console.error('Failed to update admin password', err);
+    return { ok: false, error: 'update_failed' };
+  }
 }
