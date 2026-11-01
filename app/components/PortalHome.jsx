@@ -455,7 +455,7 @@ export default function PortalHome() {
                 style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
                 aria-label={`View photo in gallery: ${item.label}`}
               >
-                <div>
+                <div className="home-gallery-image-frame">
                   <Image
                     src={item.image}
                     alt={item.alt}

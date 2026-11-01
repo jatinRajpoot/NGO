@@ -14,10 +14,12 @@ npm run test:admin
 npm run test:storage
 npm run build
 npm run test:public
+npx playwright install chromium
+npm run test:ui
 npm audit --omit=dev
 ```
 
-`check` parses application, scripts and test sources; it is a syntax check, not a full lint or type check. The admin integration test uses temporary credentials and isolated local storage. The public smoke test requires a production build. Review responsive layout, keyboard navigation, language switching and email handoffs in a browser before release. Visitor enquiry forms prepare email drafts; they do not submit data to a backend or create application records.
+`check` parses application, scripts and test sources; it is a syntax check, not a full lint or type check. The admin integration test uses temporary credentials and isolated local storage. The public smoke test and UI regression tests require a production build. The UI tests start a temporary production server on port 3100 and check homepage image containment, carousel controls and gallery navigation at desktop, tablet and mobile widths. Set `BASE_URL` to test an already-running server instead. Playwright failure screenshots and traces are saved in the ignored `test-results/` directory. Review responsive layout, keyboard navigation, language switching and email handoffs in a browser before release. Visitor enquiry forms prepare email drafts; they do not submit data to a backend or create application records.
 
 ## Production
 

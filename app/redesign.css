@@ -1352,6 +1352,7 @@
 .home-gallery-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: none;
   gap: 20px;
 }
 .home-gallery-card {
@@ -1362,7 +1363,8 @@
   border-radius: 10px;
   box-shadow: 0 6px 22px rgba(9, 34, 20, .13);
 }
-.home-gallery-card > div {
+/* Keep fill images scoped to their frame, including when wrapped in a link. */
+.home-gallery-image-frame {
   position: relative;
   height: 245px;
   overflow: hidden;
@@ -2473,7 +2475,7 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
-  .home-gallery-card > div {
+  .home-gallery-image-frame {
     height: 220px;
   }
   .home-location-grid {

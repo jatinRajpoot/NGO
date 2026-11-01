@@ -55,6 +55,12 @@ jobs:
       - name: Run public smoke tests
         run: npm run test:public
 
+      - name: Install Chromium for UI regression tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Run responsive UI regression tests
+        run: npm run test:ui
+
   container:
     name: Container build, scan, and smoke test
     runs-on: ubuntu-latest
