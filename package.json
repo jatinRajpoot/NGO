@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "node ./node_modules/next/dist/bin/next start",
     "check": "node scripts/check-source.mjs",
+    "test:ui": "playwright test",
     "test:admin": "node tests/admin-gallery.integration.mjs",
     "test:storage": "node tests/gallery-store.regression.mjs",
     "test:profile": "node tests/admin-profile-and-image-edit.test.mjs",
@@ -21,5 +22,8 @@
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
   }
 }
