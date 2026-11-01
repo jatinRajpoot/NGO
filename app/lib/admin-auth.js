@@ -144,6 +144,7 @@ async function saveCredentialsToGcs(passwordHash) {
       JSON.stringify({ passwordHash, updatedAt: new Date().toISOString() }, null, 2),
       { contentType: 'application/json', resumable: false }
     );
+    lastGcsSyncTime = Date.now();
   } catch (err) {
     console.error('Warning: Failed to persist admin credentials to GCS:', err.message);
   }
@@ -167,11 +168,15 @@ async function syncCredentialsFromGcs() {
         inMemoryPasswordHash = parsed;
         try {
           const dir = getCredentialsDir();
+          const credsPath = path.join(dir, 'admin-credentials.json');
           writeFileSync(
-            path.join(dir, 'admin-credentials.json'),
+            credsPath,
             JSON.stringify(data, null, 2),
             'utf8'
           );
+          try {
+            lastCredsMtime = statSync(credsPath).mtimeMs;
+          } catch {}
         } catch {}
       }
     }
@@ -311,18 +316,13 @@ export async function verifyCredentials(username, password) {
   try {
     const derived = await deriveKey(password, config.salt);
     const expected = Buffer.from(config.hash, 'hex');
-    let passwordOk = safeEqualBuffers(derived, expected);
-
-    // Initial first-time setup fallback:
-    // If NO custom password has ever been saved yet, accept standard initial credentials (Admin@123 / admin123)
-    const hasCustomPassword = Boolean(getStoredPasswordHash());
-    if (!passwordOk && !hasCustomPassword && (password === 'Admin@123' || password === 'admin123')) {
-      passwordOk = true;
-    }
+    const passwordOk = safeEqualBuffers(derived, expected);
 
     const normUser = username.trim().toLowerCase();
     const confUser = (config.username || 'admin').toLowerCase();
-    const usernameOk = normUser === confUser || normUser === 'admin' || normUser === 'gsdd-admin';
+    const usernameOk = safeEqualStrings(normUser, confUser) ||
+      safeEqualStrings(normUser, 'admin') ||
+      safeEqualStrings(normUser, 'gsdd-admin');
     return passwordOk && usernameOk;
   } catch {
     return false;
@@ -402,6 +402,7 @@ export function verifySession(token) {
  */
 export async function getAdminSession(request) {
   try {
+    await syncCredentialsFromGcs();
     if (request) {
       if (typeof request.cookies?.get === 'function') {
         const val = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
@@ -493,7 +494,8 @@ export function isSameOrigin(request) {
 
     // Bridge localhost and 127.0.0.1 in local development / testing
     const isLocalOrigin = originUrl.hostname === 'localhost' || originUrl.hostname === '127.0.0.1';
-    const isLocalHost = host.startsWith('localhost') || host.startsWith('127.0.0.1');
+    const hostName = host.split(':')[0].toLowerCase();
+    const isLocalHost = hostName === 'localhost' || hostName === '127.0.0.1';
     if (isLocalOrigin && isLocalHost) {
       const originPort = originUrl.port || (originUrl.protocol === 'https:' ? '443' : '80');
       const hostPort = host.includes(':') ? host.split(':')[1] : (effectiveProtocol === 'https:' ? '443' : '80');
@@ -551,8 +553,8 @@ export function cookieOptions(requestOrSecure) {
 
   return {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: Boolean(isSecure),
+    sameSite: 'strict',
+    secure: Boolean(process.env.NODE_ENV === 'production' || isSecure),
     path: '/',
     maxAge: SESSION_MAX_AGE,
     expires: new Date(Date.now() + SESSION_MAX_AGE * 1000),

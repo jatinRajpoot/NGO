@@ -65,13 +65,13 @@ async function request(url, options = {}) {
           headers: incoming.headers,
         })));
       });
-      outgoing.setTimeout(15000, () => outgoing.destroy(new Error('Proxy request timed out')));
+      outgoing.setTimeout(45000, () => outgoing.destroy(new Error('Proxy request timed out')));
       outgoing.on('error', reject);
       outgoing.end(options.body);
     });
   }
   return fetch(base + url, {
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(45000),
     redirect: 'manual',
     ...options,
     headers: {
