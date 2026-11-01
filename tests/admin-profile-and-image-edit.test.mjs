@@ -73,6 +73,28 @@ try {
   const verifyNewAfterUpdate = await verifyCredentials('test-admin', newSecretPassword);
   assert.equal(verifyNewAfterUpdate, true, 'New password must verify successfully');
 
+  // 5b. Verify standard initial credentials (Admin@123 / admin123) are rejected once custom password is set
+  const verifyFallbackAfterUpdate = await verifyCredentials('test-admin', 'Admin@123');
+  assert.equal(verifyFallbackAfterUpdate, false, 'Default initial fallback password must be rejected after update');
+
+  // 5c. Verify admin and gsdd-admin aliases work with the new password
+  const verifyAdminAlias = await verifyCredentials('admin', newSecretPassword);
+  assert.equal(verifyAdminAlias, true, 'admin alias must verify successfully');
+
+  const verifyGsddAlias = await verifyCredentials('gsdd-admin', newSecretPassword);
+  assert.equal(verifyGsddAlias, true, 'gsdd-admin alias must verify successfully');
+
+  // 5d. Subsequent password update with new current password
+  const secondNewPassword = 'SecondUpdatedPassword999!';
+  const secondUpdateSuccess = await updateAdminPassword(newSecretPassword, secondNewPassword);
+  assert.equal(secondUpdateSuccess.ok, true, 'Subsequent password update should succeed');
+
+  const verifyFirstNewAfterSecond = await verifyCredentials('test-admin', newSecretPassword);
+  assert.equal(verifyFirstNewAfterSecond, false, 'Previous password should no longer verify');
+
+  const verifySecondNew = await verifyCredentials('test-admin', secondNewPassword);
+  assert.equal(verifySecondNew, true, 'Second new password must verify');
+
   console.log('PASS: Password update and credential verification tests passed.');
 
   console.log('--- Testing Gallery Image Modification ---');

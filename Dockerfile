@@ -40,6 +40,8 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/.next ./.next
 COPY --from=builder /app/public ./public
 
+RUN mkdir -p /app/.data && chown -R node:node /app/.data
+
 USER node
 
 EXPOSE 8080

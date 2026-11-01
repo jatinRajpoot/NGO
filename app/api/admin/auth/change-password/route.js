@@ -44,7 +44,7 @@ export async function POST(request) {
       return failure(403, 'forbidden_origin', 'Request origin is not allowed.');
     }
 
-    const isAuth = await requireAdminSession();
+    const isAuth = await requireAdminSession(request);
     if (!isAuth) {
       return failure(401, 'unauthorized', 'You must be logged in to change your password.');
     }
