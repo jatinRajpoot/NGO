@@ -248,6 +248,7 @@ export default function AdminDashboard() {
     </aside>
 
     <main className="admin-main">
+      <h1 className="sr-only">Admin Dashboard</h1>
       <header className="admin-topbar">
         <button className="admin-icon-button admin-mobile-menu" type="button" onClick={() => setMenuOpen((open) => !open)} aria-label={menuOpen ? 'Close menu' : 'Open menu'}>{menuOpen ? <X size={19} /> : <Menu size={19} />}</button>
         <div className="admin-breadcrumb"><span>{activeSection.group === 'Settings' ? 'Workspace' : activeSection.group}</span><ChevronRight size={14} /><strong>{activeSection.label}</strong></div>
@@ -285,7 +286,7 @@ export default function AdminDashboard() {
         {!activeSection.live && <section className="admin-welcome">
           <div>
             <p className="admin-date"><CalendarDays size={14} /> {formatToday()}</p>
-            <h1>{activeSection.title}</h1>
+            <h2>{activeSection.title}</h2>
             <p className="admin-welcome-copy">{activeSection.description}</p>
           </div>
           <div className="admin-welcome-actions"><span className="admin-sync-status admin-sync-soon"><i /> Coming soon</span></div>
