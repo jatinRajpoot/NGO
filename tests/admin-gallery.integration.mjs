@@ -579,6 +579,17 @@ try {
   });
   assert.equal(response.status, 403);
 
+  // 36a. A second device signs in before the first logs out; logout must revoke
+  // only the session it was called with.
+  const replayToken = cookie.slice(cookie.indexOf('=') + 1);
+  response = await request('/api/admin/auth/login/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'integration-admin', password }),
+  });
+  assert.equal(response.status, 200);
+  const siblingCookie = response.headers.get('set-cookie').split(';')[0];
+
   // 37. Successful logout (200)
   response = await request('/api/admin/auth/logout/', { method: 'POST' });
   assert.equal(response.status, 200);
@@ -587,6 +598,30 @@ try {
   assert.match(logoutSetCookie, /Max-Age=0/i);
 
   cookie = undefined;
+
+  // 37a. The logged-out token is revoked server-side and cannot be replayed (401)
+  response = await request('/api/admin/auth/profile/', {
+    headers: { Cookie: `${ADMIN_COOKIE_NAME}=${replayToken}` },
+  });
+  assert.equal(response.status, 401, 'A replayed token must fail after logout');
+  response = await request('/api/admin/gallery/', {
+    headers: { Cookie: `${ADMIN_COOKIE_NAME}=${replayToken}` },
+  });
+  assert.equal(response.status, 401, 'A replayed token must not reach admin APIs after logout');
+  response = await request('/admin/', {
+    headers: { Cookie: `${ADMIN_COOKIE_NAME}=${replayToken}` },
+  });
+  assert.equal(response.status, 307, 'A replayed token must not open admin pages after logout');
+
+  // 37b. The sibling device's session is unaffected by the other logout (200)
+  response = await request('/api/admin/auth/profile/', {
+    headers: { Cookie: siblingCookie },
+  });
+  assert.equal(response.status, 200, 'Logout must revoke only the session it was called with');
+
+  // 37c. Logout without a session cookie stays idempotent (200)
+  response = await request('/api/admin/auth/logout/', { method: 'POST' });
+  assert.equal(response.status, 200);
 
   // 38. Post-logout API requests are rejected (401)
   response = await request('/api/admin/gallery/');

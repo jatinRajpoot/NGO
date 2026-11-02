@@ -19,11 +19,25 @@
 // Missing or malformed configuration fails closed: every check below returns
 // false / null and nothing is authenticated.
 //
-// Session tokens are stateless: `v1.<expiresAt>.<fingerprint>.<nonce>.<hmac>`.
-// The HMAC covers the first four segments, and the fingerprint covers the
-// configured username plus password hash. Rotating either credential or the
-// session secret therefore revokes every outstanding token. There is no
-// server-side revocation list.
+// Session tokens are signed but only partly stateless:
+// `v2.<expiresAt>.<fingerprint>.<nonce>.<hmac>`. The HMAC covers the first four
+// segments, the fingerprint covers the configured username plus password hash,
+// and <nonce> doubles as the session's revocation id. Rotating either credential
+// or the session secret revokes every outstanding token.
+//
+// Logout appends the token's nonce to a small server-side revocation list so a
+// replayed (already-issued) token stops authenticating immediately. The list is
+// stored in the same places the module already persists state: the gallery GCS
+// bucket as `admin/revoked-sessions.json` when GALLERY_BUCKET is configured,
+// otherwise `admin-revoked-sessions.json` inside the credentials directory
+// (ADMIN_DATA_DIR or `.data`). Entries are pruned once the token would have
+// expired anyway, so SESSION_MAX_AGE is unchanged.
+//
+// Tokens minted before revocation existed used `v1` and are structurally
+// identical, so they cannot be told apart from a live session and therefore
+// cannot be revoked individually. They are rejected outright: the cost is at
+// most one re-login after the upgrade, and a pre-upgrade token can no longer
+// outlive logout for up to SESSION_MAX_AGE.
 //
 // Origin checking assumptions:
 //   - Cloud Run preserves the Host header. Next.js can synthesize request.url
@@ -37,7 +51,7 @@
 //     those requests.
 
 import { createHash, createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { cookies } from 'next/headers.js';
@@ -46,7 +60,10 @@ import { Storage } from '@google-cloud/storage';
 export const ADMIN_COOKIE_NAME = 'gsdd_admin_session';
 export const SESSION_MAX_AGE = 28800; // 8 hours, in seconds
 
-const TOKEN_VERSION = 'v1';
+const TOKEN_VERSION = 'v2';
+// Pre-revocation tokens. Accepted nowhere, but recognised so the verification
+// path can note what it is looking at instead of treating it as corruption.
+const LEGACY_TOKEN_VERSION = 'v1';
 const TOKEN_MAX_LENGTH = 256;
 const MAX_USERNAME_LENGTH = 128;
 const MAX_PASSWORD_LENGTH = 1024;
@@ -59,6 +76,10 @@ const SCRYPT_KEY_LENGTH = 64;
 const SCRYPT_OPTIONS = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 const EXPIRY_CLOCK_SKEW = 300; // seconds of tolerance for a token minted "in the future"
 const MAX_SESSION_COOKIE_CANDIDATES = 8; // bound work when duplicate cookies arrive
+const REVOCATION_FILENAME = 'admin-revoked-sessions.json';
+const REVOCATION_GCS_OBJECT = 'admin/revoked-sessions.json';
+const REVOCATION_MAX_ENTRIES = 1024; // bounds the file size
+const REVOCATION_GCS_TIMEOUT_MS = 2000; // a slow bucket must not hang logout
 
 const SALT_PATTERN = /^[0-9a-f]+$/i;
 const HASH_PATTERN = /^[0-9a-f]{128}$/i;
@@ -235,6 +256,191 @@ function getStoredPasswordHash() {
   return inMemoryPasswordHash;
 }
 
+// -----------------------------------------------------------------------------
+// Session revocation list
+//
+// One file, `{ revoked: [{ nonce, expiresAt }] }`, holding the nonces of
+// sessions that logged out before their expiry. Both backends are best-effort:
+//
+//   Read failure => treat the token as valid (fail open). The alternative is to
+//     fail closed, which would sign the administrator out of everything whenever
+//     GCS is briefly unavailable; token expiry and credential rotation still
+//     bound the exposure. This is the documented fallback.
+//   Write failure => the logout response still reports success (the browser
+//     cookie is cleared regardless) but the token is not revoked. Logged loudly
+//     so it is visible; the session then lives until expiry as before.
+//   Single-instance memory remains the last resort: a nonce revoked on this
+//     instance keeps rejecting here even if the durable write failed.
+//
+// Concurrent logouts are rare (one administrator), so a plain read-modify-write
+// serialized within this process is used rather than the gallery's CAS
+// machinery. A logout racing a logout on another instance can drop one entry;
+// both tokens still expire, and the instance that handled each revoke keeps
+// rejecting its nonce in memory.
+//
+// The list is read on every successful verification rather than cached: an
+// admin-only endpoint sees a handful of requests, and caching would let a
+// replayed token keep working until the cache turned over.
+// -----------------------------------------------------------------------------
+
+const revokedNonces = new Set();
+let revocationChain = Promise.resolve();
+
+function withRevocationLock(operation) {
+  const next = revocationChain.then(operation, operation);
+  revocationChain = next.catch(() => {});
+  return next;
+}
+
+function pruneRevoked(entries) {
+  const now = Math.floor(Date.now() / 1000);
+  const kept = entries.filter(
+    (entry) => entry && typeof entry.nonce === 'string' && Number.isSafeInteger(entry.expiresAt) && entry.expiresAt > now
+  );
+  return kept.length > REVOCATION_MAX_ENTRIES ? kept.slice(-REVOCATION_MAX_ENTRIES) : kept;
+}
+
+function parseRevocationEntries(data) {
+  if (!data || typeof data !== 'object' || !Array.isArray(data.revoked)) return [];
+  return pruneRevoked(data.revoked);
+}
+
+/**
+ * Await `promise` for at most `ms`, resolving to null on timeout.
+ * The losing promise gets a rejection handler attached so a late failure is
+ * never reported as an unhandled rejection (fatal on current Node).
+ */
+async function withTimeout(promise, ms) {
+  const settled = Promise.resolve(promise);
+  settled.catch(() => {});
+  let timer;
+  try {
+    return await Promise.race([
+      settled,
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(null), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function isNotFound(err) {
+  return Boolean(err) && (err.code === 404 || err.code === '404' || err.status === 404 || err.statusCode === 404);
+}
+
+function getRevocationPath() {
+  return path.join(getCredentialsDir(), REVOCATION_FILENAME);
+}
+
+/**
+ * Read the revocation list, or null when the configured backend could not be
+ * read within its budget. Callers must treat null as "unknown", never as
+ * "nothing revoked".
+ */
+async function readRevocationEntries() {
+  const bucket = getGcsBucket();
+  if (bucket) {
+    try {
+      const file = bucket.file(REVOCATION_GCS_OBJECT);
+      const [contents] = (await withTimeout(file.download(), REVOCATION_GCS_TIMEOUT_MS)) || [];
+      if (!contents) return null;
+      return parseRevocationEntries(JSON.parse(contents.toString('utf8')));
+    } catch (err) {
+      if (isNotFound(err)) return [];
+      throw err;
+    }
+  }
+  try {
+    return parseRevocationEntries(JSON.parse(readFileSync(getRevocationPath(), 'utf8')));
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return [];
+    throw err;
+  }
+}
+
+async function writeRevocationEntries(entries) {
+  const payload = JSON.stringify({ version: 1, revoked: entries }, null, 2);
+  const bucket = getGcsBucket();
+  if (bucket) {
+    const saved = await withTimeout(
+      bucket.file(REVOCATION_GCS_OBJECT).save(payload, {
+        contentType: 'application/json',
+        resumable: false,
+      }),
+      REVOCATION_GCS_TIMEOUT_MS
+    );
+    if (saved === null) throw new Error('Timed out saving session revocation list');
+    return;
+  }
+  const targetPath = getRevocationPath();
+  const tempPath = `${targetPath}.tmp.${randomBytes(6).toString('hex')}`;
+  try {
+    writeFileSync(tempPath, payload, 'utf8');
+    renameSync(tempPath, targetPath);
+  } catch (err) {
+    try {
+      unlinkSync(tempPath);
+    } catch {}
+    throw err;
+  }
+}
+
+/**
+ * Whether a nonce appears in the revocation list.
+ * Resolves false when the list cannot be read (see the fallback note above).
+ */
+async function isRevoked(nonce) {
+  if (revokedNonces.has(nonce)) return true;
+  try {
+    const entries = await readRevocationEntries();
+    if (!entries) return false;
+    return entries.some((entry) => entry.nonce === nonce);
+  } catch (err) {
+    console.error('Warning: admin session revocation list unreadable; treating session as valid:', err?.message);
+    return false;
+  }
+}
+
+/**
+ * Revoke one session by nonce. Idempotent; never throws.
+ *
+ * @param {string} nonce
+ * @param {number} expiresAt Unix seconds from the token being revoked.
+ * @returns {Promise<boolean>} true when the revocation is durably recorded.
+ */
+async function revokeNonce(nonce, expiresAt) {
+  if (typeof nonce !== 'string' || !NONCE_PATTERN.test(nonce)) return false;
+  const expiry = Number.isSafeInteger(expiresAt) ? expiresAt : Math.floor(Date.now() / 1000) + SESSION_MAX_AGE;
+  revokedNonces.add(nonce);
+  try {
+    return await withRevocationLock(async () => {
+      const existing = await readRevocationEntries();
+      // Never overwrite a list we could not read: doing so would silently
+      // un-revoke sessions recorded there. The new nonce is still rejected by
+      // this instance from memory, and the failure is logged.
+      if (!existing) throw new Error('Session revocation list could not be read');
+      const entries = pruneRevoked([...existing, { nonce, expiresAt: expiry }]);
+      // De-duplicate so a repeated logout cannot grow the file.
+      const unique = [];
+      const seen = new Set();
+      for (const entry of entries) {
+        if (seen.has(entry.nonce)) continue;
+        seen.add(entry.nonce);
+        unique.push(entry);
+      }
+      await writeRevocationEntries(unique);
+      return true;
+    });
+  } catch (err) {
+    console.error('Warning: failed to persist admin session revocation:', err?.message);
+    // The in-memory set still covers this instance, which is all a single
+    // Cloud Run instance needs; a peer instance would still accept the token.
+    return false;
+  }
+}
+
 function readConfig() {
   const username = readEnvString('ADMIN_USERNAME') || 'admin';
   const secret = readEnvString('ADMIN_SESSION_SECRET');
@@ -346,46 +552,137 @@ export function createSession() {
 }
 
 /**
- * Verify a session token's signature, expiry, and credential fingerprint.
- * Any malformed, expired, foreign, or stale token yields false; this function
- * never throws.
+ * Parse a token's version, expiry, nonce and signature, and check its HMAC.
+ * Returns null for anything malformed, foreign, or unsigned. Shared by
+ * verification and logout so both agree on what a token is.
+ */
+function parseSessionToken(token, config) {
+  if (typeof token !== 'string') return null;
+  if (token.length === 0 || token.length > TOKEN_MAX_LENGTH) return null;
+  if (!config) return null;
+
+  const parts = token.split('.');
+  if (parts.length !== 5) return null;
+  const [version, expiresRaw, fingerprint, nonce, signature] = parts;
+  if (version !== TOKEN_VERSION) return null;
+  if (!EXPIRY_PATTERN.test(expiresRaw)) return null;
+  if (!FINGERPRINT_PATTERN.test(fingerprint)) return null;
+  if (!NONCE_PATTERN.test(nonce)) return null;
+  if (!SIGNATURE_PATTERN.test(signature)) return null;
+
+  const expiresAt = Number(expiresRaw);
+  if (!Number.isSafeInteger(expiresAt)) return null;
+
+  const payload = `${version}.${expiresRaw}.${fingerprint}.${nonce}`;
+  if (!safeEqualStrings(signature, sign(payload, config.secret))) return null;
+
+  return { expiresAt, fingerprint, nonce };
+}
+
+/**
+ * Verify a session token's signature, expiry, credential fingerprint, and
+ * revocation state. Any malformed, expired, foreign, stale, or logged-out
+ * token yields false; this function never throws.
+ *
+ * v1 tokens predate per-token revocation and cannot be revoked, so they are
+ * rejected outright rather than honoured until they expire.
  *
  * @param {unknown} token
- * @returns {boolean}
+ * @returns {Promise<boolean>}
  */
-export function verifySession(token) {
-  if (typeof token !== 'string') return false;
-  if (token.length === 0 || token.length > TOKEN_MAX_LENGTH) return false;
-
+export async function verifySession(token) {
   const config = readConfig();
   if (!config) return false;
+  if (typeof token === 'string' && token.startsWith(`${LEGACY_TOKEN_VERSION}.`)) return false;
 
   try {
-    const parts = token.split('.');
-    if (parts.length !== 5) return false;
-    const [version, expiresRaw, fingerprint, nonce, signature] = parts;
-    if (version !== TOKEN_VERSION) return false;
-    if (!EXPIRY_PATTERN.test(expiresRaw)) return false;
-    if (!FINGERPRINT_PATTERN.test(fingerprint)) return false;
-    if (!NONCE_PATTERN.test(nonce)) return false;
-    if (!SIGNATURE_PATTERN.test(signature)) return false;
-
-    const expiresAt = Number(expiresRaw);
-    if (!Number.isSafeInteger(expiresAt)) return false;
-
-    const payload = `${version}.${expiresRaw}.${fingerprint}.${nonce}`;
-    if (!safeEqualStrings(signature, sign(payload, config.secret))) return false;
+    const parsed = parseSessionToken(token, config);
+    if (!parsed) return false;
 
     const now = Math.floor(Date.now() / 1000);
-    if (expiresAt <= now) return false;
-    if (expiresAt > now + SESSION_MAX_AGE + EXPIRY_CLOCK_SKEW) return false;
+    if (parsed.expiresAt <= now) return false;
+    if (parsed.expiresAt > now + SESSION_MAX_AGE + EXPIRY_CLOCK_SKEW) return false;
 
     // Rotating the username or password hash changes the fingerprint, so old
     // tokens are rejected even though their HMAC is still valid.
-    return safeEqualStrings(fingerprint, credentialFingerprint(config));
+    if (!safeEqualStrings(parsed.fingerprint, credentialFingerprint(config))) return false;
+
+    return !(await isRevoked(parsed.nonce));
   } catch {
     return false;
   }
+}
+
+/**
+ * Revoke the session carried by this token so it cannot be replayed.
+ * Only a token that is currently a valid session for the configured
+ * credentials is recorded, so an attacker cannot use logout to poison the
+ * revocation list. Unreadable or unparsable tokens are ignored.
+ *
+ * Never throws and never reports failure upward: logout must always be able to
+ * clear the browser cookie, and a store outage must not brick it. A store
+ * outage still revokes the token on this instance, but the return value is
+ * false because other instances would keep accepting it.
+ *
+ * @param {unknown} token
+ * @returns {Promise<boolean>} true when the revocation is durably recorded
+ */
+export async function revokeSession(token) {
+  const config = readConfig();
+  if (!config) return false;
+  try {
+    const parsed = parseSessionToken(token, config);
+    if (!parsed) return false;
+    if (parsed.expiresAt <= Math.floor(Date.now() / 1000)) return false;
+    if (!safeEqualStrings(parsed.fingerprint, credentialFingerprint(config))) return false;
+    return await revokeNonce(parsed.nonce, parsed.expiresAt);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Revoke every session token presented on this request.
+ *
+ * Mirrors getAdminSession's candidate discovery (duplicate cookies are
+ * tolerated and work is bounded), so a browser that sends several session
+ * cookies has all of them revoked, not just the one the browser would display.
+ * Never throws.
+ *
+ * @param {Request & { cookies?: { get(name: string): { value?: string } | undefined } }} [request]
+ * @returns {Promise<boolean>} true when at least one live token was revoked
+ */
+export async function revokeAdminSession(request) {
+  const candidates = [];
+  try {
+    if (request && typeof request.cookies?.get === 'function') {
+      const val = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
+      if (typeof val === 'string' && val.length > 0) candidates.push(val);
+    }
+    const rawCookie = request?.headers?.get ? request.headers.get('cookie') : null;
+    if (typeof rawCookie === 'string') {
+      const pattern = new RegExp(`(?:^|;\\s*)${ADMIN_COOKIE_NAME}=([^;]+)`, 'g');
+      let match;
+      while ((match = pattern.exec(rawCookie)) !== null) {
+        if (match[1]) {
+          try {
+            candidates.push(decodeURIComponent(match[1]));
+          } catch {
+            // Malformed percent-encoding cannot be the cookie we set.
+          }
+        }
+      }
+    }
+  } catch {
+    // Fall through: revoking nothing is the documented logout fallback.
+  }
+
+  let revoked = false;
+  const limit = Math.min(candidates.length, MAX_SESSION_COOKIE_CANDIDATES);
+  for (let index = 0; index < limit; index += 1) {
+    if (await revokeSession(candidates[index])) revoked = true;
+  }
+  return revoked;
 }
 
 /**
@@ -406,12 +703,12 @@ export async function getAdminSession(request) {
     if (request) {
       if (typeof request.cookies?.get === 'function') {
         const val = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
-        if (val && verifySession(val)) return true;
+        if (val && (await verifySession(val))) return true;
       }
       const rawCookie = request.headers?.get ? request.headers.get('cookie') : null;
       if (typeof rawCookie === 'string') {
         const match = rawCookie.match(new RegExp(`(?:^|;\\s*)${ADMIN_COOKIE_NAME}=([^;]+)`));
-        if (match && match[1] && verifySession(decodeURIComponent(match[1]))) return true;
+        if (match && match[1] && (await verifySession(decodeURIComponent(match[1])))) return true;
       }
     }
     const cookieStore = await cookies();
@@ -420,7 +717,7 @@ export async function getAdminSession(request) {
       if (Array.isArray(candidates)) {
         const count = Math.min(candidates.length, MAX_SESSION_COOKIE_CANDIDATES);
         for (let index = 0; index < count; index += 1) {
-          if (verifySession(candidates[index]?.value)) return true;
+          if (await verifySession(candidates[index]?.value)) return true;
         }
         return false;
       }
