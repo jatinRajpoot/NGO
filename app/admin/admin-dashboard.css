@@ -105,8 +105,8 @@ body:has(.admin-root) #main { min-height: 100vh; margin: 0; }
 .admin-content { width: min(1385px, 100%); padding: 29px clamp(23px, 3vw, 43px) 16px; margin-inline: auto; }
 .admin-welcome { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
 .admin-date { display: flex; align-items: center; gap: 7px; margin: 0 0 9px; color: #848da0; font-size: 10px; }
-.admin-welcome h1 { margin: 0; color: #1c2942; font-family: 'Plus Jakarta Sans', Inter, Arial, sans-serif; font-size: clamp(25px, 2.2vw, 31px); font-weight: 750; letter-spacing: -.055em; line-height: 1.2; }
-.admin-welcome h1 > span { display: inline-block; transform: translateY(-2px); color: #d8ae47; font-size: 16px; }
+.admin-welcome h2 { margin: 0; color: #1c2942; font-family: 'Plus Jakarta Sans', Inter, Arial, sans-serif; font-size: clamp(25px, 2.2vw, 31px); font-weight: 750; letter-spacing: -.055em; line-height: 1.2; }
+.admin-welcome h2 > span { display: inline-block; transform: translateY(-2px); color: #d8ae47; font-size: 16px; }
 .admin-welcome-copy { margin: 6px 0 0; color: #838da0; font-size: 11px; }
 .admin-welcome-actions { display: flex; align-items: center; gap: 16px; padding-bottom: 2px; }
 .admin-sync-status { display: flex; align-items: center; gap: 6px; color: #7d8799; font-size: 9px; white-space: nowrap; }
@@ -177,7 +177,7 @@ body:has(.admin-root) #main { min-height: 100vh; margin: 0; }
   .admin-breadcrumb { gap: 5px; font-size: 9px; }
   .admin-content { padding: 20px 12px 14px; }
   .admin-welcome { align-items: flex-start; flex-direction: column; gap: 13px; }
-  .admin-welcome h1 { font-size: 25px; }
+  .admin-welcome h2 { font-size: 25px; }
   .admin-welcome-actions { width: 100%; justify-content: space-between; }
   .admin-preview-banner { align-items: flex-start; padding: 9px 9px; }
   .admin-preview-banner p { display: grid; gap: 3px; padding-top: 1px; }
