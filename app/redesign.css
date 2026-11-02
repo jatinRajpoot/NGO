@@ -2316,6 +2316,19 @@
     min-height: 44px;
   }
 
+  /* Phone widths: anchor the drawer to the full header row instead of the
+     44px toggle. While the toggle is position:relative it is the panel's
+     containing block, so a right-aligned panel starts at toggle_right - 380px;
+     because the header row wraps at phone widths the toggle sits mid-row and
+     the panel hung off-screen (measured at 390px: left edge -215px, ~151px
+     visible). Unpositioning the toggle makes .main-header-inner the containing
+     block, so right:0 tracks the header's right edge at every width, and the
+     existing 8px offset below the row is preserved. Tablet and desktop
+     (>680px) never wrap and keep the original toggle-anchored layout. */
+  .redesigned-site-header .mobile-nav {
+    position: static;
+  }
+
   /* Hero on mobile */
   .redesign-home-hero {
     height: min(80svh, 720px);
