@@ -806,3 +806,64 @@ textarea.adm-form-control {
     font-size: 22px;
   }
 }
+
+/* Print Styles for Certificate & Receipt PDF Generation */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .admin-sidebar,
+  .admin-topbar,
+  .admin-mobile-backdrop,
+  .adm-sec-header,
+  .adm-stats-grid,
+  .adm-tabs,
+  .adm-control-bar,
+  .admin-footer,
+  .admin-toast,
+  .adm-modal-header,
+  .adm-modal-footer,
+  .adm-btn,
+  .admin-preview-banner {
+    display: none !important;
+  }
+  .admin-root {
+    display: block !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .admin-main,
+  .admin-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+  .adm-modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  .adm-modal-box {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  .adm-modal-body {
+    padding: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .adm-cert-frame {
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin: 0 auto !important;
+    padding: 24px 30px !important;
+  }
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Globe, LayoutTemplate, Share2, Mail, DollarSign, Image as ImageIcon,
   Edit2, Save, ExternalLink, Check, Search, Eye, Trash2, ArrowUpRight,
@@ -9,8 +9,14 @@ import {
 import GalleryManager from '../GalleryManager';
 import { initialEnquiries, initialDonations } from './data/mock-admin-data';
 
-export default function WebsiteManagement({ notify }) {
-  const [activeTab, setActiveTab] = useState('pages'); // 'pages', 'social', 'enquiries', 'donations', 'gallery'
+export default function WebsiteManagement({ notify, initialTab = 'pages' }) {
+  const [activeTab, setActiveTab] = useState(initialTab); // 'pages', 'social', 'enquiries', 'donations', 'gallery'
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Page Content States
   const [pages, setPages] = useState([
