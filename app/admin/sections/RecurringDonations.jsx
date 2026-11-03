@@ -161,6 +161,13 @@ export default function RecurringDonations({ notify }) {
   const handleSendNotification = (e) => {
     e.preventDefault();
     if (notifyChannel === 'whatsapp') {
+      const cleanPhone = (notifyModalDonor?.phone || '').replace(/[^0-9]/g, '');
+      const msg = encodeURIComponent(
+        `Dear ${notifyModalDonor.donorName}, thank you for your recurring support of ₹${notifyModalDonor.monthlyAmount} to GSDD Foundation. Your official Section 80G tax receipt has been generated: https://gsddfoundation.org/verify?type=donation&id=GSDD-REC-2026-1042`
+      );
+      if (cleanPhone) {
+        window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
+      }
       notify?.(`WhatsApp receipt notification dispatched to ${notifyModalDonor?.phone}!`);
     } else {
       notify?.(`Email receipt notification sent to ${notifyModalDonor?.email}!`);
