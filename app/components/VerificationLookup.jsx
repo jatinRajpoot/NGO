@@ -55,6 +55,34 @@ const KNOWN_DOCS = {
     purpose: 'Registered Patron & Life Member of GSDD Foundation.',
     authority: 'Executive Body, GSDD Foundation',
   },
+  'GSDD-APT-2026-001': {
+    type: 'Official Foundation Appointment Letter',
+    recipient: 'Rajesh Verma (Block Education Officer, Raniganj)',
+    date: '2026-03-05 at 11:30 AM',
+    purpose: 'Discussion on digital literacy batch expansion across 5 government schools in Raniganj block.',
+    authority: 'Jatin Rajpoot (President), GSDD Foundation',
+  },
+  'GSDD-APT-2026-002': {
+    type: 'Official Foundation Appointment Letter',
+    recipient: 'Priya Darshini (CSR Lead, TechCare Solutions)',
+    date: '2026-03-08 at 02:30 PM',
+    purpose: 'Corporate Social Responsibility partnership for solar-powered computer labs in rural centers.',
+    authority: 'Amit Kumar Singh (General Secretary), GSDD Foundation',
+  },
+  'GSDD-APT-2026-003': {
+    type: 'Official Foundation Appointment Letter',
+    recipient: 'Md. Tariq Anwar (President, Youth Sports Club)',
+    date: '2026-03-10 at 10:00 AM',
+    purpose: 'Coordination for youth sports and drug awareness rally in Araria district.',
+    authority: 'Executive Committee, GSDD Foundation',
+  },
+  'GSDD-APT-2026-004': {
+    type: 'Official Foundation Appointment Letter',
+    recipient: 'Anita Soren (Self-Help Group Federation)',
+    date: '2026-03-12 at 04:00 PM',
+    purpose: 'Skill development training program for rural women artisans and handicrafts marketing.',
+    authority: 'Executive Committee, GSDD Foundation',
+  },
 };
 
 export default function VerificationLookup() {
