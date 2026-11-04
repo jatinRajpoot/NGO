@@ -2,153 +2,63 @@
 
 import { useEffect, useState } from 'react';
 import {
-  ArrowRight, ArrowUpRight, Bell, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp,
-  FileText, FolderKanban, HandCoins, Image as ImageIcon, LayoutDashboard, Loader2, LogOut,
-  Megaphone, Menu, Settings, User, Users, X,
+  LayoutGrid, Globe, Users, UserCog, Award, HandHeart, CalendarClock,
+  MessageSquare, CalendarCheck, TrendingUp, User, Lock, LogOut,
+  Loader2, Menu, X, ArrowUpRight, Bell, ChevronRight, Check
 } from 'lucide-react';
-import GalleryManager from './GalleryManager';
-import AdminProfile from './profile/AdminProfile';
 
-const sections = [
-  {
-    key: 'overview',
-    label: 'Overview',
-    group: 'Workspace',
-    icon: LayoutDashboard,
-    title: 'Overview',
-    description: 'One place to see programs, reach, and funding across the foundation.',
-    features: ['Program snapshot and people reached', 'Donation trend and funding goal', 'Items that need a look'],
-  },
-  {
-    key: 'programs',
-    label: 'Programs',
-    group: 'Workspace',
-    icon: FolderKanban,
-    title: 'Programs',
-    description: 'Track every program, its focus area, location, and delivery progress.',
-    features: ['Create and edit program records', 'Progress against each program plan', 'Status updates for the team'],
-  },
-  {
-    key: 'impact',
-    label: 'People reached',
-    group: 'Workspace',
-    icon: Users,
-    title: 'People reached',
-    description: 'Measure who the foundation reaches, where, and through which program.',
-    features: ['Reach by focus area and location', 'Year-to-date and financial-year totals', 'Breakdowns by program and activity'],
-  },
-  {
-    key: 'donations',
-    label: 'Donations',
-    group: 'Workspace',
-    icon: HandCoins,
-    title: 'Donations',
-    description: 'See funds received, donor records, and progress against the funding goal.',
-    features: ['Donation ledger and receipts', 'Funding goal tracking', 'Donor communication history'],
-  },
-  {
-    key: 'gallery',
-    label: 'Gallery',
-    group: 'Manage',
-    icon: ImageIcon,
-    title: 'Gallery',
-    live: true,
-  },
-  {
-    key: 'reports',
-    label: 'Reports',
-    group: 'Manage',
-    icon: FileText,
-    title: 'Reports',
-    description: 'Prepare activity and impact reports for the board, donors, and partners.',
-    features: ['Quarterly activity reports', 'Exportable impact summaries', 'Report review and sign-off'],
-  },
-  {
-    key: 'campaigns',
-    label: 'Campaigns',
-    group: 'Manage',
-    icon: Megaphone,
-    title: 'Campaigns',
-    description: 'Plan fundraising campaigns and follow each one from launch to close.',
-    features: ['Campaign targets and timelines', 'Donations attributed to each campaign', 'Campaign performance summaries'],
-  },
-  {
-    key: 'events',
-    label: 'Events',
-    group: 'Manage',
-    icon: CalendarDays,
-    title: 'Events',
-    description: 'Schedule community activities, camps, and workshops with the team.',
-    features: ['Upcoming activity calendar', 'Venue and time confirmations', 'Attendance after each event'],
-  },
-  {
-    key: 'settings',
-    label: 'Settings',
-    group: 'Settings',
-    icon: Settings,
-    title: 'Settings',
-    description: 'Manage the foundation profile, team access, and dashboard preferences.',
-    features: ['Foundation profile and contact details', 'Team members and permissions', 'Notification preferences'],
-  },
-  {
-    key: 'profile',
-    label: 'Profile',
-    group: 'Account',
-    icon: User,
-    title: 'Admin Profile',
-    description: 'Manage administrator details and reset your portal password.',
-    live: true,
-  },
+import './sections/admin-sections.css';
+import WebsiteManagement from './sections/WebsiteManagement';
+import MembershipManagement from './sections/MembershipManagement';
+import TeamManagement from './sections/TeamManagement';
+import CertificateManagement from './sections/CertificateManagement';
+import DonationManagement from './sections/DonationManagement';
+import RecurringDonations from './sections/RecurringDonations';
+import MessagesNotifications from './sections/MessagesNotifications';
+import AppointmentsSection from './sections/AppointmentsSection';
+import ReportsAnalytics from './sections/ReportsAnalytics';
+import AdminProfileSection from './sections/AdminProfileSection';
+import SecuritySection from './sections/SecuritySection';
+
+const navItems = [
+  { key: 'website', label: 'Website Management', icon: Globe },
+  { key: 'membership', label: 'Membership Management', icon: Users },
+  { key: 'team', label: 'Team Management', icon: UserCog },
+  { key: 'certificates', label: 'Certificate Management', icon: Award },
+  { key: 'donations', label: 'Donation Management', icon: HandHeart },
+  { key: 'recurring', label: 'Recurring Donations', icon: CalendarClock },
+  { key: 'messages', label: 'Messages & Notifications', icon: MessageSquare },
+  { key: 'appointments', label: 'Appointments', icon: CalendarCheck },
+  { key: 'reports', label: 'Reports & Analytics', icon: TrendingUp },
+  { key: 'profile', label: 'Admin Profile', icon: User },
+  { key: 'security', label: 'Security & Password', icon: Lock },
 ];
 
-const navGroups = [
-  { label: 'Workspace', keys: ['overview', 'programs', 'impact', 'donations'] },
-  { label: 'Manage', keys: ['gallery', 'reports', 'campaigns', 'events'] },
-  { label: 'Account', keys: ['profile'] },
-];
-
-const sectionByKey = Object.fromEntries(sections.map((section) => [section.key, section]));
-
-function formatToday() {
-  return new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
-}
-
-function ComingSoonSection({ section, onOpenGallery }) {
-  const Icon = section.icon;
-  return <section className="admin-coming-soon" aria-label={`${section.title} coming soon`}>
-    <div className="admin-coming-soon-main">
-      <span className="admin-coming-soon-icon"><Icon size={24} strokeWidth={1.7} /></span>
-      <span className="admin-coming-soon-tag">COMING SOON</span>
-      <h2>In the meantime</h2>
-      <p className="admin-coming-soon-copy">This section is being built. It will bring you:</p>
-      <ul className="admin-coming-soon-list">
-        {section.features.map((feature) => <li key={feature}><Check size={14} /> {feature}</li>)}
-      </ul>
-    </div>
-    <div className="admin-coming-soon-foot">
-      <span>Only the Media Gallery is live right now.</span>
-      <button className="admin-text-link" type="button" onClick={onOpenGallery}>Open gallery <ArrowRight size={14} /></button>
-    </div>
-  </section>;
-}
+const itemByKey = Object.fromEntries(navItems.map((item) => [item.key, item]));
 
 export default function AdminDashboard() {
-  // Gallery is the only live section, so it is the landing view.
-  const [activeKey, setActiveKey] = useState('gallery');
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [activeKey, setActiveKey] = useState('website');
+  const [websiteSubTab, setWebsiteSubTab] = useState('pages');
   const [menuOpen, setMenuOpen] = useState(false);
-  const [showPreviewNotice, setShowPreviewNotice] = useState(true);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
 
-  const activeSection = sectionByKey[activeKey] ?? sectionByKey.gallery;
-  const notify = (message) => { setToast(message); window.setTimeout(() => setToast(''), 2800); };
+  const notify = (msg) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(''), 3000);
+  };
 
-  // Keep the section in the URL hash so a refresh returns to the same place.
+  // Support hash routing e.g. #membership, #gallery, #security, #website
   useEffect(() => {
     const fromHash = window.location.hash.replace('#', '');
-    if (sectionByKey[fromHash]) setActiveKey(fromHash);
+    if (fromHash === 'gallery') {
+      setActiveKey('website');
+      setWebsiteSubTab('gallery');
+    } else if (itemByKey[fromHash]) {
+      setActiveKey(fromHash);
+    }
   }, []);
 
   const selectSection = (key) => {
@@ -167,9 +77,7 @@ export default function AdminDashboard() {
     try {
       const response = await fetch('/api/admin/auth/logout/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
 
       if (!response.ok) {
@@ -185,7 +93,7 @@ export default function AdminDashboard() {
         return;
       }
       window.location.assign('/admin/login/');
-    } catch (error) {
+    } catch {
       const message = 'Unable to sign out. Check your connection and try again.';
       setLogoutError(message);
       notify(message);
@@ -194,112 +102,208 @@ export default function AdminDashboard() {
     }
   };
 
-  const renderNavLink = (section, extraClass = '') => {
-    const { key, label, icon: Icon } = section;
-    return <a
-      key={key}
-      href={`#${key}`}
-      className={`admin-nav-link${extraClass ? ` ${extraClass}` : ''}${activeKey === key ? ' is-active' : ''}`}
-      aria-current={activeKey === key ? 'page' : undefined}
-      onClick={(event) => { event.preventDefault(); selectSection(key); }}
-    >
-      <Icon size={17} strokeWidth={1.8} /><span>{label}</span>{!section.live && <small className="admin-nav-soon">Soon</small>}
-    </a>;
-  };
+  const currentNav = itemByKey[activeKey] || navItems[0];
 
-  return <div className="admin-root">
-    <aside className={`admin-sidebar${menuOpen ? ' admin-sidebar-open' : ''}`}>
-      <a className="admin-brand" href="/admin/" aria-label="GSDD Foundation dashboard">
-        <span className="admin-brand-mark">G</span><span className="admin-brand-word">GSDD<span>FOUNDATION</span></span>
-      </a>
-      <div className="admin-workspace-switch"><span className="admin-workspace-avatar">GF</span><span><strong>Foundation workspace</strong><small>Raniganj, Bihar</small></span><ChevronDown size={15} /></div>
-      <nav className="admin-nav" aria-label="Dashboard navigation">
-        {navGroups.map((group) => <div className="admin-nav-group" key={group.label}>
-          <p className="admin-nav-heading">{group.label}</p>
-          {group.keys.map((key) => renderNavLink(sectionByKey[key]))}
-        </div>)}
-      </nav>
-      <div className="admin-sidebar-spacer" />
-      <div className="admin-sidebar-note"><span className="admin-help-icon"><CircleHelp size={16} /></span><span><strong>Need a hand?</strong><small>Visit the help centre</small></span><ArrowRight size={14} /></div>
-      {renderNavLink(sectionByKey.settings, 'admin-settings-link')}
-      <div className={`admin-user-card${activeKey === 'profile' ? ' is-active' : ''}`}>
-        <button
-          type="button"
-          className="admin-user-card-main"
-          onClick={() => selectSection('profile')}
-          aria-label="View administrator profile and change password"
-        >
-          <span className="admin-user-avatar">FA</span>
-          <span><strong>Foundation Admin</strong><small>Administrator</small></span>
-        </button>
-        <button
-          className="admin-icon-button"
-          type="button"
-          onClick={handleLogout}
-          disabled={loggingOut}
-          aria-label="Sign out"
-          title="Sign out"
-          style={{ marginLeft: 'auto', color: '#aab3c7', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}
-        >
-          {loggingOut ? <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} /> : <LogOut size={17} />}
-        </button>
-      </div>
-      <div className="admin-sidebar-foot">GSDD FOUNDATION <span>•</span> ADMIN OPERATIONS</div>
-    </aside>
+  return (
+    <div className="admin-root">
+      {/* Mobile Backdrop */}
+      {menuOpen && (
+        <div
+          className="admin-mobile-backdrop"
+          onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
-    <main className="admin-main">
-      <h1 className="sr-only">Admin Dashboard</h1>
-      <header className="admin-topbar">
-        <button className="admin-icon-button admin-mobile-menu" type="button" onClick={() => setMenuOpen((open) => !open)} aria-label={menuOpen ? 'Close menu' : 'Open menu'}>{menuOpen ? <X size={19} /> : <Menu size={19} />}</button>
-        <div className="admin-breadcrumb"><span>{activeSection.group === 'Settings' ? 'Workspace' : activeSection.group}</span><ChevronRight size={14} /><strong>{activeSection.label}</strong></div>
-        <div className="admin-topbar-actions">
-          <div className="admin-notification-wrap"><button className="admin-icon-button admin-bell" type="button" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)}><Bell size={18} /><i /></button>
-            {notificationsOpen && <div className="admin-notification-popover"><div><strong>Notifications</strong><button type="button" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications"><X size={15} /></button></div><p><span className="admin-notice-dot" /><span><b>Media Gallery is live</b><small>Connected to active storage</small></span></p><p><span className="admin-notice-dot admin-notice-dot-gold" /><span><b>Other sections are coming soon</b><small>Dashboard build in progress</small></span></p><button className="admin-notifications-link" type="button" onClick={() => { setNotificationsOpen(false); selectSection('gallery'); }}>Open gallery <ArrowRight size={13} /></button></div>}
+      {/* Scrollable Sidebar Panel */}
+      <aside className={`admin-sidebar${menuOpen ? ' admin-sidebar-open' : ''}`}>
+        <div className="admin-sidebar-card">
+          {/* Header matching Image 2 */}
+          <div className="admin-sb-head">
+            <span className="admin-sb-icon-wrap" aria-hidden="true">
+              <LayoutGrid size={22} className="admin-sb-icon-grid" />
+            </span>
+            <span className="admin-sb-title">Admin Dashboard</span>
           </div>
-          <a className="admin-view-site" href="/" target="_blank" rel="noreferrer">View website <ArrowUpRight size={14} /></a>
-          <button
-            className="admin-button admin-button-outline"
-            type="button"
-            onClick={handleLogout}
-            disabled={loggingOut}
-            aria-busy={loggingOut}
-            title="Sign out of administration dashboard"
-          >
-            {loggingOut ? (
-              <>
-                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                <span>Signing out…</span>
-              </>
-            ) : (
-              <>
-                <LogOut size={14} />
-                <span>Sign out</span>
-              </>
-            )}
-          </button>
+
+          <hr className="admin-sb-divider" />
+
+          {/* Navigation Items (11 items matching Image 2) */}
+          <nav className="admin-sb-nav" aria-label="Admin Navigation">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeKey === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`admin-sb-item${isActive ? ' is-active' : ''}`}
+                  onClick={() => selectSection(item.key)}
+                >
+                  <Icon size={18} strokeWidth={1.8} className="admin-sb-item-icon" />
+                  <span className="admin-sb-item-label">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <hr className="admin-sb-divider" />
+
+          {/* Workspace info & Logout */}
+          <div className="admin-sb-user-box">
+            <div className="admin-sb-user-main">
+              <span className="admin-sb-avatar">GF</span>
+              <div className="admin-sb-user-text">
+                <strong>GSDD Foundation</strong>
+                <small>Super Administrator</small>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="admin-sb-logout-btn"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              title="Sign Out of Admin"
+              aria-label="Sign out"
+            >
+              {loggingOut ? (
+                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+              ) : (
+                <LogOut size={16} />
+              )}
+            </button>
+          </div>
         </div>
-      </header>
+      </aside>
 
-      <div className="admin-content">
-        {activeSection.key === 'gallery' && <GalleryManager />}
-        {activeSection.key === 'profile' && <AdminProfile onPasswordChanged={() => notify('Password updated successfully.')} />}
-        {!activeSection.live && <section className="admin-welcome">
-          <div>
-            <p className="admin-date"><CalendarDays size={14} /> {formatToday()}</p>
-            <h2>{activeSection.title}</h2>
-            <p className="admin-welcome-copy">{activeSection.description}</p>
+      {/* Main Content Area */}
+      <main className="admin-main">
+        <h1 className="sr-only">Admin Dashboard</h1>
+
+        {/* Top bar */}
+        <header className="admin-topbar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              className="admin-icon-button admin-mobile-menu"
+              type="button"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            >
+              {menuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+            <div className="admin-breadcrumb">
+              <span>Admin Dashboard</span>
+              <ChevronRight size={14} />
+              <strong>{currentNav.label}</strong>
+            </div>
           </div>
-          <div className="admin-welcome-actions"><span className="admin-sync-status admin-sync-soon"><i /> Coming soon</span></div>
-        </section>}
 
-        {showPreviewNotice && <div className="admin-preview-banner"><span className="admin-preview-symbol">i</span><p><strong>Dashboard preview</strong><span>Media Gallery and Profile sections are live and connected to active storage. Other sections are marked coming soon.</span></p><button type="button" onClick={() => setShowPreviewNotice(false)} aria-label="Dismiss preview notice"><X size={15} /></button></div>}
-        {logoutError && <div className="admin-preview-banner" role="alert" style={{ borderColor: '#fca5a5', background: '#fef2f2', color: '#991b1b', marginBottom: 16 }}><span className="admin-preview-symbol" style={{ background: '#ef4444', color: '#fff' }}>!</span><p><strong>Sign out notice</strong><span>{logoutError}</span></p></div>}
+          <div className="admin-topbar-actions">
+            <div className="admin-notification-wrap">
+              <button
+                className="admin-icon-button admin-bell"
+                type="button"
+                aria-label="Notifications"
+                aria-expanded={notificationsOpen}
+                onClick={() => setNotificationsOpen((o) => !o)}
+              >
+                <Bell size={18} />
+                <i />
+              </button>
+              {notificationsOpen && (
+                <div className="admin-notification-popover">
+                  <div>
+                    <strong>System Notifications</strong>
+                    <button type="button" onClick={() => setNotificationsOpen(false)}>
+                      <X size={15} />
+                    </button>
+                  </div>
+                  <p>
+                    <span className="admin-notice-dot" />
+                    <span>
+                      <b>Admin Dashboard Active</b>
+                      <small>All 11 modules operational and connected</small>
+                    </span>
+                  </p>
+                  <p>
+                    <span className="admin-notice-dot admin-notice-dot-gold" />
+                    <span>
+                      <b>Raniganj Center Workspace</b>
+                      <small>Session active under GSDD Foundation</small>
+                    </span>
+                  </p>
+                </div>
+              )}
+            </div>
 
-        {!activeSection.live && <ComingSoonSection section={activeSection} onOpenGallery={() => selectSection('gallery')} />}
+            <a className="admin-view-site" href="/" target="_blank" rel="noreferrer">
+              <span>View website</span>
+              <ArrowUpRight size={14} />
+            </a>
 
-        <footer className="admin-footer"><span>GSDD Foundation <b>·</b> Internal dashboard</span><span>Live Media Gallery &amp; Profile <i /> Other sections coming soon</span></footer>
-      </div>
-    </main>
-    {toast && <div className="admin-toast" role="status"><span><Check size={15} /></span>{toast}</div>}
-  </div>;
+            <button
+              className="admin-button admin-button-outline"
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              title="Sign out of administration dashboard"
+            >
+              {loggingOut ? (
+                <>
+                  <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                  <span>Signing out…</span>
+                </>
+              ) : (
+                <>
+                  <LogOut size={14} />
+                  <span>Sign out</span>
+                </>
+              )}
+            </button>
+          </div>
+        </header>
+
+        {/* Content Area */}
+        <div className="admin-content">
+          {logoutError && (
+            <div
+              className="admin-preview-banner"
+              role="alert"
+              style={{ borderColor: '#fca5a5', background: '#fef2f2', color: '#991b1b', marginBottom: 20 }}
+            >
+              <span className="admin-preview-symbol" style={{ background: '#ef4444', color: '#fff' }}>!</span>
+              <p><strong>Sign out notice</strong><span>{logoutError}</span></p>
+            </div>
+          )}
+
+          {activeKey === 'website' && <WebsiteManagement notify={notify} initialTab={websiteSubTab} />}
+          {activeKey === 'membership' && <MembershipManagement notify={notify} />}
+          {activeKey === 'team' && <TeamManagement notify={notify} />}
+          {activeKey === 'certificates' && <CertificateManagement notify={notify} />}
+          {activeKey === 'donations' && <DonationManagement notify={notify} />}
+          {activeKey === 'recurring' && <RecurringDonations notify={notify} />}
+          {activeKey === 'messages' && <MessagesNotifications notify={notify} />}
+          {activeKey === 'appointments' && <AppointmentsSection notify={notify} />}
+          {activeKey === 'reports' && <ReportsAnalytics notify={notify} />}
+          {activeKey === 'profile' && (
+            <AdminProfileSection notify={notify} onGoToSecurity={() => selectSection('security')} />
+          )}
+          {activeKey === 'security' && <SecuritySection notify={notify} />}
+
+          <footer className="admin-footer" style={{ marginTop: '48px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#64748b' }}>
+            <span>GLOBAL SKILLS &amp; DIGITAL DEVELOPMENT FOUNDATION &bull; ADMIN DASHBOARD</span>
+            <span>All operations secured with HTTP-only session tokens</span>
+          </footer>
+        </div>
+      </main>
+
+      {/* Floating Toast Notification */}
+      {toast && (
+        <div className="admin-toast" role="status">
+          <span><Check size={15} /></span>
+          {toast}
+        </div>
+      )}
+    </div>
+  );
 }
