@@ -1,0 +1,433 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import {
+  LayoutDashboard, User, ShieldCheck, CreditCard, Receipt,
+  QrCode, Award, Heart, Share2, Bell, MessageSquare, KeyRound,
+  LogOut, CheckCircle2, Clock, Calendar, Edit3, Camera, MapPin, Mail, Phone,
+  ExternalLink, ArrowRight, Download, Printer
+} from 'lucide-react';
+import { defaultMembers } from '../member-data';
+import '../member.css';
+
+const sidebarItems = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'profile', label: 'My Profile', icon: User },
+  { id: 'details', label: 'Membership Details', icon: ShieldCheck },
+  { id: 'fees', label: 'Membership Fees', icon: CreditCard },
+  { id: 'receipts', label: 'Payment Receipts', icon: Receipt },
+  { id: 'idcard', label: 'Membership ID Card', icon: QrCode },
+  { id: 'certificates', label: 'My Certificates', icon: Award },
+  { id: 'donations', label: 'My Donations', icon: Heart },
+  { id: 'referral', label: 'Referral System', icon: Share2 },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'messages', label: 'Messages', icon: MessageSquare },
+  { id: 'password', label: 'Change Password', icon: KeyRound },
+];
+
+export default function MemberDashboardPage() {
+  const router = useRouter();
+  const [member, setMember] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+    bio: '',
+  });
+
+  useEffect(() => {
+    try {
+      const active = localStorage.getItem('gsdd_active_member');
+      if (active) {
+        const parsed = JSON.parse(active);
+        setMember(parsed);
+        setProfileForm({
+          name: parsed.name || '',
+          phone: parsed.phone || '',
+          email: parsed.email || '',
+          address: parsed.address || '',
+          bio: parsed.bio || '',
+        });
+      } else {
+        // Use default demo member if no session
+        const demo = defaultMembers[0];
+        setMember(demo);
+        setProfileForm({
+          name: demo.name,
+          phone: demo.phone,
+          email: demo.email,
+          address: demo.address,
+          bio: demo.bio,
+        });
+      }
+    } catch {
+      setMember(defaultMembers[0]);
+    }
+  }, []);
+
+  function handleLogout() {
+    try {
+      localStorage.removeItem('gsdd_active_member');
+    } catch {
+      // Ignore
+    }
+    router.push('/member/login');
+  }
+
+  function handleSaveProfile(e) {
+    e.preventDefault();
+    const updated = {
+      ...member,
+      name: profileForm.name,
+      phone: profileForm.phone,
+      email: profileForm.email,
+      address: profileForm.address,
+      bio: profileForm.bio,
+    };
+    setMember(updated);
+    setEditingProfile(false);
+    try {
+      localStorage.setItem('gsdd_active_member', JSON.stringify(updated));
+    } catch {
+      // Ignore
+    }
+  }
+
+  if (!member) {
+    return <div style={{ padding: '60px', textAlign: 'center' }}>Loading Member Portal...</div>;
+  }
+
+  const initials = member.name.split(' ').map((n) => n[0]).slice(0, 2).join('');
+
+  return (
+    <div className="member-dashboard-layout">
+      {/* Sidebar matching handwritten sheet */}
+      <aside className="member-sidebar" aria-label="Member Navigation">
+        <div className="member-sidebar-header">
+          <div className="member-avatar-mini">{initials}</div>
+          <div style={{ minWidth: 0 }}>
+            <h3 style={{ margin: 0, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#FFF' }}>
+              {member.name}
+            </h3>
+            <span style={{ fontSize: '11px', color: '#94A3B8' }}>{member.designation}</span>
+          </div>
+        </div>
+
+        <nav className="member-sidebar-nav">
+          {sidebarItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`member-nav-btn ${isActive ? 'active' : ''}`}
+                onClick={() => setActiveTab(item.id)}
+              >
+                <Icon size={16} aria-hidden="true" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="member-sidebar-footer">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="member-nav-btn"
+            style={{ color: '#F87171' }}
+          >
+            <LogOut size={16} aria-hidden="true" />
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="member-content-main">
+        {/* Top Header Bar */}
+        <div className="member-top-bar">
+          <div className="member-greeting">
+            <h1>Welcome, {member.name}!</h1>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="badge-pill-active">
+                <CheckCircle2 size={13} /> {member.status} Member
+              </span>
+              <span style={{ fontSize: '12px', color: 'var(--gsdd-text-muted)' }}>
+                Member ID: <strong><code>{member.id}</code></strong> &bull; Category: <strong>{member.category}</strong>
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              type="button"
+              className="button button-outline-blue"
+              onClick={() => setActiveTab('profile')}
+              style={{ fontSize: '13px', padding: '8px 14px' }}
+            >
+              <User size={15} /> My Profile
+            </button>
+          </div>
+        </div>
+
+        {/* Feature 3: Overview Tab (Apni Activities & Details Dekhna) */}
+        {activeTab === 'overview' && (
+          <div className="dashboard-tab-overview">
+            <div className="member-stats-row">
+              <div className="member-stat-card">
+                <div className="stat-icon-wrap stat-icon-blue">
+                  <ShieldCheck size={24} />
+                </div>
+                <div className="stat-content">
+                  <span className="stat-val">{member.category}</span>
+                  <span className="stat-lbl">{member.designation}</span>
+                </div>
+              </div>
+
+              <div className="member-stat-card">
+                <div className="stat-icon-wrap stat-icon-green">
+                  <Calendar size={24} />
+                </div>
+                <div className="stat-content">
+                  <span className="stat-val">{member.activities?.length || 0}</span>
+                  <span className="stat-lbl">Activities Attended</span>
+                </div>
+              </div>
+
+              <div className="member-stat-card">
+                <div className="stat-icon-wrap stat-icon-gold">
+                  <Award size={24} />
+                </div>
+                <div className="stat-content">
+                  <span className="stat-val">{member.certificates?.length || 0}</span>
+                  <span className="stat-lbl">Official Certificates</span>
+                </div>
+              </div>
+
+              <div className="member-stat-card">
+                <div className="stat-icon-wrap stat-icon-purple">
+                  <Heart size={24} />
+                </div>
+                <div className="stat-content">
+                  <span className="stat-val">₹{(member.donations?.reduce((s, d) => s + d.amount, 0) || 0).toLocaleString('en-IN')}</span>
+                  <span className="stat-lbl">Total Contributions</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Activities List */}
+            <div className="member-dashboard-card">
+              <div className="card-header-bar">
+                <h2>My Community Activities &amp; Events</h2>
+                <span style={{ fontSize: '12px', color: 'var(--gsdd-text-muted)' }}>Verified participation records</span>
+              </div>
+              <div className="activity-feed-list">
+                {member.activities?.map((act) => (
+                  <div className="activity-feed-item" key={act.id}>
+                    <div>
+                      <span className="act-title">{act.title}</span>
+                      <div className="act-meta">
+                        <span>Role: <strong>{act.role}</strong></span> &bull; <span>Date: {act.date}</span>
+                      </div>
+                    </div>
+                    <span className="badge-pill-active" style={{ fontSize: '11px' }}>
+                      {act.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Actions Card */}
+            <div className="member-dashboard-card" style={{ background: '#F8F7F4' }}>
+              <div className="card-header-bar">
+                <h3>Member Quick Access</h3>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                <button type="button" onClick={() => setActiveTab('idcard')} className="button button-blue" style={{ fontSize: '13px' }}>
+                  <QrCode size={15} /> Download ID Card
+                </button>
+                <button type="button" onClick={() => setActiveTab('certificates')} className="button button-outline-blue" style={{ fontSize: '13px' }}>
+                  <Award size={15} /> My Certificates
+                </button>
+                <button type="button" onClick={() => setActiveTab('fees')} className="button button-outline-blue" style={{ fontSize: '13px' }}>
+                  <CreditCard size={15} /> Pay Membership Fee
+                </button>
+                <button type="button" onClick={() => setActiveTab('messages')} className="button button-outline-blue" style={{ fontSize: '13px' }}>
+                  <MessageSquare size={15} /> Message Admin
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Feature 4: My Profile Tab (Name, photo, email, mobile) */}
+        {activeTab === 'profile' && (
+          <div className="dashboard-tab-profile">
+            <div className="member-dashboard-card">
+              <div className="card-header-bar">
+                <h2>My Official Member Profile</h2>
+                <button
+                  type="button"
+                  className="button button-outline-blue"
+                  onClick={() => setEditingProfile(!editingProfile)}
+                  style={{ fontSize: '12px', padding: '6px 12px' }}
+                >
+                  <Edit3 size={14} /> {editingProfile ? 'Cancel Edit' : 'Edit Profile'}
+                </button>
+              </div>
+
+              {!editingProfile ? (
+                <div className="profile-overview-layout">
+                  <div className="profile-avatar-card">
+                    <div className="profile-avatar-large">{initials}</div>
+                    <strong style={{ fontSize: '16px', color: 'var(--gsdd-navy-dark)' }}>{member.name}</strong>
+                    <span className="tier-badge" style={{ background: '#EFF6FF', color: '#2563EB', padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700' }}>
+                      {member.designation}
+                    </span>
+                    <small style={{ color: 'var(--gsdd-text-muted)' }}>{member.category}</small>
+                  </div>
+
+                  <div className="profile-details-grid">
+                    <div className="prof-field">
+                      <span className="prof-lbl">Member ID</span>
+                      <span className="prof-val"><code>{member.id}</code></span>
+                    </div>
+
+                    <div className="prof-field">
+                      <span className="prof-lbl">Father&apos;s / Spouse&apos;s Name</span>
+                      <span className="prof-val">{member.fatherSpouse}</span>
+                    </div>
+
+                    <div className="prof-field">
+                      <span className="prof-lbl">Email Address</span>
+                      <span className="prof-val">
+                        <a href={`mailto:${member.email}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                          {member.email}
+                        </a>
+                      </span>
+                    </div>
+
+                    <div className="prof-field">
+                      <span className="prof-lbl">Mobile / WhatsApp</span>
+                      <span className="prof-val">
+                        <a href={`tel:${member.phone}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                          {member.phone}
+                        </a>
+                      </span>
+                    </div>
+
+                    <div className="prof-field">
+                      <span className="prof-lbl">Blood Group</span>
+                      <span className="prof-val">{member.bloodGroup || 'Not specified'}</span>
+                    </div>
+
+                    <div className="prof-field">
+                      <span className="prof-lbl">Membership Joining Date</span>
+                      <span className="prof-val">{member.joinDate}</span>
+                    </div>
+
+                    <div className="prof-field" style={{ gridColumn: '1 / -1' }}>
+                      <span className="prof-lbl">Registered Address</span>
+                      <span className="prof-val">{member.address}</span>
+                    </div>
+
+                    <div className="prof-field" style={{ gridColumn: '1 / -1' }}>
+                      <span className="prof-lbl">Official Biography / Notes</span>
+                      <span className="prof-val">{member.bio || 'Active GSDD Foundation member.'}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div className="member-form-grid">
+                    <div className="member-form-group">
+                      <label>Full Name</label>
+                      <input
+                        type="text"
+                        value={profileForm.name}
+                        onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="member-form-group">
+                      <label>Mobile / WhatsApp</label>
+                      <input
+                        type="tel"
+                        value={profileForm.phone}
+                        onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="member-form-group">
+                      <label>Email Address</label>
+                      <input
+                        type="email"
+                        value={profileForm.email}
+                        onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="member-form-group" style={{ gridColumn: '1 / -1' }}>
+                      <label>Residential Address</label>
+                      <input
+                        type="text"
+                        value={profileForm.address}
+                        onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="member-form-group" style={{ gridColumn: '1 / -1' }}>
+                      <label>Biography / Roles</label>
+                      <textarea
+                        rows={3}
+                        value={profileForm.bio}
+                        onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button type="submit" className="button button-blue">
+                      Save Changes
+                    </button>
+                    <button
+                      type="button"
+                      className="button-text"
+                      onClick={() => setEditingProfile(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab placeholders for subsequent branches */}
+        {activeTab !== 'overview' && activeTab !== 'profile' && (
+          <div className="member-dashboard-card">
+            <div className="card-header-bar">
+              <h2>{sidebarItems.find((s) => s.id === activeTab)?.label}</h2>
+            </div>
+            <p style={{ color: 'var(--gsdd-text-muted)' }}>
+              Loading section module for <strong>{sidebarItems.find((s) => s.id === activeTab)?.label}</strong>...
+            </p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
