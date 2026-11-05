@@ -161,6 +161,37 @@
 .donation-table th { background: #F1F5F9; padding: 12px; font-weight: 700; color: #334155; border-bottom: 2px solid #E2E8F0; }
 .donation-table td { padding: 12px; border-bottom: 1px solid #E2E8F0; color: #1E293B; }
 
+/* Referral System (Feature 14) */
+.referral-share-card { background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); border: 1px solid #BFDBFE; border-radius: 8px; padding: 24px; margin-bottom: 24px; }
+.referral-link-input-group { display: flex; gap: 8px; margin: 14px 0; }
+.referral-link-input-group input { flex: 1; padding: 10px 14px; border-radius: 6px; border: 1px solid #94A3B8; font-family: monospace; font-size: 13px; background: #FFF; }
+.btn-whatsapp-share { background: #25D366; color: #FFF; font-weight: 700; border: none; border-radius: 6px; padding: 10px 16px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; transition: opacity 0.2s; }
+.btn-whatsapp-share:hover { opacity: 0.9; }
+
+/* Notification Preferences & Alerts (Feature 15) */
+.settings-list { display: flex; flex-direction: column; gap: 14px; }
+.setting-item-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; }
+.setting-info h4 { margin: 0 0 4px; font-size: 14px; color: #0F172A; }
+.setting-info p { margin: 0; font-size: 12px; color: #64748B; }
+.toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #CBD5E1; transition: .3s; border-radius: 24px; }
+.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+input:checked + .slider { background-color: #2563EB; }
+input:checked + .slider:before { transform: translateX(20px); }
+
+/* Messages Module (Feature 16) */
+.messages-container { display: flex; flex-direction: column; gap: 20px; }
+.message-card { background: #FFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; transition: border-color 0.2s; }
+.message-card.unread { border-left: 4px solid #2563EB; }
+.message-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.message-sender { font-weight: 700; font-size: 14px; color: #0F172A; display: flex; align-items: center; gap: 8px; }
+.message-date { font-size: 11px; color: #64748B; }
+.message-text { font-size: 13px; color: #334155; line-height: 1.6; margin: 0; }
+
+/* Password Form (Feature 17) */
+.password-box { max-width: 500px; }
+
 /* Print Rules */
 @media print {
   .member-sidebar, .card-header-bar button, .subtab-switcher, .donation-grid-layout form, .portal-login-nav, footer, .top-nav {

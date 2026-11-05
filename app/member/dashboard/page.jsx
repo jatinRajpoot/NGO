@@ -7,7 +7,7 @@ import {
   LayoutDashboard, User, ShieldCheck, CreditCard, Receipt,
   QrCode, Award, Heart, Share2, Bell, MessageSquare, KeyRound,
   LogOut, CheckCircle2, Clock, Calendar, Edit3, Camera, MapPin, Mail, Phone,
-  ExternalLink, ArrowRight, Download, Printer
+  ExternalLink, ArrowRight, Download, Printer, Copy, Check, Send, AlertCircle
 } from 'lucide-react';
 import { defaultMembers } from '../member-data';
 import { organization } from '../../data/site-data';
@@ -42,6 +42,23 @@ export default function MemberDashboardPage() {
   const [donationUtr, setDonationUtr] = useState('');
   const [donationSuccess, setDonationSuccess] = useState(false);
   const [selectedDonationReceipt, setSelectedDonationReceipt] = useState(null);
+  const [referralCopied, setReferralCopied] = useState(false);
+  const [notificationsForm, setNotificationsForm] = useState({
+    emailUpdates: true,
+    whatsappUpdates: true,
+    meetingAlerts: true,
+    donationReceipts: true,
+  });
+  const [notifSaved, setNotifSaved] = useState(false);
+  const [msgDept, setMsgDept] = useState('General Admin Office');
+  const [msgSubject, setMsgSubject] = useState('');
+  const [msgContent, setMsgContent] = useState('');
+  const [msgSentSuccess, setMsgSentSuccess] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
   const [profileForm, setProfileForm] = useState({
     name: '',
     phone: '',
@@ -63,10 +80,16 @@ export default function MemberDashboardPage() {
           address: parsed.address || '',
           bio: parsed.bio || '',
         });
+        if (parsed.notifications) {
+          setNotificationsForm(parsed.notifications);
+        }
       } else {
         // Use default demo member if no session
         const demo = defaultMembers[0];
         setMember(demo);
+        if (demo.notifications) {
+          setNotificationsForm(demo.notifications);
+        }
         setProfileForm({
           name: demo.name,
           phone: demo.phone,
@@ -1305,15 +1328,532 @@ export default function MemberDashboardPage() {
           </div>
         )}
 
-        {/* Tab placeholders for Branch 4 */}
-        {['referral', 'notifications', 'messages', 'password'].includes(activeTab) && (
+        {/* Tab 9: Referral System (Feature 14) */}
+        {activeTab === 'referral' && (
           <div className="member-dashboard-card">
             <div className="card-header-bar">
-              <h2>{sidebarItems.find((s) => s.id === activeTab)?.label}</h2>
+              <div>
+                <h2>Advocacy & Referral System</h2>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--gsdd-text-muted)' }}>
+                  Invite friends and community members to join GSDD Foundation and track your advocacy outreach.
+                </p>
+              </div>
             </div>
-            <p style={{ color: 'var(--gsdd-text-muted)' }}>
-              Loading section module for <strong>{sidebarItems.find((s) => s.id === activeTab)?.label}</strong>...
-            </p>
+
+            {/* Share Card */}
+            <div className="referral-share-card">
+              <h3 style={{ margin: '0 0 6px', fontSize: '16px', color: '#1E3A8A' }}>
+                Your Unique Member Referral Link
+              </h3>
+              <p style={{ margin: 0, fontSize: '13px', color: '#334155' }}>
+                Share this link with potential members. When they register, your advocacy score increases!
+              </p>
+
+              <div className="referral-link-input-group">
+                <input
+                  type="text"
+                  readOnly
+                  value={
+                    typeof window !== 'undefined'
+                      ? `${window.location.origin}/member/register?ref=${member.referralCode || member.id}`
+                      : `https://gsddfoundation.org/member/register?ref=${member.referralCode || member.id}`
+                  }
+                />
+                <button
+                  type="button"
+                  className="btn-action-primary"
+                  onClick={() => {
+                    const link = typeof window !== 'undefined'
+                      ? `${window.location.origin}/member/register?ref=${member.referralCode || member.id}`
+                      : `https://gsddfoundation.org/member/register?ref=${member.referralCode || member.id}`;
+                    navigator.clipboard?.writeText(link);
+                    setReferralCopied(true);
+                    setTimeout(() => setReferralCopied(false), 2500);
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  {referralCopied ? <Check size={16} /> : <Copy size={16} />}
+                  <span>{referralCopied ? 'Copied Link!' : 'Copy Link'}</span>
+                </button>
+                <a
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                    `Namaste! Join me as an active member of Gurudev Shree Dhyanyogi Sharanam Foundation. Register here: ${
+                      typeof window !== 'undefined' ? window.location.origin : 'https://gsddfoundation.org'
+                    }/member/register?ref=${member.referralCode || member.id}`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-whatsapp-share"
+                >
+                  <Share2 size={16} />
+                  <span>Share on WhatsApp</span>
+                </a>
+              </div>
+
+              <div style={{ display: 'inline-block', fontSize: '12px', color: '#475569' }}>
+                Referral Code: <strong style={{ letterSpacing: '0.05em', color: '#1E3A8A' }}>{member.referralCode || member.id}</strong>
+              </div>
+            </div>
+
+            {/* Statistics Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '16px', borderRadius: '8px' }}>
+                <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '700' }}>MEMBERS ENROLLED VIA YOU</div>
+                <div style={{ fontSize: '26px', fontWeight: '800', color: '#0F172A', marginTop: '4px' }}>
+                  {member.referralCount || 0}
+                </div>
+                <div style={{ fontSize: '11px', color: '#15803D', marginTop: '4px' }}>+2 this month</div>
+              </div>
+
+              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '16px', borderRadius: '8px' }}>
+                <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '700' }}>ADVOCATE BADGE TIER</div>
+                <div style={{ fontSize: '18px', fontWeight: '800', color: '#B45309', marginTop: '4px' }}>
+                  {(member.referralCount || 0) >= 10 ? 'Gold Ambassador' : (member.referralCount || 0) >= 5 ? 'Silver Advocate' : 'Bronze Supporter'}
+                </div>
+                <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>Level 3 Verified</div>
+              </div>
+
+              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '16px', borderRadius: '8px' }}>
+                <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '700' }}>COMMUNITY SOCIAL KARMA</div>
+                <div style={{ fontSize: '26px', fontWeight: '800', color: '#1E3A8A', marginTop: '4px' }}>
+                  {((member.referralCount || 0) * 100).toLocaleString('en-IN')} pts
+                </div>
+                <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>100 pts per verified member</div>
+              </div>
+            </div>
+
+            {/* How it works info */}
+            <div style={{ background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '18px' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#0F172A' }}>How the Member Advocacy Program Works</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', fontSize: '12px', color: '#475569' }}>
+                <div style={{ padding: '10px', background: '#F8FAFC', borderRadius: '6px' }}>
+                  <strong>1. Share Your Link:</strong> Send your personal referral link via WhatsApp, Email, or Social Media to like-minded social workers.
+                </div>
+                <div style={{ padding: '10px', background: '#F8FAFC', borderRadius: '6px' }}>
+                  <strong>2. Member Registers:</strong> Your referral code is automatically attached when they apply and pay their membership fee.
+                </div>
+                <div style={{ padding: '10px', background: '#F8FAFC', borderRadius: '6px' }}>
+                  <strong>3. Honor & Recognition:</strong> Top advocates are awarded the National Social Leadership Merit Trophy during the Annual Foundation Day.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 10: Notifications & Alerts (Feature 15) */}
+        {activeTab === 'notifications' && (
+          <div className="member-dashboard-card">
+            <div className="card-header-bar">
+              <div>
+                <h2>Notifications & Communication Alerts</h2>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--gsdd-text-muted)' }}>
+                  Manage how GSDD Foundation reaches you for updates, emergency campaigns, and meeting invites.
+                </p>
+              </div>
+            </div>
+
+            {notifSaved && (
+              <div className="fee-status-banner paid" style={{ marginBottom: '18px' }}>
+                <CheckCircle2 size={16} />
+                <span>Your notification preferences have been successfully updated!</span>
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+              <div>
+                <h3 style={{ margin: '0 0 14px', fontSize: '15px', color: 'var(--gsdd-navy-dark)' }}>
+                  Delivery Channels & Preferences
+                </h3>
+
+                <div className="settings-list">
+                  <div className="setting-item-row">
+                    <div className="setting-info">
+                      <h4>Email Bulletins & Newsletters</h4>
+                      <p>Receive monthly reports, AGM agendas, and financial disclosures.</p>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={notificationsForm.emailUpdates}
+                        onChange={(e) => setNotificationsForm({ ...notificationsForm, emailUpdates: e.target.checked })}
+                      />
+                      <span className="slider" />
+                    </label>
+                  </div>
+
+                  <div className="setting-item-row">
+                    <div className="setting-info">
+                      <h4>WhatsApp Emergency & Camp Alerts</h4>
+                      <p>Direct WhatsApp alerts for disaster relief and free medical camp drives.</p>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={notificationsForm.whatsappUpdates}
+                        onChange={(e) => setNotificationsForm({ ...notificationsForm, whatsappUpdates: e.target.checked })}
+                      />
+                      <span className="slider" />
+                    </label>
+                  </div>
+
+                  <div className="setting-item-row">
+                    <div className="setting-info">
+                      <h4>Governing Board Meeting Alerts</h4>
+                      <p>SMS & Email notifications for quarterly committee assemblies and votes.</p>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={notificationsForm.meetingAlerts}
+                        onChange={(e) => setNotificationsForm({ ...notificationsForm, meetingAlerts: e.target.checked })}
+                      />
+                      <span className="slider" />
+                    </label>
+                  </div>
+
+                  <div className="setting-item-row">
+                    <div className="setting-info">
+                      <h4>Tax Receipts & Contribution Alerts</h4>
+                      <p>Instant alerts when your 80G tax exemption receipts are issued.</p>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={notificationsForm.donationReceipts}
+                        onChange={(e) => setNotificationsForm({ ...notificationsForm, donationReceipts: e.target.checked })}
+                      />
+                      <span className="slider" />
+                    </label>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '18px' }}>
+                  <button
+                    type="button"
+                    className="btn-action-primary"
+                    onClick={() => {
+                      const updated = { ...member, notifications: notificationsForm };
+                      setMember(updated);
+                      try {
+                        localStorage.setItem('gsdd_active_member', JSON.stringify(updated));
+                      } catch {
+                        // ignore
+                      }
+                      setNotifSaved(true);
+                      setTimeout(() => setNotifSaved(false), 3000);
+                    }}
+                  >
+                    Save Preferences
+                  </button>
+                </div>
+              </div>
+
+              {/* Recent Notifications Feed */}
+              <div>
+                <h3 style={{ margin: '0 0 14px', fontSize: '15px', color: 'var(--gsdd-navy-dark)' }}>
+                  Recent System Notifications
+                </h3>
+
+                <div className="messages-container">
+                  <div className="message-card unread">
+                    <div className="message-header">
+                      <div className="message-sender">
+                        <Bell size={14} color="#2563EB" />
+                        <span>Executive Board Notice</span>
+                      </div>
+                      <span className="message-date">2 hours ago</span>
+                    </div>
+                    <p className="message-text">
+                      Quarterly General Meeting scheduled for March 25, 2026. Please confirm your physical or virtual attendance in Araria district hall.
+                    </p>
+                  </div>
+
+                  <div className="message-card">
+                    <div className="message-header">
+                      <div className="message-sender">
+                        <CheckCircle2 size={14} color="#15803D" />
+                        <span>Finance Department</span>
+                      </div>
+                      <span className="message-date">Yesterday</span>
+                    </div>
+                    <p className="message-text">
+                      Annual audited accounts and 80G tax summaries have been uploaded to your receipts portal.
+                    </p>
+                  </div>
+
+                  <div className="message-card">
+                    <div className="message-header">
+                      <div className="message-sender">
+                        <Award size={14} color="#D97706" />
+                        <span>Community Welfare Team</span>
+                      </div>
+                      <span className="message-date">3 days ago</span>
+                    </div>
+                    <p className="message-text">
+                      Congratulations! You have received the 2026 Humanitarian Service Excellence Certificate for community healthcare leadership.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 11: Messages (Feature 16) */}
+        {activeTab === 'messages' && (
+          <div className="member-dashboard-card">
+            <div className="card-header-bar">
+              <div>
+                <h2>Messages & Board Communications</h2>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--gsdd-text-muted)' }}>
+                  Send direct inquiries, project suggestions, and messages to the NGO administration.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '24px' }}>
+              {/* Compose Form */}
+              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '20px' }}>
+                <h3 style={{ margin: '0 0 14px', fontSize: '15px', color: 'var(--gsdd-navy-dark)' }}>
+                  Compose Message to Administration
+                </h3>
+
+                {msgSentSuccess && (
+                  <div className="fee-status-banner paid" style={{ marginBottom: '14px' }}>
+                    <CheckCircle2 size={16} />
+                    <span>Your message has been sent to the Admin office. A copy is logged in your thread.</span>
+                  </div>
+                )}
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!msgSubject || !msgContent) return;
+                    const newMsg = {
+                      id: 'msg-' + Date.now(),
+                      sender: `You (To: ${msgDept})`,
+                      subject: msgSubject,
+                      text: msgContent,
+                      date: new Date().toISOString().split('T')[0],
+                      unread: false,
+                    };
+                    const updated = {
+                      ...member,
+                      messages: [newMsg, ...(member.messages || [])],
+                    };
+                    setMember(updated);
+                    try {
+                      localStorage.setItem('gsdd_active_member', JSON.stringify(updated));
+                    } catch {
+                      // ignore
+                    }
+                    setMsgSentSuccess(true);
+                    setMsgSubject('');
+                    setMsgContent('');
+                    setTimeout(() => setMsgSentSuccess(false), 4000);
+                  }}
+                >
+                  <div className="form-group" style={{ marginBottom: '12px' }}>
+                    <label className="form-label">Recipient Committee / Department</label>
+                    <select
+                      className="form-control"
+                      value={msgDept}
+                      onChange={(e) => setMsgDept(e.target.value)}
+                    >
+                      <option>General Admin Office</option>
+                      <option>National President & Governing Board</option>
+                      <option>Finance & Accounts Committee</option>
+                      <option>Rural Health & Medical Camps Division</option>
+                      <option>Women Empowerment Wing</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '12px' }}>
+                    <label className="form-label">Subject</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Health camp proposal for Raniganj village"
+                      value={msgSubject}
+                      onChange={(e) => setMsgSubject(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label className="form-label">Message Content</label>
+                    <textarea
+                      className="form-control"
+                      rows={5}
+                      placeholder="Type your message, proposal, or inquiry here..."
+                      value={msgContent}
+                      onChange={(e) => setMsgContent(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn-action-primary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Send size={15} />
+                    <span>Send Message</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* Inbox / Sent Thread History */}
+              <div>
+                <h3 style={{ margin: '0 0 14px', fontSize: '15px', color: 'var(--gsdd-navy-dark)' }}>
+                  Message History & Responses
+                </h3>
+
+                <div className="messages-container">
+                  {(member.messages || []).length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '32px', color: '#64748B', background: '#F8FAFC', borderRadius: '8px' }}>
+                      No messages in your thread yet. Send a message to the Admin office using the form on the left.
+                    </div>
+                  ) : (
+                    member.messages.map((m) => (
+                      <div key={m.id} className="message-card">
+                        <div className="message-header">
+                          <div className="message-sender">
+                            <MessageSquare size={14} color="#1E3A8A" />
+                            <span>{m.sender}</span>
+                          </div>
+                          <span className="message-date">{m.date}</span>
+                        </div>
+                        {m.subject && (
+                          <div style={{ fontSize: '13px', fontWeight: '700', color: '#0F172A', marginBottom: '4px' }}>
+                            Subject: {m.subject}
+                          </div>
+                        )}
+                        <p className="message-text">{m.text}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 12: Password Management (Feature 17) */}
+        {activeTab === 'password' && (
+          <div className="member-dashboard-card">
+            <div className="card-header-bar">
+              <div>
+                <h2>Password Management & Security</h2>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--gsdd-text-muted)' }}>
+                  Update your member portal password to keep your account secure.
+                </p>
+              </div>
+            </div>
+
+            <div className="password-box">
+              {passwordError && (
+                <div className="fee-status-banner due" style={{ marginBottom: '16px' }}>
+                  <AlertCircle size={16} />
+                  <span>{passwordError}</span>
+                </div>
+              )}
+
+              {passwordSuccess && (
+                <div className="fee-status-banner paid" style={{ marginBottom: '16px' }}>
+                  <CheckCircle2 size={16} />
+                  <span>{passwordSuccess}</span>
+                </div>
+              )}
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setPasswordError('');
+                  setPasswordSuccess('');
+
+                  if (currentPassword && currentPassword !== (member.password || 'password123')) {
+                    setPasswordError('Current password does not match our records.');
+                    return;
+                  }
+
+                  if (newPassword.length < 6) {
+                    setPasswordError('New password must be at least 6 characters long.');
+                    return;
+                  }
+
+                  if (newPassword !== confirmPassword) {
+                    setPasswordError('New passwords do not match. Please re-enter.');
+                    return;
+                  }
+
+                  const updated = {
+                    ...member,
+                    password: newPassword,
+                  };
+                  setMember(updated);
+                  try {
+                    localStorage.setItem('gsdd_active_member', JSON.stringify(updated));
+                  } catch {
+                    // ignore
+                  }
+
+                  setPasswordSuccess('Your password has been changed successfully. Please remember it for your next login.');
+                  setCurrentPassword('');
+                  setNewPassword('');
+                  setConfirmPassword('');
+                }}
+              >
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <label className="form-label">Current Password</label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    placeholder="Enter current password (demo: password123)"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <label className="form-label">New Password</label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    placeholder="Enter new password (min. 6 characters)"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '18px' }}>
+                  <label className="form-label">Confirm New Password</label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    placeholder="Re-enter new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '12px', borderRadius: '6px', fontSize: '12px', color: '#64748B', marginBottom: '18px' }}>
+                  <strong>Password Requirements:</strong> Minimum 6 characters. We recommend combining letters, numbers, and special symbols.
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-action-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <KeyRound size={16} />
+                  <span>Update Password</span>
+                </button>
+              </form>
+            </div>
           </div>
         )}
       </main>
