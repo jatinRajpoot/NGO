@@ -49,6 +49,7 @@ const navItems = [
     label: 'Transparency', href: '/transparency', children: [
       ['Registration details', '/transparency'],
       ['Document verification', '/verify'],
+      ['Visitor certificate', '/visitor-certificate'],
     ],
   },
   { label: 'Contact', href: '/contact' },
@@ -69,7 +70,7 @@ function getActiveNavHref(pathname) {
   if (directMatch) return directMatch.href;
 
   // 2. Canonical child ownership mapping (disambiguates shared and cross-linked routes)
-  if (current === '/verify' || current.startsWith('/verify/')) return '/transparency';
+  if (current === '/verify' || current.startsWith('/verify/') || current === '/visitor-certificate' || current.startsWith('/visitor-certificate/')) return '/transparency';
   if (current === '/team' || current.startsWith('/team/')) return '/about';
   if (
     current === '/membership' || current.startsWith('/membership/') ||
