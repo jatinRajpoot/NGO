@@ -40,6 +40,7 @@ const ROUTES = [
   ['/team/', 'Management team'],
   ['/transparency/', 'Integrity, accountability and clear records.'],
   ['/verify/', 'Check a document code.'],
+  ['/visitor-certificate/', 'Visitor and Participant Certificate'],
   ['/get-involved/', 'Be part of the work that opens new pathways.'],
   ['/membership/', 'Interested in becoming a member?'],
   ['/internships/', 'Learn through community-centred work.'],
