@@ -35,6 +35,13 @@ export default function MemberDashboardPage() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [feeUtr, setFeeUtr] = useState('');
   const [feePaidSuccess, setFeePaidSuccess] = useState(false);
+  const [certSubtab, setCertSubtab] = useState('membership');
+  const [donationAmount, setDonationAmount] = useState('1100');
+  const [donationProgram, setDonationProgram] = useState('Rural Healthcare & Medical Camps');
+  const [donationPan, setDonationPan] = useState('');
+  const [donationUtr, setDonationUtr] = useState('');
+  const [donationSuccess, setDonationSuccess] = useState(false);
+  const [selectedDonationReceipt, setSelectedDonationReceipt] = useState(null);
   const [profileForm, setProfileForm] = useState({
     name: '',
     phone: '',
@@ -746,8 +753,560 @@ export default function MemberDashboardPage() {
           </div>
         )}
 
-        {/* Tab placeholders for Branch 3 and Branch 4 */}
-        {['certificates', 'donations', 'referral', 'notifications', 'messages', 'password'].includes(activeTab) && (
+        {/* Tab 7: My Certificates & Letters (Features 9, 10, 11) */}
+        {activeTab === 'certificates' && (
+          <div className="member-dashboard-card">
+            <div className="card-header-bar">
+              <div>
+                <h2>Certificates & Letters</h2>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--gsdd-text-muted)' }}>
+                  Download and print your official membership certificate, appointment letter, and achievement certificates.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn-action-primary"
+                onClick={() => window.print()}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              >
+                <Printer size={16} />
+                <span>Print / Download PDF</span>
+              </button>
+            </div>
+
+            <div className="subtab-switcher">
+              <button
+                type="button"
+                className={`subtab-btn ${certSubtab === 'membership' ? 'active' : ''}`}
+                onClick={() => setCertSubtab('membership')}
+              >
+                1. Membership Certificate
+              </button>
+              <button
+                type="button"
+                className={`subtab-btn ${certSubtab === 'appointment' ? 'active' : ''}`}
+                onClick={() => setCertSubtab('appointment')}
+              >
+                2. Appointment Letter
+              </button>
+              <button
+                type="button"
+                className={`subtab-btn ${certSubtab === 'achievement' ? 'active' : ''}`}
+                onClick={() => setCertSubtab('achievement')}
+              >
+                3. Achievement Certificate
+              </button>
+            </div>
+
+            {/* Feature 9: Membership Certificate */}
+            {certSubtab === 'membership' && (
+              <div className="cert-paper-frame">
+                <div className="cert-inner-border">
+                  <div className="cert-badge-icon">
+                    <Award size={32} />
+                  </div>
+                  <h3 className="cert-org-title">{organization.name}</h3>
+                  <div className="cert-org-subtitle">
+                    Registered Section 8 Non-Profit &bull; CIN: {organization.cin} &bull; Reg: {organization.registrationNumber}
+                  </div>
+
+                  <div className="cert-main-heading">Certificate of Membership</div>
+                  <div className="cert-presentation-text">This official certificate is proudly presented to</div>
+
+                  <div className="cert-recipient-name">{member.name}</div>
+
+                  <div className="cert-body-text">
+                    Having duly fulfilled all enrollment qualifications under the foundation charter, is hereby certified and admitted as an esteemed <strong>{member.category}</strong> with portfolio designation of <strong>{member.designation}</strong> in Gurudev Shree Dhyanyogi Sharanam Foundation, entitled to all official privileges and representation rights.
+                  </div>
+
+                  <div className="cert-meta-grid">
+                    <div className="cert-meta-item">
+                      <span>MEMBER ID</span>
+                      <strong>{member.id}</strong>
+                    </div>
+                    <div className="cert-meta-item">
+                      <span>INDUCTION DATE</span>
+                      <strong>{member.joinDate}</strong>
+                    </div>
+                    <div className="cert-meta-item">
+                      <span>VALIDITY</span>
+                      <strong>{member.validTill || 'Lifetime'}</strong>
+                    </div>
+                  </div>
+
+                  <div className="cert-footer-row">
+                    <div className="cert-sign-box">
+                      <div className="cert-sign-line" />
+                      <div className="cert-sign-label">General Secretary</div>
+                      <div className="cert-sign-sub">GSDD Foundation</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <QrCode size={48} color="#D97706" />
+                      <div style={{ fontSize: '9px', color: '#92400E', marginTop: '2px' }}>VERIFIED SEAL</div>
+                    </div>
+                    <div className="cert-sign-box">
+                      <div className="cert-sign-line" />
+                      <div className="cert-sign-label">National President</div>
+                      <div className="cert-sign-sub">GSDD Foundation</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Feature 10: Appointment Letter */}
+            {certSubtab === 'appointment' && (
+              <div className="appointment-letter-paper">
+                <div className="apt-header">
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--gsdd-navy-dark)', fontFamily: 'var(--display)' }}>
+                      {organization.name}
+                    </h3>
+                    <small style={{ color: '#64748B' }}>
+                      Section 8 Not-For-Profit Enterprise &bull; CIN: {organization.cin}
+                    </small>
+                  </div>
+                  <div style={{ textAlign: 'right', fontSize: '11px', color: '#64748B' }}>
+                    <div>{organization.email}</div>
+                    <div>{organization.phone}</div>
+                  </div>
+                </div>
+
+                <div className="apt-ref-row">
+                  <span><strong>Ref:</strong> GSDD/APT/{member.id}/{new Date().getFullYear()}</span>
+                  <span><strong>Date:</strong> {member.joinDate}</span>
+                </div>
+
+                <div className="apt-recipient">
+                  <div><strong>To,</strong></div>
+                  <div><strong>{member.name}</strong></div>
+                  <div>{member.address}</div>
+                  <div>Phone: {member.phone}</div>
+                </div>
+
+                <div className="apt-subject">
+                  Subject: Letter of Appointment as {member.designation} ({member.category})
+                </div>
+
+                <div className="apt-body">
+                  <p>Dear {member.name},</p>
+                  <p>
+                    On behalf of the Governing Board of <strong>Gurudev Shree Dhyanyogi Sharanam Foundation</strong>, we are delighted to officially convey your appointment as <strong>{member.designation}</strong> within our <strong>{member.category}</strong> cadre, effective from {member.joinDate}.
+                  </p>
+                  <p>
+                    As an appointed office-bearer, your key portfolio responsibilities and duties include:
+                  </p>
+                  <ul className="apt-duties-list">
+                    <li>Steering grassroots community empowerment initiatives in health, education, and social welfare.</li>
+                    <li>Representing the foundation at governmental, CSR, and inter-organizational conferences.</li>
+                    <li>Ensuring strict adherence to Section 8 statutory guidelines, ethics, and transparent operations.</li>
+                    <li>Mentoring new members, mobilizing voluntary resources, and driving district-level outreach.</li>
+                  </ul>
+                  <p>
+                    This appointment is subject to the Constitution and bylaws of the Foundation. We are confident that your distinguished expertise and dedication will steer our shared vision of holistic upliftment.
+                  </p>
+                </div>
+
+                <div className="apt-sign-row">
+                  <div>
+                    <div style={{ fontSize: '12px', color: '#64748B' }}>Official Seal of Foundation</div>
+                    <div style={{ marginTop: '8px', padding: '6px 14px', border: '1px dashed #94A3B8', display: 'inline-block', fontSize: '11px', fontWeight: '700', color: '#0F172A', borderRadius: '4px' }}>
+                      GSDD ARARIA OFFICE
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ width: '160px', borderTop: '1px solid #0F172A', marginBottom: '6px' }} />
+                    <div style={{ fontSize: '13px', fontWeight: '800', color: '#0F172A' }}>National President</div>
+                    <div style={{ fontSize: '11px', color: '#64748B' }}>Gurudev Shree Dhyanyogi Sharanam Foundation</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Feature 11: Achievement Certificate */}
+            {certSubtab === 'achievement' && (
+              <div className="cert-paper-frame">
+                <div className="cert-inner-border">
+                  <div className="cert-badge-icon">
+                    <Award size={32} />
+                  </div>
+                  <h3 className="cert-org-title">{organization.name}</h3>
+                  <div className="cert-org-subtitle">
+                    Recognizing Selfless Public Service &bull; Registered Section 8 NGO
+                  </div>
+
+                  <div className="cert-main-heading">Certificate of Achievement</div>
+                  <div className="cert-presentation-text">Awarded in recognition of outstanding humanitarian contribution to</div>
+
+                  <div className="cert-recipient-name">{member.name}</div>
+
+                  <div className="cert-body-text">
+                    For exemplary leadership, relentless commitment, and exceptional contribution in social service, rural outreach camps, and community welfare programs conducted under Gurudev Shree Dhyanyogi Sharanam Foundation.
+                  </div>
+
+                  <div className="cert-meta-grid">
+                    <div className="cert-meta-item">
+                      <span>AWARD REF</span>
+                      <strong>{member.certificates?.find((c) => c.type === 'Achievement Certificate')?.certNo || 'GSDD-ACH-2026-081'}</strong>
+                    </div>
+                    <div className="cert-meta-item">
+                      <span>AWARDED ON</span>
+                      <strong>{member.certificates?.find((c) => c.type === 'Achievement Certificate')?.date || '2026-02-28'}</strong>
+                    </div>
+                    <div className="cert-meta-item">
+                      <span>CADRE</span>
+                      <strong>{member.designation}</strong>
+                    </div>
+                  </div>
+
+                  <div className="cert-footer-row">
+                    <div className="cert-sign-box">
+                      <div className="cert-sign-line" />
+                      <div className="cert-sign-label">Governing Patron</div>
+                      <div className="cert-sign-sub">GSDD Foundation</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <QrCode size={48} color="#D97706" />
+                      <div style={{ fontSize: '9px', color: '#92400E', marginTop: '2px' }}>MERIT VERIFIED</div>
+                    </div>
+                    <div className="cert-sign-box">
+                      <div className="cert-sign-line" />
+                      <div className="cert-sign-label">National President</div>
+                      <div className="cert-sign-sub">GSDD Foundation</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 8: My Donations & Donation History (Features 12 & 13) */}
+        {activeTab === 'donations' && (
+          <div>
+            {/* If a donation receipt is being viewed */}
+            {selectedDonationReceipt ? (
+              <div className="member-dashboard-card">
+                <div className="card-header-bar">
+                  <div>
+                    <h2>Donation Receipt #{selectedDonationReceipt.receiptNo}</h2>
+                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--gsdd-text-muted)' }}>
+                      Official 80G Tax Exemption Certificate for Donation
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      onClick={() => setSelectedDonationReceipt(null)}
+                    >
+                      Back to Donations
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-action-primary"
+                      onClick={() => window.print()}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Printer size={16} />
+                      <span>Print Receipt</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="receipt-paper-frame">
+                  <div className="receipt-header-row">
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '17px', color: 'var(--gsdd-navy-dark)', fontFamily: 'var(--display)' }}>
+                        {organization.name}
+                      </h3>
+                      <small style={{ color: '#64748B', display: 'block', marginTop: '2px' }}>
+                        Registered Section 8 NGO &bull; 80G Tax Exemption Certified
+                      </small>
+                      <small style={{ color: '#64748B' }}>CIN: {organization.cin}</small>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ background: '#EFF6FF', color: '#1E40AF', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: '800' }}>
+                        DONATION RECEIPT
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
+                        Receipt No: <strong>{selectedDonationReceipt.receiptNo}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="receipt-table-list">
+                    <div className="r-row-item">
+                      <span className="r-lbl">Donor Name</span>
+                      <span className="r-val">{member.name}</span>
+                    </div>
+                    <div className="r-row-item">
+                      <span className="r-lbl">Member ID</span>
+                      <span className="r-val">{member.id}</span>
+                    </div>
+                    <div className="r-row-item">
+                      <span className="r-lbl">Donation Program / Cause</span>
+                      <span className="r-val">{selectedDonationReceipt.program}</span>
+                    </div>
+                    <div className="r-row-item">
+                      <span className="r-lbl">Payment Mode & UTR</span>
+                      <span className="r-val">{selectedDonationReceipt.utr || 'UPI'}</span>
+                    </div>
+                    <div className="r-row-item">
+                      <span className="r-lbl">Donation Date</span>
+                      <span className="r-val">{selectedDonationReceipt.date}</span>
+                    </div>
+                    <div className="r-row-item">
+                      <span className="r-lbl">Tax Benefit</span>
+                      <span className="r-val" style={{ color: '#15803D' }}>Eligible for 50% deduction under Section 80G of Income Tax Act</span>
+                    </div>
+                    <div className="r-row-item" style={{ borderBottom: '2px solid #0F172A', paddingTop: '10px' }}>
+                      <span className="r-lbl" style={{ fontSize: '15px', color: '#0F172A' }}>Total Amount Donated</span>
+                      <span className="r-val" style={{ fontSize: '18px', color: '#1E3A8A' }}>₹{Number(selectedDonationReceipt.amount).toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+
+                  <div className="receipt-sign-row">
+                    <div>
+                      <QrCode size={56} color="#0F172A" />
+                      <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>Scan to Verify</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ width: '150px', borderTop: '1px solid #0F172A', marginBottom: '4px' }} />
+                      <div style={{ fontSize: '12px', fontWeight: '800', color: '#0F172A' }}>Authorized Signatory</div>
+                      <div style={{ fontSize: '10px', color: '#64748B' }}>Finance & Accounts, GSDD Foundation</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="member-dashboard-card">
+                <div className="card-header-bar">
+                  <div>
+                    <h2>My Donations & Contributions</h2>
+                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--gsdd-text-muted)' }}>
+                      Support foundation welfare programs and view your past contributions with instant 80G tax receipts.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="donation-grid-layout">
+                  {/* Feature 12: Online Donation Form */}
+                  <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '20px' }}>
+                    <h3 style={{ margin: '0 0 12px', fontSize: '16px', color: 'var(--gsdd-navy-dark)' }}>
+                      Contribute to a Cause (Feature 12)
+                    </h3>
+
+                    {donationSuccess && (
+                      <div className="fee-status-banner paid" style={{ marginBottom: '14px' }}>
+                        <CheckCircle2 size={16} />
+                        <span>Thank you! Your donation was submitted successfully and added to your history below.</span>
+                      </div>
+                    )}
+
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!donationAmount || Number(donationAmount) <= 0) return;
+                        const newDonation = {
+                          id: 'don-' + Date.now(),
+                          receiptNo: 'GSDD-REC-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000),
+                          amount: Number(donationAmount),
+                          date: new Date().toISOString().split('T')[0],
+                          program: donationProgram,
+                          utr: donationUtr ? ('UPI/' + donationUtr) : 'UPI/COMPLETED',
+                          status: 'Verified',
+                        };
+                        const updated = {
+                          ...member,
+                          donations: [newDonation, ...(member.donations || [])],
+                          activities: [
+                            {
+                              id: 'act-' + Date.now(),
+                              title: `Contributed ₹${Number(donationAmount).toLocaleString('en-IN')} to ${donationProgram}`,
+                              date: new Date().toISOString().split('T')[0],
+                              role: 'Donor',
+                              status: 'Completed',
+                            },
+                            ...(member.activities || []),
+                          ],
+                        };
+                        setMember(updated);
+                        try {
+                          localStorage.setItem('gsdd_active_member', JSON.stringify(updated));
+                        } catch {
+                          // ignore
+                        }
+                        setDonationSuccess(true);
+                        setDonationUtr('');
+                      }}
+                    >
+                      <div className="form-group" style={{ marginBottom: '12px' }}>
+                        <label className="form-label">Select Welfare Program</label>
+                        <select
+                          className="form-control"
+                          value={donationProgram}
+                          onChange={(e) => setDonationProgram(e.target.value)}
+                        >
+                          <option>Rural Healthcare & Medical Camps</option>
+                          <option>Free Girl Child Education Fund</option>
+                          <option>Women Self-Help & Vocational Livelihood</option>
+                          <option>Environmental Tree Plantation & Cleanliness</option>
+                          <option>General Welfare Corpus Fund</option>
+                        </select>
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: '12px' }}>
+                        <label className="form-label">Select Amount (₹)</label>
+                        <div className="quick-amount-chips">
+                          {['500', '1100', '2100', '5100', '11000'].map((amt) => (
+                            <button
+                              key={amt}
+                              type="button"
+                              className={`chip-btn ${donationAmount === amt ? 'active' : ''}`}
+                              onClick={() => setDonationAmount(amt)}
+                            >
+                              ₹{Number(amt).toLocaleString('en-IN')}
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          type="number"
+                          className="form-control"
+                          placeholder="Or enter custom amount in ₹"
+                          value={donationAmount}
+                          onChange={(e) => setDonationAmount(e.target.value)}
+                          min="100"
+                          required
+                        />
+                      </div>
+
+                      <div className="donation-qr-box">
+                        <div style={{ fontSize: '12px', fontWeight: '700', color: '#0F172A', marginBottom: '8px' }}>
+                          Scan UPI QR to Donate ₹{Number(donationAmount || 0).toLocaleString('en-IN')}
+                        </div>
+                        <div style={{ display: 'inline-block', background: '#FFF', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1' }}>
+                          <QrCode size={120} color="#1E3A8A" />
+                        </div>
+                        <div>
+                          <div className="upi-string-badge">
+                            <span>{organization.bankDetails.upiId}</span>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748B' }}>
+                          Supports Google Pay, PhonePe, Paytm, BHIM & all UPI apps
+                        </div>
+                      </div>
+
+                      <div className="form-group" style={{ marginTop: '14px', marginBottom: '12px' }}>
+                        <label className="form-label">PAN Number (Optional, for 80G tax benefit claim)</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="e.g. ABCDE1234F"
+                          value={donationPan}
+                          onChange={(e) => setDonationPan(e.target.value.toUpperCase())}
+                          maxLength={10}
+                        />
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: '16px' }}>
+                        <label className="form-label">UPI Reference / UTR Number</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="e.g. 604123891024"
+                          value={donationUtr}
+                          onChange={(e) => setDonationUtr(e.target.value)}
+                        />
+                      </div>
+
+                      <button type="submit" className="btn-action-primary" style={{ width: '100%', justifyContent: 'center' }}>
+                        Submit Donation & Generate Receipt
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Feature 13: Donation History */}
+                  <div>
+                    <h3 style={{ margin: '0 0 12px', fontSize: '16px', color: 'var(--gsdd-navy-dark)' }}>
+                      Donation History & Past Receipts (Feature 13)
+                    </h3>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                      <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '12px', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '11px', color: '#1E40AF', fontWeight: '700' }}>TOTAL DONATED</div>
+                        <div style={{ fontSize: '20px', fontWeight: '800', color: '#1E3A8A' }}>
+                          ₹{(member.donations || []).reduce((acc, d) => acc + Number(d.amount), 0).toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                      <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', padding: '12px', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '11px', color: '#166534', fontWeight: '700' }}>80G TAX BENEFIT</div>
+                        <div style={{ fontSize: '16px', fontWeight: '800', color: '#15803D' }}>
+                          100% Eligible
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="donation-table-wrapper">
+                      <table className="donation-table">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Program</th>
+                            <th>Amount</th>
+                            <th>Receipt</th>
+                            <th>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(member.donations || []).length === 0 ? (
+                            <tr>
+                              <td colSpan={5} style={{ textAlign: 'center', color: '#64748B', padding: '24px' }}>
+                                No donation records found yet.
+                              </td>
+                            </tr>
+                          ) : (
+                            member.donations.map((don) => (
+                              <tr key={don.id}>
+                                <td>{don.date}</td>
+                                <td>
+                                  <strong>{don.program}</strong>
+                                  <div style={{ fontSize: '10px', color: '#64748B' }}>{don.utr}</div>
+                                </td>
+                                <td>
+                                  <strong>₹{Number(don.amount).toLocaleString('en-IN')}</strong>
+                                </td>
+                                <td>
+                                  <span style={{ fontSize: '11px', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px' }}>
+                                    {don.receiptNo}
+                                  </span>
+                                </td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="btn-outline"
+                                    style={{ padding: '4px 10px', fontSize: '11px' }}
+                                    onClick={() => setSelectedDonationReceipt(don)}
+                                  >
+                                    View Receipt
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab placeholders for Branch 4 */}
+        {['referral', 'notifications', 'messages', 'password'].includes(activeTab) && (
           <div className="member-dashboard-card">
             <div className="card-header-bar">
               <h2>{sidebarItems.find((s) => s.id === activeTab)?.label}</h2>

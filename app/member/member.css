@@ -109,3 +109,70 @@
 .r-val { font-weight: 700; color: #0F172A; }
 .receipt-sign-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid #CBD5E1; }
 
+/* Subtab Navigation for Certificates & Documents */
+.subtab-switcher { display: flex; gap: 8px; border-bottom: 2px solid #E2E8F0; padding-bottom: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+.subtab-btn { padding: 8px 16px; border-radius: 6px; border: 1px solid #CBD5E1; background: #F8FAFC; color: #475569; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.subtab-btn:hover { background: #EEF2F6; color: #0F172A; }
+.subtab-btn.active { background: var(--gsdd-navy-dark); color: #FFF; border-color: var(--gsdd-navy-dark); }
+
+/* Certificate Paper Frame (Feature 9 & 11) */
+.cert-paper-frame { max-width: 780px; margin: 20px auto; background: #FFFDF9; border: 12px double #D97706; padding: 36px 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); position: relative; border-radius: 6px; }
+.cert-inner-border { border: 2px solid #D97706; padding: 28px 30px; text-align: center; position: relative; }
+.cert-badge-icon { width: 56px; height: 56px; background: #FEF3C7; border: 2px solid #D97706; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 12px; color: #B45309; }
+.cert-org-title { font-family: var(--display); font-size: 20px; font-weight: 800; color: #1E3A8A; letter-spacing: 0.04em; margin: 0 0 4px; text-transform: uppercase; }
+.cert-org-subtitle { font-size: 11px; color: #64748B; margin-bottom: 18px; }
+.cert-main-heading { font-family: var(--display); font-size: 26px; font-weight: 800; color: #92400E; letter-spacing: 0.05em; margin: 12px 0 6px; text-transform: uppercase; border-bottom: 2px solid #FEF3C7; display: inline-block; padding-bottom: 4px; }
+.cert-presentation-text { font-size: 13px; color: #475569; font-style: italic; margin: 14px 0 8px; }
+.cert-recipient-name { font-family: var(--display); font-size: 28px; font-weight: 800; color: #0F172A; margin: 10px 0; border-bottom: 1px dashed #CBD5E1; display: inline-block; padding: 0 24px 6px; }
+.cert-body-text { font-size: 14px; line-height: 1.7; color: #334155; max-width: 620px; margin: 16px auto 24px; }
+.cert-meta-grid { display: flex; justify-content: space-around; font-size: 12px; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 12px; border-radius: 6px; margin: 20px 0; }
+.cert-meta-item strong { display: block; color: #0F172A; font-size: 13px; }
+.cert-footer-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 32px; padding-top: 18px; }
+.cert-sign-box { text-align: center; }
+.cert-sign-line { width: 140px; border-top: 1px solid #475569; margin-bottom: 4px; }
+.cert-sign-label { font-size: 11px; font-weight: 700; color: #0F172A; }
+.cert-sign-sub { font-size: 9px; color: #64748B; }
+
+/* Appointment Letter (Feature 10) */
+.appointment-letter-paper { max-width: 760px; margin: 20px auto; background: #FFF; border: 1px solid #CBD5E1; padding: 44px 48px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); font-family: inherit; line-height: 1.6; color: #1E293B; }
+.apt-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0F172A; padding-bottom: 16px; margin-bottom: 24px; }
+.apt-ref-row { display: flex; justify-content: space-between; font-size: 12px; color: #475569; margin-bottom: 20px; font-weight: 500; }
+.apt-recipient { font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
+.apt-subject { font-size: 14px; font-weight: 700; color: #0F172A; margin: 20px 0; background: #F1F5F9; padding: 8px 12px; border-left: 4px solid var(--gsdd-navy-dark); }
+.apt-body { font-size: 13px; color: #334155; line-height: 1.7; margin-bottom: 24px; }
+.apt-body p { margin-bottom: 14px; }
+.apt-duties-list { padding-left: 20px; margin: 10px 0 16px; }
+.apt-duties-list li { margin-bottom: 6px; }
+.apt-sign-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 40px; }
+
+/* Donation Module (Feature 12 & 13) */
+.donation-grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 860px) {
+  .donation-grid-layout { grid-template-columns: 1fr; }
+}
+.quick-amount-chips { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 16px; }
+.chip-btn { padding: 8px 16px; border: 1px solid #CBD5E1; border-radius: 20px; background: #FFF; font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s; color: #1E293B; }
+.chip-btn:hover { border-color: #2563EB; color: #2563EB; background: #EFF6FF; }
+.chip-btn.active { background: #2563EB; border-color: #2563EB; color: #FFF; }
+.donation-qr-box { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 20px; text-align: center; margin-top: 16px; }
+.upi-string-badge { background: #E2E8F0; padding: 6px 12px; border-radius: 6px; font-family: monospace; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; margin: 10px 0; }
+.donation-table-wrapper { overflow-x: auto; margin-top: 16px; }
+.donation-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+.donation-table th { background: #F1F5F9; padding: 12px; font-weight: 700; color: #334155; border-bottom: 2px solid #E2E8F0; }
+.donation-table td { padding: 12px; border-bottom: 1px solid #E2E8F0; color: #1E293B; }
+
+/* Print Rules */
+@media print {
+  .member-sidebar, .card-header-bar button, .subtab-switcher, .donation-grid-layout form, .portal-login-nav, footer, .top-nav {
+    display: none !important;
+  }
+  .member-dashboard-layout { display: block !important; padding: 0 !important; }
+  .member-main-content { padding: 0 !important; }
+  .member-dashboard-card { border: none !important; box-shadow: none !important; padding: 0 !important; }
+  .cert-paper-frame, .appointment-letter-paper, .receipt-paper-frame, .id-card-container {
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    page-break-inside: avoid;
+  }
+}
+
