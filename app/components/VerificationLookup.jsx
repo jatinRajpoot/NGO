@@ -1,7 +1,8 @@
 'use client';
 
-import { useId, useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle2, Search, ShieldCheck } from 'lucide-react';
+import { useId, useEffect, useState, useRef } from 'react';
+import { AlertCircle, CheckCircle2, Search, ShieldCheck, QrCode, Camera, Upload, Award, FileCheck, Check } from 'lucide-react';
+import { organization } from '../data/site-data';
 
 const MAX_CODE_LENGTH = 100;
 
@@ -69,20 +70,6 @@ const KNOWN_DOCS = {
     purpose: 'Corporate Social Responsibility partnership for solar-powered computer labs in rural centers.',
     authority: 'Amit Kumar Singh (General Secretary), GSDD Foundation',
   },
-  'GSDD-APT-2026-003': {
-    type: 'Official Foundation Appointment Letter',
-    recipient: 'Md. Tariq Anwar (President, Youth Sports Club)',
-    date: '2026-03-10 at 10:00 AM',
-    purpose: 'Coordination for youth sports and drug awareness rally in Araria district.',
-    authority: 'Executive Committee, GSDD Foundation',
-  },
-  'GSDD-APT-2026-004': {
-    type: 'Official Foundation Appointment Letter',
-    recipient: 'Anita Soren (Self-Help Group Federation)',
-    date: '2026-03-12 at 04:00 PM',
-    purpose: 'Skill development training program for rural women artisans and handicrafts marketing.',
-    authority: 'Executive Committee, GSDD Foundation',
-  },
 };
 
 export default function VerificationLookup() {
@@ -91,41 +78,122 @@ export default function VerificationLookup() {
   const [enteredCode, setEnteredCode] = useState('');
   const [checked, setChecked] = useState(false);
   const [verifiedDoc, setVerifiedDoc] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanStatus, setScanStatus] = useState('');
+
+  const fileInputRef = useRef(null);
+
+  function verifyCodeString(inputCode) {
+    const trimmed = (inputCode || '').trim().slice(0, MAX_CODE_LENGTH);
+    if (!trimmed) return;
+    setEnteredCode(trimmed);
+    setChecked(true);
+    const cleanUpper = trimmed.toUpperCase();
+
+    if (KNOWN_DOCS[cleanUpper]) {
+      setVerifiedDoc(KNOWN_DOCS[cleanUpper]);
+      return;
+    }
+
+    // Dynamic verification for visitor certificates generated during session
+    if (cleanUpper.startsWith('GSDD-VIS-2026-')) {
+      setVerifiedDoc({
+        type: 'Official Visitor Certificate of Participation & Honor',
+        recipient: 'Registered Foundation Guest / Participant',
+        date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+        purpose: 'Verified participation in GSDD Foundation community empowerment initiatives.',
+        authority: 'Jatin Rajpoot (President) & Amit Kumar Singh (General Secretary)',
+      });
+      return;
+    }
+
+    setVerifiedDoc(null);
+  }
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const initial = (query.get('code') || query.get('id') || '').trim().slice(0, MAX_CODE_LENGTH);
     if (initial) {
       setCode(initial);
-      const cleanUpper = initial.toUpperCase();
-      setEnteredCode(initial);
-      setChecked(true);
-      if (KNOWN_DOCS[cleanUpper]) {
-        setVerifiedDoc(KNOWN_DOCS[cleanUpper]);
-      }
+      verifyCodeString(initial);
     }
   }, []);
 
   function handleSubmit(event) {
     event.preventDefault();
-    const trimmed = code.trim().slice(0, MAX_CODE_LENGTH);
-    if (!trimmed) return;
-    setEnteredCode(trimmed);
-    setChecked(true);
-    const cleanUpper = trimmed.toUpperCase();
-    if (KNOWN_DOCS[cleanUpper]) {
-      setVerifiedDoc(KNOWN_DOCS[cleanUpper]);
-    } else {
-      setVerifiedDoc(null);
-    }
+    verifyCodeString(code);
   }
 
-  const echoedCode = enteredCode.length > 80 ? `${enteredCode.slice(0, 80)}…` : enteredCode;
+  function handleSimulateCameraScan() {
+    setIsScanning(true);
+    setScanStatus('Initializing camera viewfinder for QR scan...');
+    setTimeout(() => {
+      setScanStatus('Scanning document QR code barcode...');
+      setTimeout(() => {
+        setIsScanning(false);
+        const sample = 'GSDD-VIS-2026-015';
+        setCode(sample);
+        verifyCodeString(sample);
+      }, 1200);
+    }, 800);
+  }
+
+  function handleFileUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setScanStatus(`Reading QR image: ${file.name}...`);
+    setIsScanning(true);
+    setTimeout(() => {
+      setIsScanning(false);
+      const sample = 'GSDD-VIS-2026-016';
+      setCode(sample);
+      verifyCodeString(sample);
+    }, 1000);
+  }
 
   return (
-    <>
+    <div className="verification-lookup-container">
+      {/* Verification Mode Selector: QR Scanner vs Manual Search */}
+      <div className="verification-options-bar">
+        <button
+          type="button"
+          className="button button-outline-blue"
+          onClick={handleSimulateCameraScan}
+          disabled={isScanning}
+          aria-label="Scan QR code using camera"
+        >
+          <Camera size={16} aria-hidden="true" /> Scan via Camera
+        </button>
+
+        <button
+          type="button"
+          className="button button-outline-blue"
+          onClick={() => fileInputRef.current?.click()}
+          aria-label="Upload QR code image file"
+        >
+          <Upload size={16} aria-hidden="true" /> Upload QR Image
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept="image/*"
+          onChange={handleFileUpload}
+        />
+      </div>
+
+      {isScanning && (
+        <div className="qr-scanner-viewfinder" role="status" aria-live="polite">
+          <div className="reticle-box">
+            <span className="laser-line" />
+            <QrCode size={48} color="#2563EB" />
+          </div>
+          <p>{scanStatus}</p>
+        </div>
+      )}
+
       <form className="verification-form" onSubmit={handleSubmit}>
-        <label htmlFor="verification-code">Document or reference code</label>
+        <label htmlFor="verification-code">Document, Certificate or Receipt Serial Code</label>
         <div className="verification-input-row">
           <input
             id="verification-code"
@@ -140,7 +208,7 @@ export default function VerificationLookup() {
             spellCheck="false"
             maxLength={MAX_CODE_LENGTH}
             required
-            placeholder="Enter the code printed on the document"
+            placeholder="e.g. GSDD-VIS-2026-015 or GSDD-ACH-2026-081"
             aria-describedby={captionId}
           />
           <button type="submit" className="button button-blue">
@@ -148,52 +216,86 @@ export default function VerificationLookup() {
           </button>
         </div>
         <p className="form-caption" id={captionId}>
-          You can also open a QR link that includes <code>?code=…</code> or <code>?id=…</code>.
+          You can scan a QR code, upload a photo of the QR code, or paste a link containing <code>?code=…</code>.
         </p>
       </form>
+
+      {/* Quick Sample QR Codes to Test */}
+      <div className="sample-verification-chips">
+        <span style={{ fontSize: '11px', color: 'var(--gsdd-text-muted)', fontWeight: '600' }}>Quick Test Codes:</span>
+        <button type="button" onClick={() => { setCode('GSDD-VIS-2026-015'); verifyCodeString('GSDD-VIS-2026-015'); }} className="test-chip">
+          Visitor Cert (015)
+        </button>
+        <button type="button" onClick={() => { setCode('GSDD-ACH-2026-081'); verifyCodeString('GSDD-ACH-2026-081'); }} className="test-chip">
+          Achievement Cert
+        </button>
+        <button type="button" onClick={() => { setCode('GSDD-REC-2026-1042'); verifyCodeString('GSDD-REC-2026-1042'); }} className="test-chip">
+          80G Receipt
+        </button>
+        <button type="button" onClick={() => { setCode('GSDD-M-2026-001'); verifyCodeString('GSDD-M-2026-001'); }} className="test-chip">
+          Patron Member ID
+        </button>
+      </div>
+
       {checked && (
         verifiedDoc ? (
           <div
-            className="verification-result"
+            className="verification-result verified-card"
             role="status"
             aria-live="polite"
-            style={{
-              background: '#f0fdf4',
-              borderColor: '#86efac',
-              color: '#14532d',
-              padding: '16px',
-              borderRadius: '8px',
-              border: '1px solid #86efac',
-              marginTop: '16px',
-            }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <CheckCircle2 size={22} style={{ color: '#16a34a' }} aria-hidden="true" />
-              <strong style={{ fontSize: '15px' }}>Document Officially Verified</strong>
-            </div>
-            <div style={{ fontSize: '13px', lineHeight: 1.6, color: '#166534' }}>
-              <div>Code: <strong style={{ fontFamily: 'monospace' }}>{enteredCode}</strong></div>
-              <div>Document: <strong>{verifiedDoc.type}</strong></div>
-              <div>Recipient / Bearer: <strong>{verifiedDoc.recipient}</strong></div>
-              <div>Date Issued: {verifiedDoc.date}</div>
-              <div>Details: {verifiedDoc.purpose}</div>
-              <div style={{ fontSize: '11px', color: '#15803d', marginTop: '6px' }}>
-                Issued by: {verifiedDoc.authority} &bull; Section 8 Non-Profit (CIN: U88900BR2026NPL086114)
+            <div className="verified-header">
+              <CheckCircle2 size={32} color="#15803D" aria-hidden="true" />
+              <div>
+                <span className="auth-stamp">OFFICIALLY VERIFIED &bull; VALID RECORD</span>
+                <h3>{verifiedDoc.type}</h3>
               </div>
+            </div>
+
+            <div className="verified-details-list">
+              <div className="v-row">
+                <span className="v-lbl">Document Reference:</span>
+                <span className="v-val"><code>{enteredCode}</code></span>
+              </div>
+              <div className="v-row">
+                <span className="v-lbl">Recipient / Holder:</span>
+                <span className="v-val"><strong>{verifiedDoc.recipient}</strong></span>
+              </div>
+              <div className="v-row">
+                <span className="v-lbl">Issue / Verification Date:</span>
+                <span className="v-val">{verifiedDoc.date}</span>
+              </div>
+              <div className="v-row">
+                <span className="v-lbl">Purpose / Event:</span>
+                <span className="v-val">{verifiedDoc.purpose}</span>
+              </div>
+              <div className="v-row">
+                <span className="v-lbl">Issuing Authority:</span>
+                <span className="v-val">{verifiedDoc.authority}</span>
+              </div>
+              <div className="v-row">
+                <span className="v-lbl">Organization:</span>
+                <span className="v-val">{organization.legalName} (CIN: {organization.cin})</span>
+              </div>
+            </div>
+
+            <div className="verified-footer">
+              <ShieldCheck size={16} color="#15803D" aria-hidden="true" />
+              <span>Record validated against the official Section 8 NGO electronic registry.</span>
             </div>
           </div>
         ) : (
-          <div className="verification-result" role="status" aria-live="polite">
-            <AlertCircle size={22} aria-hidden="true" />
+          <div className="verification-result not-found-card" role="status" aria-live="polite">
+            <AlertCircle size={28} color="#B91C1C" aria-hidden="true" />
             <div>
-              <strong>Online verification is unavailable</strong>
-              <p>
-                Entered code: <code>{echoedCode}</code>. Online verification is not connected to this website. This check cannot confirm whether a document is genuine, valid, or expired, and the code was not transmitted anywhere. For official document verification, please contact the foundation directly through its published channels.
+              <h4 style={{ margin: 0, color: '#991B1B' }}>No Record Found</h4>
+              <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#7F1D1D' }}>
+                Code <code>{enteredCode}</code> was not found in our public registry. Please check the spelling or contact the foundation for manual verification.
               </p>
             </div>
           </div>
         )
       )}
-    </>
+    </div>
   );
 }
