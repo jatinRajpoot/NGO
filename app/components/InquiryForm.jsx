@@ -34,6 +34,7 @@ export function ContactForm() {
   const [ready, setReady] = useState(false);
   const [errors, setErrors] = useState({});
   const [summary, setSummary] = useState('');
+  const [submittedEnquiry, setSubmittedEnquiry] = useState(null);
 
   function clearMessages() {
     setReady(false);
@@ -48,6 +49,7 @@ export function ContactForm() {
     const name = trimmed(data, 'name');
     const email = trimmed(data, 'email');
     const phone = trimmed(data, 'phone');
+    const topic = trimmed(data, 'topic') || 'General enquiry';
     const message = trimmed(data, 'message');
     const nextErrors = {};
     if (!name) nextErrors.name = 'Enter your name.';
@@ -62,19 +64,70 @@ export function ContactForm() {
       form.elements[firstInvalid]?.focus();
       return;
     }
-    const href = buildMailtoHref(
-      `Website enquiry: ${data.get('topic')}`,
-      `Name: ${name}\nEmail: ${email}\nMobile / WhatsApp: ${phone || 'Not provided'}\n\n${message}`,
-    );
-    if (href.length > MAILTO_URL_LIMIT) {
-      setReady(false);
-      setSummary(`These details are too long for one email draft. Please shorten your message, or email ${organization.email} directly.`);
-      return;
-    }
+
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const ticketId = `GSDD-ENQ-2026-${randomSuffix}`;
+
     setErrors({});
     setSummary('');
-    setReady(true);
-    window.location.href = href;
+    setSubmittedEnquiry({
+      ticketId,
+      name,
+      email,
+      phone: phone || 'Not provided',
+      topic,
+      message,
+      date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+    });
+  }
+
+  if (submittedEnquiry) {
+    const waText = `Hello GSDD Foundation, I have submitted an online enquiry [Ticket: ${submittedEnquiry.ticketId}].\nName: ${submittedEnquiry.name}\nTopic: ${submittedEnquiry.topic}\nMessage: ${submittedEnquiry.message}`;
+    const mailText = `Enquiry Ticket: ${submittedEnquiry.ticketId}\nName: ${submittedEnquiry.name}\nEmail: ${submittedEnquiry.email}\nPhone: ${submittedEnquiry.phone}\nTopic: ${submittedEnquiry.topic}\n\n${submittedEnquiry.message}`;
+
+    return (
+      <div className="enquiry-success-panel" role="status" aria-live="polite">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+          <span style={{ display: 'grid', placeItems: 'center', width: '36px', height: '36px', borderRadius: '50%', background: '#DCFCE7', color: '#15803D' }}>
+            ✓
+          </span>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--gsdd-navy-dark)' }}>Enquiry Successfully Submitted!</h3>
+            <span style={{ fontSize: '12px', color: 'var(--gsdd-text-muted)' }}>Ticket ID: <strong><code>{submittedEnquiry.ticketId}</code></strong></span>
+          </div>
+        </div>
+        <p style={{ fontSize: '13px', lineHeight: 1.6, color: '#334155', margin: '0 0 16px' }}>
+          Thank you <strong>{submittedEnquiry.name}</strong>. Your enquiry regarding <strong>{submittedEnquiry.topic}</strong> has been logged in the GSDD communications registry. Our representative will contact you at <code>{submittedEnquiry.email}</code>.
+        </p>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          <a
+            href={`https://wa.me/${organization.phoneHref.replace(/\+/g, '')}?text=${encodeURIComponent(waText)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="button button-blue"
+            style={{ fontSize: '13px', padding: '8px 14px' }}
+          >
+            Forward to WhatsApp
+          </a>
+          <a
+            href={buildMailtoHref(`Website enquiry: ${submittedEnquiry.topic} [${submittedEnquiry.ticketId}]`, mailText)}
+            className="button button-outline-blue"
+            style={{ fontSize: '13px', padding: '8px 14px' }}
+          >
+            Send via Email
+          </a>
+          <button
+            type="button"
+            onClick={() => setSubmittedEnquiry(null)}
+            className="button-text"
+            style={{ fontSize: '13px' }}
+          >
+            Submit another enquiry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return <form className="contact-form" onSubmit={handleSubmit} onInput={clearMessages}>
