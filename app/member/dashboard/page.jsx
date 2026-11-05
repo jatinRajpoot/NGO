@@ -10,6 +10,7 @@ import {
   ExternalLink, ArrowRight, Download, Printer
 } from 'lucide-react';
 import { defaultMembers } from '../member-data';
+import { organization } from '../../data/site-data';
 import '../member.css';
 
 const sidebarItems = [
@@ -32,6 +33,8 @@ export default function MemberDashboardPage() {
   const [member, setMember] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [editingProfile, setEditingProfile] = useState(false);
+  const [feeUtr, setFeeUtr] = useState('');
+  const [feePaidSuccess, setFeePaidSuccess] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: '',
     phone: '',
@@ -416,8 +419,335 @@ export default function MemberDashboardPage() {
           </div>
         )}
 
-        {/* Tab placeholders for subsequent branches */}
-        {activeTab !== 'overview' && activeTab !== 'profile' && (
+        {/* Feature 5: Membership Details (Designation & membership status) */}
+        {activeTab === 'details' && (
+          <div className="dashboard-tab-details">
+            <div className="member-dashboard-card">
+              <div className="card-header-bar">
+                <h2>Membership Affiliation &amp; Status</h2>
+                <span className="badge-pill-active">
+                  <CheckCircle2 size={13} /> {member.status}
+                </span>
+              </div>
+
+              <p style={{ color: 'var(--gsdd-text-muted)', fontSize: '13px' }}>
+                Your membership is registered under Section 8 of Companies Act 2013 with {organization.legalName}.
+              </p>
+
+              <div className="membership-meta-grid">
+                <div className="meta-box">
+                  <span className="lbl">Official Designation</span>
+                  <span className="val" style={{ color: 'var(--gsdd-blue-primary)' }}>{member.designation}</span>
+                </div>
+                <div className="meta-box">
+                  <span className="lbl">Membership Category</span>
+                  <span className="val">{member.category}</span>
+                </div>
+                <div className="meta-box">
+                  <span className="lbl">Membership ID</span>
+                  <span className="val"><code>{member.id}</code></span>
+                </div>
+                <div className="meta-box">
+                  <span className="lbl">Joining Date</span>
+                  <span className="val">{member.joinDate}</span>
+                </div>
+                <div className="meta-box">
+                  <span className="lbl">Validity Status</span>
+                  <span className="val" style={{ color: '#15803D' }}>{member.validTill || 'Lifetime Active'}</span>
+                </div>
+                <div className="meta-box">
+                  <span className="lbl">Voting &amp; Governance</span>
+                  <span className="val">General Body Voting Right</span>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '24px', padding: '16px', background: '#F8F7F4', borderRadius: '8px', border: '1px solid #E2DED5' }}>
+                <h4 style={{ margin: '0 0 6px', fontSize: '14px', color: 'var(--gsdd-navy-dark)' }}>
+                  Committee &amp; Program Responsibilities
+                </h4>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--gsdd-text-muted)', lineHeight: 1.5 }}>
+                  {member.notes || 'Authorized to facilitate digital literacy, healthcare camps, and youth workshops in district.'}
+                </p>
+                <div style={{ marginTop: '12px' }}>
+                  <Link href={`/verify?code=${member.id}`} className="button button-outline-blue" style={{ fontSize: '12px', padding: '6px 12px' }}>
+                    <ShieldCheck size={14} /> Verify Registry Record
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Feature 6: Membership Fees (Pay fee via UPI QR & UTR) */}
+        {activeTab === 'fees' && (
+          <div className="dashboard-tab-fees">
+            <div className="fee-payment-card">
+              <div className="card-header-bar">
+                <h2>Membership Subscription &amp; Fee Status</h2>
+              </div>
+
+              <div className={`fee-status-banner ${member.feeStatus === 'Paid' || feePaidSuccess ? 'paid' : 'due'}`}>
+                <div>
+                  <strong style={{ fontSize: '15px' }}>
+                    Current Status: {feePaidSuccess ? 'Paid' : member.feeStatus}
+                  </strong>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', opacity: 0.9 }}>
+                    Subscription Plan: <strong>{member.feeType}</strong> ({member.category})
+                  </p>
+                </div>
+                <span style={{ fontSize: '18px', fontWeight: '800' }}>
+                  ₹{member.feeAmount?.toLocaleString('en-IN') || 1200}
+                </span>
+              </div>
+
+              {feePaidSuccess || member.feeStatus === 'Paid' ? (
+                <div style={{ padding: '20px', background: '#F0FDF4', borderRadius: '8px', border: '1px solid #BBF7D0', textAlign: 'center' }}>
+                  <CheckCircle2 size={36} color="#15803D" style={{ margin: '0 auto 8px' }} />
+                  <h3 style={{ margin: 0, color: '#166534', fontSize: '17px' }}>Fees Fully Paid &amp; Updated</h3>
+                  <p style={{ margin: '4px 0 16px', fontSize: '13px', color: '#15803D' }}>
+                    Your subscription is in good standing. An official receipt has been issued.
+                  </p>
+                  <button
+                    type="button"
+                    className="button button-blue"
+                    onClick={() => setActiveTab('receipts')}
+                  >
+                    <Receipt size={16} /> View &amp; Download Receipt
+                  </button>
+                </div>
+              ) : (
+                <div className="upi-checkout-layout">
+                  <div className="upi-qr-card">
+                    <div className="visual-qr-box">
+                      <QrCode size={120} aria-hidden="true" color="#1E293B" />
+                    </div>
+                    <span className="qr-scan-caption">Scan with UPI App to Pay</span>
+                    <strong className="qr-amount-pill">₹{member.feeAmount?.toLocaleString('en-IN') || 1200}</strong>
+                    <div className="upi-id-row">
+                      <span>UPI: <code>foundationgsdd@okaxis</code></span>
+                    </div>
+                  </div>
+
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      setFeePaidSuccess(true);
+                      const updated = { ...member, feeStatus: 'Paid' };
+                      setMember(updated);
+                      try {
+                        localStorage.setItem('gsdd_active_member', JSON.stringify(updated));
+                      } catch {}
+                    }}
+                    className="payment-confirm-form"
+                  >
+                    <label>
+                      <span>UPI Ref / Transaction UTR Number *</span>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. UPI/60612948211"
+                        value={feeUtr}
+                        onChange={(e) => setFeeUtr(e.target.value)}
+                      />
+                    </label>
+
+                    <button type="submit" className="button button-blue full-width">
+                      <CheckCircle2 size={16} /> Submit Payment &amp; Update Record
+                    </button>
+
+                    <p style={{ fontSize: '11px', color: 'var(--gsdd-text-muted)', margin: 0 }}>
+                      Bank Transfer: SBI Raniganj A/C: 42890100982341 &bull; IFSC: SBIN0001234
+                    </p>
+                  </form>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Feature 7: Payment Receipt (Automatic receipt download) */}
+        {activeTab === 'receipts' && (
+          <div className="dashboard-tab-receipts">
+            <div className="member-dashboard-card">
+              <div className="card-header-bar no-print">
+                <h2>Official Membership Payment Receipt</h2>
+                <button
+                  type="button"
+                  className="button button-blue"
+                  onClick={() => window.print()}
+                >
+                  <Printer size={16} /> Print / Download Receipt
+                </button>
+              </div>
+
+              {/* Printable Official Receipt */}
+              <div className="receipt-paper-frame">
+                <div className="receipt-header-row">
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '17px', color: 'var(--gsdd-navy-dark)' }}>
+                      {organization.legalName}
+                    </h3>
+                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--gsdd-text-muted)' }}>
+                      Section 8 Nonprofit &bull; CIN: {organization.cin} &bull; Darpan: {organization.darpan}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '10px', color: 'var(--gsdd-text-muted)' }}>
+                      12A: {organization.tax12a} &bull; 80G: {organization.tax80g}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span className="receipt-title-badge">MEMBERSHIP RECEIPT</span>
+                    <div style={{ fontSize: '12px', fontWeight: '700', marginTop: '4px' }}>
+                      GSDD-M-REC-2026-081
+                    </div>
+                  </div>
+                </div>
+
+                <div className="receipt-table-list">
+                  <div className="r-row-item">
+                    <span className="r-lbl">Member Name:</span>
+                    <span className="r-val">{member.name}</span>
+                  </div>
+                  <div className="r-row-item">
+                    <span className="r-lbl">Member ID:</span>
+                    <span className="r-val"><code>{member.id}</code></span>
+                  </div>
+                  <div className="r-row-item">
+                    <span className="r-lbl">Category &amp; Designation:</span>
+                    <span className="r-val">{member.category} ({member.designation})</span>
+                  </div>
+                  <div className="r-row-item">
+                    <span className="r-lbl">Fee Particulars:</span>
+                    <span className="r-val">{member.feeType} Subscription</span>
+                  </div>
+                  <div className="r-row-item">
+                    <span className="r-lbl">Amount Paid:</span>
+                    <span className="r-val" style={{ color: '#15803D', fontSize: '15px' }}>
+                      ₹{member.feeAmount?.toLocaleString('en-IN') || 1200}
+                    </span>
+                  </div>
+                  <div className="r-row-item">
+                    <span className="r-lbl">Payment Status:</span>
+                    <span className="r-val">Paid &amp; Realized</span>
+                  </div>
+                  <div className="r-row-item">
+                    <span className="r-lbl">Receipt Date:</span>
+                    <span className="r-val">{member.joinDate}</span>
+                  </div>
+                </div>
+
+                <div className="receipt-sign-row">
+                  <div>
+                    <small style={{ fontSize: '10px', color: '#64748B' }}>
+                      Head Office: {organization.address}
+                    </small>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ borderBottom: '1px solid #0F172A', width: '120px', paddingBottom: '2px', fontSize: '11px', fontWeight: '700' }}>
+                      Authorized Signatory
+                    </div>
+                    <small style={{ fontSize: '9px', color: '#64748B' }}>GSDD Foundation</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Feature 8: Membership ID card (QR code wala ID card download) */}
+        {activeTab === 'idcard' && (
+          <div className="dashboard-tab-idcard">
+            <div className="member-dashboard-card">
+              <div className="card-header-bar no-print">
+                <h2>Official Membership Photo ID Card</h2>
+                <button
+                  type="button"
+                  className="button button-blue"
+                  onClick={() => window.print()}
+                >
+                  <Printer size={16} /> Print / Save ID Card
+                </button>
+              </div>
+
+              <p className="no-print" style={{ color: 'var(--gsdd-text-muted)', fontSize: '13px' }}>
+                Official photo identity card with live verification QR code verifiable across all administrative centers.
+              </p>
+
+              {/* ID Card Front & Back Printable */}
+              <div className="id-card-container">
+                {/* Front Side */}
+                <div className="id-card-frame">
+                  <div className="id-card-header">
+                    <h4>GSDD FOUNDATION</h4>
+                    <small>{organization.legalName}</small>
+                  </div>
+
+                  <div className="id-card-body">
+                    <div className="id-photo-placeholder">{initials}</div>
+                    <h3 className="id-member-name">{member.name}</h3>
+                    <span className="id-designation-badge">{member.designation}</span>
+
+                    <div className="id-details-table">
+                      <div className="id-detail-row">
+                        <span className="k">MEMBER ID:</span>
+                        <span className="v"><code>{member.id}</code></span>
+                      </div>
+                      <div className="id-detail-row">
+                        <span className="k">CATEGORY:</span>
+                        <span className="v">{member.category}</span>
+                      </div>
+                      <div className="id-detail-row">
+                        <span className="k">BLOOD GROUP:</span>
+                        <span className="v">{member.bloodGroup || 'O+'}</span>
+                      </div>
+                      <div className="id-detail-row">
+                        <span className="k">JOINED:</span>
+                        <span className="v">{member.joinDate}</span>
+                      </div>
+                      <div className="id-detail-row">
+                        <span className="k">VALIDITY:</span>
+                        <span className="v" style={{ color: '#15803D' }}>{member.validTill || 'Lifetime'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="id-card-footer">
+                    <span>Govt. of India Section 8 Registered &bull; CIN: {organization.cin}</span>
+                  </div>
+                </div>
+
+                {/* Back Side */}
+                <div className="id-card-frame id-card-back">
+                  <div className="id-card-header" style={{ background: '#0F172A' }}>
+                    <h4>OFFICIAL VERIFICATION</h4>
+                    <small>Scan QR code below to verify identity</small>
+                  </div>
+
+                  <div className="id-card-body">
+                    <div className="id-back-qr">
+                      <QrCode size={90} color="#1E293B" />
+                    </div>
+                    <code style={{ fontSize: '11px', fontWeight: '700', color: 'var(--gsdd-navy-dark)' }}>
+                      {member.id}
+                    </code>
+
+                    <div className="id-back-terms" style={{ marginTop: '14px' }}>
+                      <p style={{ margin: '0 0 6px' }}><strong>Registered Address:</strong> {organization.address}</p>
+                      <p style={{ margin: '0 0 6px' }}><strong>Helpline:</strong> {organization.phone}</p>
+                      <p style={{ margin: 0, fontSize: '9px', color: '#64748B' }}>This card is non-transferable and remains property of GSDD Foundation.</p>
+                    </div>
+                  </div>
+
+                  <div className="id-card-footer">
+                    <span>Verify online at: gsddfoundation.org/verify</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab placeholders for Branch 3 and Branch 4 */}
+        {['certificates', 'donations', 'referral', 'notifications', 'messages', 'password'].includes(activeTab) && (
           <div className="member-dashboard-card">
             <div className="card-header-bar">
               <h2>{sidebarItems.find((s) => s.id === activeTab)?.label}</h2>
