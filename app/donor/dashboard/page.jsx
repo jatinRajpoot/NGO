@@ -16,14 +16,15 @@ import '../donor.css';
 
 const sidebarItems = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'profile', label: 'Donor Profile & 80G', icon: User },
-  { id: 'donate', label: 'Make a Donation', icon: Heart },
-  { id: 'history', label: 'Donation History & Receipts', icon: Receipt },
-  { id: 'subscriptions', label: 'Recurring Pledges (SIP)', icon: Repeat },
-  { id: 'tax', label: '80G Tax Certificates', icon: Award },
-  { id: 'impact', label: 'Impact & Field Reports', icon: FileText },
-  { id: 'notifications', label: 'Communication Settings', icon: Bell },
-  { id: 'password', label: 'Change Password', icon: KeyRound },
+  { id: 'donate', label: 'Make donation', icon: Heart },
+  { id: 'receipts', label: 'Download Receipt', icon: Receipt },
+  { id: 'subscriptions', label: 'Manage Subscription', icon: Repeat },
+  { id: 'profile', label: 'Donor profile', icon: User },
+  { id: 'password', label: 'Change password', icon: KeyRound },
+  { id: 'history', label: 'Donation History', icon: Receipt },
+  { id: 'recurring', label: 'Monthly Donation', icon: Repeat },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'tax', label: 'Donation Certificate', icon: Award },
 ];
 
 export default function DonorDashboardPage() {
@@ -168,18 +169,38 @@ export default function DonorDashboardPage() {
     const randomSerial = Math.floor(1000 + Math.random() * 9000);
     const newReceiptId = `GSDD-REC-2026-${randomSerial}`;
     const today = new Date().toISOString().split('T')[0];
-    const generatedUtr = donateUtr.trim() || `UPI/${Math.floor(100000000000 + Math.random() * 900000000000)}`;
+    const generatedUtr = donateUtr.trim() || (
+      paymentMode === 'cash'
+        ? `CASH/GSDD-RAN-${Math.floor(1000 + Math.random() * 9000)}`
+        : paymentMode === 'bank'
+          ? `NEFT/SBIN${Math.floor(1000000000 + Math.random() * 9000000000)}`
+          : paymentMode === 'card'
+            ? `TXN/CARD${Math.floor(1000000000 + Math.random() * 9000000000)}`
+            : `UPI/${Math.floor(100000000000 + Math.random() * 900000000000)}`
+    );
 
     const newDonation = {
       id: newReceiptId,
       date: today,
       amount: numericAmount,
       program: selectedProgram,
-      method: paymentMode === 'upi' ? 'UPI QR Payment' : paymentMode === 'bank' ? 'Bank Transfer (NEFT/RTGS)' : 'Card / Netbanking',
+      method:
+        paymentMode === 'cash'
+          ? 'Cash Entry (Official Admin Counter)'
+          : paymentMode === 'bank'
+            ? 'Bank Transfer (NEFT/RTGS)'
+            : paymentMode === 'card'
+              ? 'Card / Netbanking'
+              : 'UPI QR Payment',
       utr: generatedUtr,
       status: 'Verified',
       taxDeductible: true,
-      type: frequency === 'monthly' ? 'Recurring Monthly' : 'One-Time Donation',
+      type:
+        paymentMode === 'cash'
+          ? 'Cash Donation'
+          : frequency === 'monthly'
+            ? 'Recurring Monthly'
+            : 'One-Time Donation',
     };
 
     let updatedSubs = [...subs];
@@ -1028,6 +1049,13 @@ export default function DonorDashboardPage() {
                   >
                     Cards / Net Banking
                   </button>
+                  <button
+                    type="button"
+                    className={`payment-mode-tab ${paymentMode === 'cash' ? 'active' : ''}`}
+                    onClick={() => setPaymentMode('cash')}
+                  >
+                    Cash Donation (Admin Desk)
+                  </button>
                 </div>
 
                 {paymentMode === 'upi' && (
@@ -1100,6 +1128,31 @@ export default function DonorDashboardPage() {
                   </div>
                 )}
 
+                {paymentMode === 'cash' && (
+                  <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '10px', padding: '18px', marginBottom: '20px', fontSize: '13px' }}>
+                    <h4 style={{ margin: '0 0 10px', color: '#92400E', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Building2 size={18} /> Direct Cash Donation (Recorded via Admin Counter Entry)
+                    </h4>
+                    <p style={{ color: '#78350F', marginBottom: '12px' }}>
+                      Donors making in-person cash contributions can deposit funds at the GSDD Foundation Raniganj Central Office or through an authorized GSDD Executive. Cash donations are officially logged in the Central Accounts Ledger and receive an authenticated 80G tax receipt.
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', background: '#FEF3C7', padding: '12px', borderRadius: '8px' }}>
+                      <div>
+                        <span style={{ fontSize: '11px', color: '#92400E', display: 'block' }}>AUTHORIZED CASH DESK</span>
+                        <strong style={{ color: '#78350F' }}>GSDD Foundation HQ, Raniganj Bazar, Araria, Bihar</strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '11px', color: '#92400E', display: 'block' }}>DESK IN-CHARGE</span>
+                        <strong style={{ color: '#78350F' }}>Finance & Accounts Admin</strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '11px', color: '#92400E', display: 'block' }}>MAX CASH LIMIT (IT SEC 40A)</span>
+                        <strong style={{ color: '#78350F' }}>Up to ₹2,000 for 80G Tax Exemption</strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="donor-form-group" style={{ maxWidth: '420px', marginTop: '16px' }}>
                   <label>Transaction UTR / Reference ID (Optional for Demo)</label>
                   <input
@@ -1122,7 +1175,92 @@ export default function DonorDashboardPage() {
           </div>
         )}
 
-        {/* TAB 4: DONATION HISTORY & RECEIPTS */}
+        {/* TAB: DOWNLOAD RECEIPT */}
+        {activeTab === 'receipts' && (
+          <div className="donor-card">
+            <div className="donor-card-header">
+              <div>
+                <h2>
+                  <Receipt size={20} color="#2563EB" /> Download 80G Donation Receipts
+                </h2>
+                <p>Instant access to official signed receipts for all contributions with Section 80G tax deduction details.</p>
+              </div>
+
+              <button
+                type="button"
+                className="button button-blue"
+                onClick={() => window.print()}
+                style={{ fontSize: '13px', padding: '8px 16px', fontWeight: '700' }}
+              >
+                <Printer size={15} /> Print All Receipts
+              </button>
+            </div>
+
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '16px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <span style={{ fontSize: '12px', color: '#64748B' }}>TOTAL RECEIPTS ISSUED</span>
+                  <div style={{ fontSize: '20px', fontWeight: '800', color: '#0F172A' }}>{donations.length} Receipts</div>
+                </div>
+                <div>
+                  <span style={{ fontSize: '12px', color: '#64748B' }}>TOTAL TAX EXEMPT VALUE</span>
+                  <div style={{ fontSize: '20px', fontWeight: '800', color: '#16A34A' }}>
+                    ₹{(donor.totalDonated || 0).toLocaleString('en-IN')}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ fontSize: '12px', color: '#64748B' }}>DONOR PAN</span>
+                  <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'monospace', color: '#0F172A' }}>{donor.pan}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="donor-table-container">
+              <table className="donor-table">
+                <thead>
+                  <tr>
+                    <th>Receipt No.</th>
+                    <th>Date</th>
+                    <th>Program / Cause</th>
+                    <th>Amount</th>
+                    <th>Mode & UTR</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {donations.map((d) => (
+                    <tr key={d.id}>
+                      <td>
+                        <strong style={{ fontFamily: 'monospace', color: '#1E40AF' }}>{d.id}</strong>
+                      </td>
+                      <td>{d.date}</td>
+                      <td>{d.program}</td>
+                      <td>
+                        <strong style={{ color: '#0F172A' }}>₹{d.amount.toLocaleString('en-IN')}</strong>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '12px', display: 'block' }}>{d.method}</span>
+                        <code style={{ fontSize: '11px', color: '#64748B' }}>{d.utr}</code>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="button button-outline"
+                          onClick={() => setSelectedReceipt(d)}
+                          style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <Download size={13} /> Download Receipt
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: DONATION HISTORY */}
         {activeTab === 'history' && (
           <div className="donor-card">
             <div className="donor-card-header">

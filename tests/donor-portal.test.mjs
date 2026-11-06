@@ -76,15 +76,16 @@ try {
   assert.equal(resDash.status, 200, 'Donor dashboard should return 200');
   const textDash = await resDash.text();
   assert(textDash.includes('Overview'), 'Dashboard should render sidebar item: Overview');
-  assert(textDash.includes('Donor Profile &amp; 80G') || textDash.includes('Donor Profile & 80G'), 'Dashboard should render sidebar item: Donor Profile & 80G');
-  assert(textDash.includes('Make a Donation'), 'Dashboard should render sidebar item: Make a Donation');
-  assert(textDash.includes('Donation History &amp; Receipts') || textDash.includes('Donation History & Receipts'), 'Dashboard should render sidebar item: Donation History & Receipts');
-  assert(textDash.includes('Recurring Pledges (SIP)'), 'Dashboard should render sidebar item: Recurring Pledges');
-  assert(textDash.includes('80G Tax Certificates'), 'Dashboard should render sidebar item: 80G Tax Certificates');
-  assert(textDash.includes('Impact &amp; Field Reports') || textDash.includes('Impact & Field Reports'), 'Dashboard should render sidebar item: Impact & Field Reports');
-  assert(textDash.includes('Communication Settings'), 'Dashboard should render sidebar item: Communication Settings');
-  assert(textDash.includes('Change Password'), 'Dashboard should render sidebar item: Change Password');
-  console.log('PASS: /donor/dashboard route and all core donor modules rendered correctly.');
+  assert(textDash.includes('Make donation'), 'Dashboard should render sidebar item: Make donation');
+  assert(textDash.includes('Download Receipt'), 'Dashboard should render sidebar item: Download Receipt');
+  assert(textDash.includes('Manage Subscription'), 'Dashboard should render sidebar item: Manage Subscription');
+  assert(textDash.includes('Donor profile'), 'Dashboard should render sidebar item: Donor profile');
+  assert(textDash.includes('Change password'), 'Dashboard should render sidebar item: Change password');
+  assert(textDash.includes('Donation History'), 'Dashboard should render sidebar item: Donation History');
+  assert(textDash.includes('Monthly Donation'), 'Dashboard should render sidebar item: Monthly Donation');
+  assert(textDash.includes('Notifications'), 'Dashboard should render sidebar item: Notifications');
+  assert(textDash.includes('Donation Certificate'), 'Dashboard should render sidebar item: Donation Certificate');
+  console.log('PASS: /donor/dashboard route and all handwritten sidebar modules rendered correctly.');
 
   console.log('ALL DONOR PORTAL INTEGRATION TESTS PASSED!');
 } finally {
