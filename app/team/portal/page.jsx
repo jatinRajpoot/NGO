@@ -43,6 +43,12 @@ export default function TeamMemberPortalPage() {
   // Selected Certificate for modal view
   const [selectedCert, setSelectedCert] = useState(null);
 
+  // Team Directory Filter State
+  const [teamDeptFilter, setTeamDeptFilter] = useState('all');
+
+  // Notifications State with Mark As Read
+  const [notifList, setNotifList] = useState(defaultTeamMembers[0].notifications || []);
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem('gsdd_active_team_member');
@@ -65,6 +71,19 @@ export default function TeamMemberPortalPage() {
     setFormAddress(m.address || '');
     setFormQualifications(m.qualifications || '');
     setFormBio(m.bio || '');
+    setNotifList(m.notifications || []);
+  }
+
+  function handleMarkRead(id) {
+    const updated = notifList.map((n) => (n.id === id ? { ...n, unread: false } : n));
+    setNotifList(updated);
+    const updatedMember = { ...member, notifications: updated };
+    setMember(updatedMember);
+    try {
+      localStorage.setItem('gsdd_active_team_member', JSON.stringify(updatedMember));
+    } catch {
+      // Ignore
+    }
   }
 
   function handleLogout() {
@@ -535,8 +554,36 @@ export default function TeamMemberPortalPage() {
                 </p>
               </div>
 
+              {/* Department Filter Bar */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
+                {['all', 'Governing Board', 'Community Healthcare', 'Digital Inclusion'].map((dept) => (
+                  <button
+                    key={dept}
+                    type="button"
+                    onClick={() => setTeamDeptFilter(dept)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      border: teamDeptFilter === dept ? '2px solid #7C3AED' : '1px solid #CBD5E1',
+                      background: teamDeptFilter === dept ? '#F5F3FF' : '#FFF',
+                      color: teamDeptFilter === dept ? '#6D28D9' : '#334155',
+                      fontWeight: teamDeptFilter === dept ? '700' : '500',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {dept === 'all' ? 'All Leadership & Staff' : dept}
+                  </button>
+                ))}
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
-                {defaultTeamMembers.map((tm) => {
+                {defaultTeamMembers
+                  .filter((tm) => {
+                    if (teamDeptFilter === 'all') return true;
+                    return tm.department.toLowerCase().includes(teamDeptFilter.toLowerCase());
+                  })
+                  .map((tm) => {
                   const tmInitials = tm.name.split(' ').map((n) => n[0]).slice(0, 2).join('');
                   const isCurrent = tm.id === member.id;
                   return (
@@ -588,13 +635,13 @@ export default function TeamMemberPortalPage() {
                 </p>
               </div>
 
-              {(member.notifications || []).length === 0 ? (
+              {notifList.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
                   No new announcements or notifications.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {member.notifications.map((n) => (
+                  {notifList.map((n) => (
                     <div
                       key={n.id}
                       style={{
@@ -612,8 +659,24 @@ export default function TeamMemberPortalPage() {
                               HIGH PRIORITY
                             </span>
                           )}
+                          {n.unread && (
+                            <span style={{ fontSize: '10px', background: '#2563EB', color: '#FFF', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                              NEW
+                            </span>
+                          )}
                         </div>
-                        <span style={{ fontSize: '12px', color: '#64748B' }}>{n.date}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '12px', color: '#64748B' }}>{n.date}</span>
+                          {n.unread && (
+                            <button
+                              type="button"
+                              onClick={() => handleMarkRead(n.id)}
+                              style={{ border: 'none', background: 'transparent', color: '#2563EB', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                            >
+                              Mark Read
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#334155', lineHeight: '1.5' }}>
                         {n.message}
