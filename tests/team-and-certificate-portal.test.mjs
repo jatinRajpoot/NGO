@@ -66,7 +66,19 @@ try {
   assert(textPortal.includes('View Certificates'), 'Portal should render sidebar tab: View Certificates');
   console.log('PASS: /team/portal route and all sidebar tabs verified.');
 
-  console.log('ALL TEAM MEMBER PORTAL TESTS PASSED!');
+  // 3. Certificate Recipient & Verification Route
+  const resVerify = await fetch(`http://localhost:${port}/verify`);
+  assert.equal(resVerify.status, 200, 'Verify route should return 200');
+  const textVerify = await resVerify.text();
+  assert(textVerify.includes('View &amp; Print Certificate') || textVerify.includes('View & Print Certificate'), 'Verify page should render View & Print Certificate tab');
+  assert(textVerify.includes('Receive Certificate (Email)'), 'Verify page should render Receive Certificate tab');
+  assert(textVerify.includes('Certificate ID Search &amp; Details') || textVerify.includes('Certificate ID Search & Details'), 'Verify page should render Search tab');
+  assert(textVerify.includes('QR Code Scanner &amp; Authenticity') || textVerify.includes('QR Code Scanner & Authenticity'), 'Verify page should render QR Scanner tab');
+  assert(textVerify.includes('GSDD-ACH-2026-081'), 'Verify page should include default verified certificate ID');
+  assert(textVerify.includes('Kavita Kumari'), 'Verify page should include recipient name');
+  console.log('PASS: /verify Certificate Recipient & Verification portal verified.');
+
+  console.log('ALL TEAM MEMBER & CERTIFICATE RECIPIENT PORTAL TESTS PASSED!');
 } finally {
   server.kill('SIGTERM');
 }
