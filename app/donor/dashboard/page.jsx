@@ -1875,6 +1875,21 @@ export default function DonorDashboardPage() {
             {/* Patron Recognition Certificate */}
             {(donor.certificates || []).map((c) => (
               <div key={c.id} className="donor-card" style={{ marginTop: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, color: '#0F172A', fontSize: '16px' }}>Official Affiliation & Appreciation Certificate</h3>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#64748B' }}>Issued under the authority of the Board of Trustees, GSDD Foundation.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="button button-gold"
+                    onClick={() => window.print()}
+                    style={{ fontSize: '12px', padding: '6px 14px', fontWeight: '700' }}
+                  >
+                    <Printer size={13} /> Print / Download Certificate
+                  </button>
+                </div>
+
                 <div className="cert-paper-gold-frame">
                   <div className="cert-emblem">
                     <Award size={32} />
@@ -1887,7 +1902,7 @@ export default function DonorDashboardPage() {
                     Presented with profound gratitude to <strong>{donor.name}</strong> for altruistic devotion and patronage towards rural healthcare, women skilling, and youth education.
                   </p>
 
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', fontSize: '12px', color: '#64748B', marginTop: '24px', paddingTop: '16px', borderTop: '1px dashed #CBD5E1' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', fontSize: '12px', color: '#64748B', marginTop: '24px', paddingTop: '16px', borderTop: '1px dashed #CBD5E1', flexWrap: 'wrap' }}>
                     <span><strong>Certificate ID:</strong> {c.id}</span>
                     <span><strong>Date:</strong> {c.issueDate}</span>
                     <span><strong>Authorized By:</strong> {c.authorizedBy}</span>
@@ -2050,6 +2065,43 @@ export default function DonorDashboardPage() {
               >
                 Save Preferences
               </button>
+            </div>
+
+            <div style={{ marginTop: '28px', borderTop: '1px solid #E2E8F0', paddingTop: '20px' }}>
+              <h3 style={{ fontSize: '15px', color: '#0F172A', marginBottom: '12px' }}>
+                Recent Alerts & Payment Confirmations Dispatched (WhatsApp & Email)
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '8px', borderLeft: '4px solid #16A34A', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <strong style={{ color: '#166534' }}>WhatsApp Payment Confirmation Dispatched</strong>
+                    <span style={{ color: '#64748B' }}>Today</span>
+                  </div>
+                  <p style={{ margin: 0, color: '#334155' }}>
+                    Sent to <strong>{donor.phone}</strong>: &quot;Thank you for your generous contribution of ₹2,500. Your official 80G receipt #GSDD-REC-2026-4401 is ready.&quot;
+                  </p>
+                </div>
+
+                <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '8px', borderLeft: '4px solid #2563EB', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <strong style={{ color: '#1E40AF' }}>Email 80G Tax Receipt Dispatched</strong>
+                    <span style={{ color: '#64748B' }}>01 March 2026</span>
+                  </div>
+                  <p style={{ margin: 0, color: '#334155' }}>
+                    Dispatched to <strong>{donor.email}</strong>: Attached official Section 80G donation receipt with QR validation for your IT returns.
+                  </p>
+                </div>
+
+                <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '8px', borderLeft: '4px solid #D97706', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <strong style={{ color: '#92400E' }}>Monthly Recurring Pledge Notice</strong>
+                    <span style={{ color: '#64748B' }}>26 Feb 2026</span>
+                  </div>
+                  <p style={{ margin: 0, color: '#334155' }}>
+                    Upcoming auto-debit reminder: ₹2,500 scheduled for deduction on 01 March 2026 under UPI Autopay.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
