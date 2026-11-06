@@ -30,7 +30,7 @@ const sidebarItems = [
 
 export default function MemberDashboardPage() {
   const router = useRouter();
-  const [member, setMember] = useState(null);
+  const [member, setMember] = useState(defaultMembers[0]);
   const [activeTab, setActiveTab] = useState('overview');
   const [editingProfile, setEditingProfile] = useState(false);
   const [feeUtr, setFeeUtr] = useState('');
