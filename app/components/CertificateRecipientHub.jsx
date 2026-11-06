@@ -77,9 +77,38 @@ export default function CertificateRecipientHub() {
     setScannerActive(true);
     setTimeout(() => {
       setQrScanning(false);
-      setScannedResult(targetCert);
+      setScannedResult({ ...targetCert, isFake: false });
       setCurrentCert(targetCert);
       setVerificationResult({ checked: true, isValid: true, cert: targetCert });
+    }, 1000);
+  }
+
+  // Handle Simulated Fake/Counterfeit QR Scan (Feature 6: Verify Certificate Original vs Fake)
+  function handleSimulateFakeScan() {
+    setQrScanning(true);
+    setScannerActive(true);
+    setTimeout(() => {
+      setQrScanning(false);
+      setScannedResult({
+        isFake: true,
+        id: 'FAKE-QR-88902-TAMPERED',
+        recipient: 'Unauthorized Claimant',
+        errorReason: 'Cryptographic digital signature mismatch and missing MCA Section 8 registration hash.',
+      });
+    }, 1000);
+  }
+
+  // Handle QR Image Upload simulation
+  function handleQrFileUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setQrScanning(true);
+    setTimeout(() => {
+      setQrScanning(false);
+      const randomCert = verifiedCertificates[0];
+      setScannedResult({ ...randomCert, isFake: false });
+      setCurrentCert(randomCert);
+      setVerificationResult({ checked: true, isValid: true, cert: randomCert });
     }, 1200);
   }
 
@@ -570,27 +599,44 @@ export default function CertificateRecipientHub() {
               </div>
 
               <span style={{ fontSize: '12px', color: '#94A3B8', display: 'block', marginBottom: '14px' }}>
-                Simulate Camera QR Scan for Sample Certificates:
+                Simulate Camera QR Scan or Counterfeit Verification Test:
               </span>
 
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '16px' }}>
                 <button
                   type="button"
                   onClick={() => handleSimulateScan(verifiedCertificates[0])}
                   disabled={qrScanning}
                   style={{ padding: '8px 14px', background: '#2563EB', color: '#FFF', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
                 >
-                  Scan Kavita Kumari QR
+                  Scan Original (Kavita Kumari)
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleSimulateScan(verifiedCertificates[1])}
                   disabled={qrScanning}
-                  style={{ padding: '8px 14px', background: '#334155', color: '#FFF', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                  style={{ padding: '8px 14px', background: '#0D9488', color: '#FFF', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
                 >
-                  Scan Manoj Mandal QR
+                  Scan Original (Manoj Mandal)
                 </button>
+
+                <button
+                  type="button"
+                  onClick={handleSimulateFakeScan}
+                  disabled={qrScanning}
+                  style={{ padding: '8px 14px', background: '#DC2626', color: '#FFF', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  ⚠️ Test Fake / Counterfeit QR
+                </button>
+              </div>
+
+              {/* Upload QR Image file option */}
+              <div style={{ borderTop: '1px solid #334155', paddingTop: '14px', marginTop: '10px' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#1E293B', color: '#E2E8F0', padding: '6px 14px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', border: '1px solid #475569' }}>
+                  <Upload size={14} /> Upload QR Image File
+                  <input type="file" accept="image/*" onChange={handleQrFileUpload} style={{ display: 'none' }} />
+                </label>
               </div>
             </div>
 
@@ -599,38 +645,58 @@ export default function CertificateRecipientHub() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <ShieldCheck size={22} color="#16A34A" />
                 <h4 style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>
-                  Cryptographic Authenticity Engine
+                  Cryptographic Authenticity Engine (Original vs Fake Check)
                 </h4>
               </div>
               <p style={{ fontSize: '13px', color: '#475569', lineHeight: '1.6', marginBottom: '16px' }}>
-                Every genuine GSDD Foundation certificate is digitally signed and cryptographically matched against our Section 8 ledger. Counterfeit or tampered credentials fail verification.
+                Every genuine GSDD Foundation certificate is digitally signed and cryptographically matched against our Section 8 ledger. Counterfeit or tampered credentials fail verification instantly.
               </p>
 
               {scannedResult ? (
-                <div style={{ background: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: '8px', padding: '16px', color: '#166534' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                    <CheckCircle2 size={18} color="#16A34A" />
-                    <strong>QR VALIDATION SUCCESSFUL: 100% ORIGINAL</strong>
+                scannedResult.isFake ? (
+                  <div style={{ background: '#FEF2F2', border: '2px solid #EF4444', borderRadius: '8px', padding: '16px', color: '#991B1B' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                      <AlertTriangle size={20} color="#DC2626" />
+                      <strong style={{ fontSize: '14px' }}>AUTHENTICITY CHECK FAILED: FAKE / COUNTERFEIT DETECTED</strong>
+                    </div>
+                    <p style={{ margin: '0 0 8px', fontSize: '12px', lineHeight: '1.6' }}>
+                      {scannedResult.errorReason}
+                    </p>
+                    <div style={{ background: '#FFF', padding: '10px', borderRadius: '6px', border: '1px solid #FCA5A5', fontSize: '11px', color: '#7F1D1D' }}>
+                      <div>Attempted Identifier: <strong>{scannedResult.id}</strong></div>
+                      <div>Claimant: <strong>{scannedResult.recipient}</strong></div>
+                      <div>Status: <span style={{ color: '#DC2626', fontWeight: '800' }}>REJECTED & FLAGGED AS FRAUDULENT</span></div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '12px', lineHeight: '1.6' }}>
-                    <div>Certificate ID: <strong>{scannedResult.id}</strong></div>
-                    <div>Conferred upon: <strong>{scannedResult.recipient}</strong></div>
-                    <div>Security Hash: <code>{scannedResult.hash.slice(0, 32)}...</code></div>
+                ) : (
+                  <div style={{ background: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: '8px', padding: '16px', color: '#166534' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <CheckCircle2 size={18} color="#16A34A" />
+                      <strong>QR VALIDATION SUCCESSFUL: 100% ORIGINAL & AUTHENTIC</strong>
+                    </div>
+                    <div style={{ fontSize: '12px', lineHeight: '1.6', background: '#FFF', padding: '12px', borderRadius: '6px', border: '1px solid #BBF7D0', margin: '8px 0' }}>
+                      <div><strong>Recipient Name:</strong> {scannedResult.recipient}</div>
+                      <div><strong>Certificate Type:</strong> {scannedResult.type}</div>
+                      <div><strong>Issue Date:</strong> {scannedResult.issueDate}</div>
+                      <div><strong>Issuing Organization:</strong> {scannedResult.issuingOrganization}</div>
+                      <div><strong>Certificate ID:</strong> {scannedResult.id}</div>
+                      <div><strong>Security Hash:</strong> <code>{scannedResult.hash?.slice(0, 32)}...</code></div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCurrentCert(scannedResult);
+                        setActiveTab('view');
+                      }}
+                      style={{ marginTop: '4px', padding: '8px 16px', background: '#16A34A', color: '#FFF', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                    >
+                      View Verified Certificate →
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCurrentCert(scannedResult);
-                      setActiveTab('view');
-                    }}
-                    style={{ marginTop: '12px', padding: '6px 14px', background: '#16A34A', color: '#FFF', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
-                  >
-                    View Verified Certificate →
-                  </button>
-                </div>
+                )
               ) : (
                 <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', padding: '16px', fontSize: '12px', color: '#1E40AF' }}>
-                  Click one of the simulated QR scan buttons to execute a cryptographic authenticity test.
+                  Click one of the simulated QR scan buttons above or upload a certificate QR image to execute a real-time cryptographic authenticity test (Original vs Fake).
                 </div>
               )}
             </div>

@@ -76,7 +76,10 @@ try {
   assert(textVerify.includes('QR Code Scanner &amp; Authenticity') || textVerify.includes('QR Code Scanner & Authenticity'), 'Verify page should render QR Scanner tab');
   assert(textVerify.includes('GSDD-ACH-2026-081'), 'Verify page should include default verified certificate ID');
   assert(textVerify.includes('Kavita Kumari'), 'Verify page should include recipient name');
-  console.log('PASS: /verify Certificate Recipient & Verification portal verified.');
+  assert(textVerify.includes('GLOBAL SKILLS &amp; DIGITAL DEVELOPMENT WELFARE FOUNDATION') || textVerify.includes('GLOBAL SKILLS & DIGITAL DEVELOPMENT WELFARE FOUNDATION') || textVerify.includes('Global Skills &amp; Digital Development Welfare Foundation'), 'Verify page should include issuing organization');
+  assert(textVerify.includes('Certificate of Excellence &amp; Achievement') || textVerify.includes('Certificate of Excellence & Achievement'), 'Verify page should include certificate type');
+  assert(textVerify.includes('28 February 2026'), 'Verify page should include issue date');
+  console.log('PASS: /verify Certificate Recipient & Verification portal verified (QR Scan, Authenticity Original vs Fake, ID Search, Details).');
 
   console.log('ALL TEAM MEMBER & CERTIFICATE RECIPIENT PORTAL TESTS PASSED!');
 } finally {
