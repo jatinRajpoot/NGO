@@ -6,6 +6,8 @@ import { ArrowDown } from 'lucide-react';
 import Link from 'next/link';
 
 const loginRoles = [
+  { label: 'Member Login', href: '/member/login' },
+  { label: 'Donor Login', href: '/donor/login' },
   { label: 'Management Login', href: '/admin/' },
   { label: 'Coordinator Login' },
 ];
@@ -18,7 +20,7 @@ export default function PortalLoginMenu() {
   const menuRef = useRef(null);
   const pathname = usePathname() || '/';
 
-  const isAdminActive = pathname.startsWith('/admin');
+  const isLoginActive = pathname.startsWith('/admin') || pathname.startsWith('/member') || pathname.startsWith('/donor');
 
   // Close on pathname change
   useEffect(() => {
@@ -115,7 +117,7 @@ export default function PortalLoginMenu() {
         className="nav-link"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        aria-current={isAdminActive ? 'page' : undefined}
+        aria-current={isLoginActive ? 'page' : undefined}
         onKeyDown={handleSummaryKeyDown}
       >
         Login <ArrowDown size={12} strokeWidth={2.5} aria-hidden="true" />
