@@ -11,7 +11,8 @@
     "test:admin": "node tests/admin-gallery.integration.mjs",
     "test:storage": "node tests/gallery-store.regression.mjs",
     "test:profile": "node tests/admin-profile-and-image-edit.test.mjs",
-    "test:public": "node tests/public-pages.integration.mjs"
+    "test:public": "node tests/public-pages.integration.mjs",
+    "test:team": "node tests/team-and-certificate-portal.test.mjs"
   },
   "overrides": {
     "postcss": "8.5.32"
