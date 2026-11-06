@@ -63,6 +63,24 @@ export default function DonorDashboardPage() {
   // Subscriptions management
   const [subs, setSubs] = useState(defaultDonors[0].subscriptions);
 
+  // Recurring Donation Setup State (Feature 10 & 11)
+  const [recProgram, setRecProgram] = useState(donorPrograms[0]?.name || 'Rural Healthcare & Mobile Health Units');
+  const [recAmount, setRecAmount] = useState('1000');
+  const [recDay, setRecDay] = useState('1st of every month');
+  const [recMethod, setRecMethod] = useState('UPI Autopay (GPay/PhonePe)');
+  const [recSuccess, setRecSuccess] = useState(false);
+
+  // Auto Deduction Simulation (Feature 12)
+  const [autoDebitSuccess, setAutoDebitSuccess] = useState('');
+
+  // Pause & Cancel Subscription (Feature 13 & 14)
+  const [cancelModalSubId, setCancelModalSubId] = useState(null);
+  const [cancelReason, setCancelReason] = useState('Temporary financial budget');
+
+  // History Filter & Search State (Feature 9)
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyFilter, setHistoryFilter] = useState('all');
+
   // Notifications Form State
   const [notifState, setNotifState] = useState({
     emailReceipts: true,
@@ -269,6 +287,113 @@ export default function DonorDashboardPage() {
     } catch {
       // Ignore
     }
+  }
+
+  function handleCancelSub(id) {
+    const updated = subs.map((s) => {
+      if (s.id === id) {
+        return { ...s, status: 'Cancelled', cancelReason: cancelReason };
+      }
+      return s;
+    });
+    setSubs(updated);
+    setCancelModalSubId(null);
+    const updatedDonor = {
+      ...donor,
+      subscriptions: updated,
+      activeSubscriptions: updated.filter((s) => s.status === 'Active').length,
+    };
+    setDonor(updatedDonor);
+    try {
+      localStorage.setItem('gsdd_active_donor', JSON.stringify(updatedDonor));
+    } catch {
+      // Ignore
+    }
+  }
+
+  function handleSetupRecurring(e) {
+    e.preventDefault();
+    const numeric = parseInt(recAmount, 10);
+    if (!numeric || numeric < 500) {
+      alert('Monthly pledge amount must be at least ₹500.');
+      return;
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const newSub = {
+      id: `GSDD-SUB-${Math.floor(1000 + Math.random() * 9000)}`,
+      program: recProgram,
+      amount: numeric,
+      billingDay: recDay,
+      nextDeduction: '2026-04-01',
+      paymentMethod: recMethod,
+      status: 'Active',
+      startDate: today,
+      durationMonths: 12,
+      completedDeductions: 0,
+      totalRecurringPaid: 0,
+    };
+    const updated = [newSub, ...subs];
+    setSubs(updated);
+    setRecSuccess(true);
+    setTimeout(() => setRecSuccess(false), 5000);
+    try {
+      const current = {
+        ...donor,
+        subscriptions: updated,
+        activeSubscriptions: updated.filter((s) => s.status === 'Active').length,
+      };
+      setDonor(current);
+      localStorage.setItem('gsdd_active_donor', JSON.stringify(current));
+    } catch {
+      // ignore
+    }
+  }
+
+  function handleSimulateAutoDebit(subId) {
+    const sub = subs.find((s) => s.id === subId);
+    if (!sub || sub.status !== 'Active') return;
+    const today = new Date().toISOString().split('T')[0];
+    const receiptId = `GSDD-REC-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newDonation = {
+      id: receiptId,
+      date: today,
+      amount: sub.amount,
+      program: sub.program,
+      method: sub.paymentMethod.includes('UPI') ? 'UPI Autopay' : 'Bank Mandate (e-NACH)',
+      utr: `AUTOPAY/NPCI${Math.floor(100000000000 + Math.random() * 900000000000)}`,
+      status: 'Verified',
+      taxDeductible: true,
+      type: 'Recurring Monthly Auto-Debit',
+    };
+    const updatedSubs = subs.map((s) => {
+      if (s.id === subId) {
+        return {
+          ...s,
+          completedDeductions: (s.completedDeductions || 0) + 1,
+          totalRecurringPaid: (s.totalRecurringPaid || 0) + s.amount,
+        };
+      }
+      return s;
+    });
+    setSubs(updatedSubs);
+    const newTotal = (donor.totalDonated || 0) + sub.amount;
+    const updatedDonor = {
+      ...donor,
+      totalDonated: newTotal,
+      donationCount: (donor.donationCount || 0) + 1,
+      donations: [newDonation, ...(donor.donations || [])],
+      subscriptions: updatedSubs,
+    };
+    setDonor(updatedDonor);
+    try {
+      localStorage.setItem('gsdd_active_donor', JSON.stringify(updatedDonor));
+    } catch {
+      // ignore
+    }
+    setAutoDebitSuccess(
+      `Auto-debit processed: ₹${sub.amount.toLocaleString('en-IN')} debited for ${sub.program}. Receipt ${receiptId} generated and added to History!`
+    );
+    setTimeout(() => setAutoDebitSuccess(''), 6000);
   }
 
   function handleSaveNotifs() {
@@ -1281,6 +1406,39 @@ export default function DonorDashboardPage() {
               </button>
             </div>
 
+            {/* Filter and Search Bar */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {['all', 'One-Time', 'Recurring', 'Cash'].map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setHistoryFilter(f)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      border: historyFilter === f ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                      background: historyFilter === f ? '#EFF6FF' : '#FFF',
+                      color: historyFilter === f ? '#1D4ED8' : '#334155',
+                      fontWeight: historyFilter === f ? '700' : '500',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {f === 'all' ? 'All Contributions' : f}
+                  </button>
+                ))}
+              </div>
+
+              <input
+                type="text"
+                placeholder="Search by receipt ID or cause..."
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', width: '100%', maxWidth: '260px' }}
+              />
+            </div>
+
             <div className="donor-table-container">
               <table className="donor-table">
                 <thead>
@@ -1296,7 +1454,22 @@ export default function DonorDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(donor.donations || []).map((d) => (
+                  {(donor.donations || [])
+                    .filter((d) => {
+                      if (historyFilter === 'One-Time' && !d.type.includes('One-Time')) return false;
+                      if (historyFilter === 'Recurring' && !d.type.includes('Recurring')) return false;
+                      if (historyFilter === 'Cash' && !d.type.includes('Cash')) return false;
+                      if (historySearch) {
+                        const q = historySearch.toLowerCase();
+                        return (
+                          d.id.toLowerCase().includes(q) ||
+                          d.program.toLowerCase().includes(q) ||
+                          d.method.toLowerCase().includes(q)
+                        );
+                      }
+                      return true;
+                    })
+                    .map((d) => (
                     <tr key={d.id}>
                       <td style={{ fontWeight: '700', fontFamily: 'monospace' }}>{d.id}</td>
                       <td>{d.date}</td>
@@ -1342,7 +1515,7 @@ export default function DonorDashboardPage() {
             <div className="donor-card-header">
               <div>
                 <h2>
-                  <Repeat size={20} color="#D97706" /> Monthly Recurring Pledges (SIP for Good)
+                  <Repeat size={20} color="#D97706" /> Manage Recurring Subscriptions & Mandates
                 </h2>
                 <p>Manage continuous monthly support pledges for rural healthcare, girls education, and food security.</p>
               </div>
@@ -1351,13 +1524,31 @@ export default function DonorDashboardPage() {
                 type="button"
                 className="button button-gold"
                 onClick={() => {
-                  setFrequency('monthly');
-                  setActiveTab('donate');
+                  setActiveTab('recurring');
                 }}
                 style={{ fontSize: '13px', padding: '8px 16px', fontWeight: '700' }}
               >
                 Start New Monthly Pledge
               </button>
+            </div>
+
+            {autoDebitSuccess && (
+              <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: '8px', padding: '14px 18px', marginBottom: '20px', color: '#166534', fontSize: '13px' }}>
+                <CheckCircle2 size={16} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px' }} />
+                <strong>{autoDebitSuccess}</strong>
+              </div>
+            )}
+
+            <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '10px', padding: '16px 20px', marginBottom: '22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                <ShieldCheck size={20} color="#15803D" />
+                <h4 style={{ margin: 0, color: '#166534', fontSize: '15px' }}>
+                  Auto-Deduction Engine & NPCI e-Mandate Active
+                </h4>
+              </div>
+              <p style={{ margin: 0, fontSize: '13px', color: '#15803D' }}>
+                Your bank mandate is securely authorized via NPCI. Recurring donations are automatically deducted on your chosen billing day and logged into your 80G tax history.
+              </p>
             </div>
 
             {subs.length === 0 ? (
@@ -1371,8 +1562,7 @@ export default function DonorDashboardPage() {
                   type="button"
                   className="button button-blue"
                   onClick={() => {
-                    setFrequency('monthly');
-                    setActiveTab('donate');
+                    setActiveTab('recurring');
                   }}
                   style={{ padding: '8px 18px', fontSize: '13px' }}
                 >
@@ -1388,8 +1578,8 @@ export default function DonorDashboardPage() {
                         <h4>{s.program}</h4>
                         <span
                           style={{
-                            background: s.status === 'Active' ? '#DCFCE7' : '#F1F5F9',
-                            color: s.status === 'Active' ? '#15803D' : '#64748B',
+                            background: s.status === 'Active' ? '#DCFCE7' : s.status === 'Paused' ? '#FEF3C7' : '#F1F5F9',
+                            color: s.status === 'Active' ? '#15803D' : s.status === 'Paused' ? '#92400E' : '#64748B',
                             padding: '2px 8px',
                             borderRadius: '12px',
                             fontSize: '11px',
@@ -1401,30 +1591,177 @@ export default function DonorDashboardPage() {
                       </div>
                       <p>
                         Pledge ID: <strong style={{ fontFamily: 'monospace' }}>{s.id}</strong> • Next Deduction:{' '}
-                        <strong>{s.nextDeduction}</strong> • Method: <strong>{s.paymentMethod}</strong>
+                        <strong>{s.status === 'Active' ? s.nextDeduction : 'Paused / On Hold'}</strong> • Method: <strong>{s.paymentMethod}</strong>
                       </p>
                       <p style={{ marginTop: '4px', fontSize: '12px', color: '#0F172A' }}>
-                        Total Recurring Contributed to Date: <strong>₹{(s.totalRecurringPaid || 0).toLocaleString('en-IN')}</strong> ({s.completedDeductions} cycles completed)
+                        Total Recurring Contributed to Date: <strong>₹{(s.totalRecurringPaid || 0).toLocaleString('en-IN')}</strong> ({s.completedDeductions || 0} cycles completed)
                       </p>
+                      {s.cancelReason && (
+                        <p style={{ fontSize: '11px', color: '#DC2626', marginTop: '2px' }}>
+                          Cancellation reason: {s.cancelReason}
+                        </p>
+                      )}
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '18px', fontWeight: '800', color: '#0F172A' }}>
                         ₹{s.amount.toLocaleString('en-IN')}/mo
                       </span>
+
+                      <button
+                        type="button"
+                        className="button button-outline"
+                        onClick={() => handleSimulateAutoDebit(s.id)}
+                        disabled={s.status !== 'Active'}
+                        style={{ fontSize: '12px', padding: '6px 12px', background: s.status === 'Active' ? '#F0FDF4' : '#F8FAFC', borderColor: s.status === 'Active' ? '#86EFAC' : '#E2E8F0', color: s.status === 'Active' ? '#166534' : '#94A3B8' }}
+                      >
+                        ⚡ Simulate Auto-Debit
+                      </button>
+
                       <button
                         type="button"
                         className="button button-outline"
                         onClick={() => handleToggleSub(s.id)}
+                        disabled={s.status === 'Cancelled'}
                         style={{ fontSize: '12px', padding: '6px 14px' }}
                       >
-                        {s.status === 'Active' ? 'Pause Pledge' : 'Resume Pledge'}
+                        {s.status === 'Active' ? 'Pause Subscription' : 'Resume Subscription'}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="button button-outline"
+                        onClick={() => setCancelModalSubId(s.id)}
+                        disabled={s.status === 'Cancelled'}
+                        style={{ fontSize: '12px', padding: '6px 14px', color: s.status === 'Cancelled' ? '#94A3B8' : '#DC2626', borderColor: s.status === 'Cancelled' ? '#E2E8F0' : '#FCA5A5' }}
+                      >
+                        {s.status === 'Cancelled' ? 'Cancelled' : 'Cancel Plan'}
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB: MONTHLY DONATION SETUP (Feature 10) */}
+        {activeTab === 'recurring' && (
+          <div className="donor-card">
+            <div className="donor-card-header">
+              <div>
+                <h2>
+                  <Repeat size={20} color="#D97706" /> Set Up a Monthly Recurring Donation (SIP for Good)
+                </h2>
+                <p>Provide reliable, sustained financial support every month through automated UPI Autopay or Bank e-NACH mandate.</p>
+              </div>
+            </div>
+
+            {recSuccess && (
+              <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: '8px', padding: '16px', marginBottom: '20px', color: '#166534' }}>
+                <CheckCircle2 size={18} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '8px' }} />
+                <strong>Monthly Recurring Pledge Successfully Created!</strong> Your monthly mandate has been registered. You can manage or pause it anytime in Manage Subscription.
+              </div>
+            )}
+
+            <form onSubmit={handleSetupRecurring}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: '#0F172A', display: 'block', marginBottom: '8px' }}>
+                  1. Select Focus Initiative for Monthly Giving
+                </label>
+                <select
+                  value={recProgram}
+                  onChange={(e) => setRecProgram(e.target.value)}
+                  style={{ width: '100%', maxWidth: '500px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
+                >
+                  {donorPrograms.map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.name} (Min ₹{p.minAmount}/mo)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: '#0F172A', display: 'block', marginBottom: '8px' }}>
+                  2. Choose Monthly Pledge Amount (₹)
+                </label>
+                <div className="amount-chips-row">
+                  {['500', '1000', '2500', '5000'].map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      className={`amount-chip ${recAmount === val ? 'active' : ''}`}
+                      onClick={() => setRecAmount(val)}
+                    >
+                      ₹{parseInt(val, 10).toLocaleString('en-IN')}/mo
+                    </button>
+                  ))}
+                </div>
+                <div className="donor-form-group" style={{ maxWidth: '300px', marginTop: '10px' }}>
+                  <label>Or custom monthly amount (₹)</label>
+                  <input
+                    type="number"
+                    min="500"
+                    step="100"
+                    required
+                    value={recAmount}
+                    onChange={(e) => setRecAmount(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: '#0F172A', display: 'block', marginBottom: '8px' }}>
+                  3. Monthly Deduction Day
+                </label>
+                <select
+                  value={recDay}
+                  onChange={(e) => setRecDay(e.target.value)}
+                  style={{ width: '100%', maxWidth: '300px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
+                >
+                  <option value="1st of every month">1st of every month</option>
+                  <option value="5th of every month">5th of every month</option>
+                  <option value="10th of every month">10th of every month</option>
+                  <option value="15th of every month">15th of every month</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: '#0F172A', display: 'block', marginBottom: '8px' }}>
+                  4. Automated Mandate Channel (Auto-Deduction)
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', maxWidth: '600px' }}>
+                  {['UPI Autopay (GPay/PhonePe)', 'Bank e-NACH Mandate', 'Debit/Credit Card Mandate'].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setRecMethod(m)}
+                      style={{
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: recMethod === m ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                        background: recMethod === m ? '#EFF6FF' : '#FFF',
+                        fontWeight: recMethod === m ? '700' : '500',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                      }}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="button button-gold"
+                style={{ padding: '12px 28px', fontSize: '14px', fontWeight: '800' }}
+              >
+                Set Up Monthly Recurring Pledge (₹{recAmount}/mo)
+              </button>
+            </form>
           </div>
         )}
 
@@ -1790,6 +2127,75 @@ export default function DonorDashboardPage() {
           </div>
         )}
       </main>
+
+      {/* CANCEL SUBSCRIPTION MODAL */}
+      {cancelModalSubId && (
+        <div
+          className="modal-overlay"
+          onClick={() => setCancelModalSubId(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#FFF',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '440px',
+              width: '90%',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+            }}
+          >
+            <h3 style={{ margin: '0 0 10px', color: '#DC2626', fontSize: '18px' }}>
+              Cancel Recurring Pledge ({cancelModalSubId})
+            </h3>
+            <p style={{ fontSize: '13px', color: '#475569', marginBottom: '16px' }}>
+              Are you sure you want to cancel your monthly recurring donation pledge? You can pause it anytime instead without losing your recurring donation history.
+            </p>
+            <div className="donor-form-group">
+              <label style={{ fontSize: '12px', fontWeight: '700', color: '#0F172A', display: 'block', marginBottom: '6px' }}>
+                Reason for cancellation (Optional)
+              </label>
+              <select
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px' }}
+              >
+                <option value="Temporary financial budget">Temporary financial budget</option>
+                <option value="Prefer one-time donations">Prefer one-time donations</option>
+                <option value="Want to change cause/amount">Want to change cause/amount</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button
+                type="button"
+                className="button button-outline"
+                onClick={() => setCancelModalSubId(null)}
+                style={{ padding: '8px 16px', fontSize: '13px' }}
+              >
+                Keep Active
+              </button>
+              <button
+                type="button"
+                className="button"
+                style={{ background: '#DC2626', color: '#FFF', padding: '8px 16px', fontSize: '13px', fontWeight: '700' }}
+                onClick={() => handleCancelSub(cancelModalSubId)}
+              >
+                Confirm Cancellation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* OFFICIAL 80G RECEIPT MODAL */}
       {selectedReceipt && (
