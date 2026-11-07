@@ -83,11 +83,60 @@ export default function CertificateRecipientHub() {
     }, 1200);
   }
 
+  // Print & PDF Download Handler
+  function handlePrintCertificate(certToPrint) {
+    const cert = certToPrint || currentCert;
+    const prevTitle = typeof document !== 'undefined' ? document.title : '';
+    if (typeof document !== 'undefined' && cert) {
+      document.title = `Certificate_${cert.id}_${(cert.recipient || '').replace(/[^a-zA-Z0-9]/g, '_')}`;
+    }
+    window.print();
+    setTimeout(() => {
+      if (typeof document !== 'undefined') {
+        document.title = prevTitle;
+      }
+    }, 1500);
+  }
+
+  function handleDownloadPdf() {
+    handlePrintCertificate(currentCert);
+  }
+
   return (
     <div style={{ background: '#FFF', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+      <style>{`
+        @media print {
+          body, html {
+            background: #FFF !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          header, footer, nav, .site-header, .site-footer, .page-hero, .no-print, [role="navigation"] {
+            display: none !important;
+          }
+          .certificate-printable-card {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 auto !important;
+            padding: 30px !important;
+            box-shadow: none !important;
+            border: 8px double #D97706 !important;
+            background: #FFFDF9 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 12mm;
+          }
+        }
+      `}</style>
       
       {/* Recipient Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px', borderBottom: '1px solid #E2E8F0', paddingBottom: '14px' }}>
+      <div className="no-print" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px', borderBottom: '1px solid #E2E8F0', paddingBottom: '14px' }}>
         <button
           type="button"
           onClick={() => setActiveTab('view')}
@@ -172,7 +221,7 @@ export default function CertificateRecipientHub() {
       {/* TAB 1: VIEW, DOWNLOAD & PRINT CERTIFICATE */}
       {activeTab === 'view' && currentCert && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+          <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
             <div>
               <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#B45309', background: '#FEF3C7', padding: '3px 8px', borderRadius: '4px' }}>
                 Online Certificate Viewer
@@ -185,7 +234,7 @@ export default function CertificateRecipientHub() {
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => handlePrintCertificate()}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#D97706', color: '#FFF', border: 'none', padding: '9px 18px', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
               >
                 <Printer size={15} /> Print Certificate
@@ -193,7 +242,7 @@ export default function CertificateRecipientHub() {
 
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => handleDownloadPdf()}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#1E40AF', color: '#FFF', border: 'none', padding: '9px 18px', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
               >
                 <Download size={15} /> Download PDF
@@ -203,6 +252,7 @@ export default function CertificateRecipientHub() {
 
           {/* Authentic Gold Border Paper Certificate */}
           <div
+            className="certificate-printable-card"
             style={{
               background: '#FFFDF9',
               border: '10px double #D97706',
@@ -400,7 +450,7 @@ export default function CertificateRecipientHub() {
                     onClick={() => {
                       setCurrentCert(cert);
                       setActiveTab('view');
-                      setTimeout(() => window.print(), 300);
+                      setTimeout(() => handlePrintCertificate(cert), 300);
                     }}
                     style={{ padding: '8px 16px', background: '#FFF', color: '#2563EB', border: '1px solid #2563EB', borderRadius: '6px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
