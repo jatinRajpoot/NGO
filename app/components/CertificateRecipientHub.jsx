@@ -7,6 +7,7 @@ import {
   Building2, Calendar, FileText, Camera, Upload, ExternalLink, RefreshCw
 } from 'lucide-react';
 import { verifiedCertificates } from '../certificate/certificate-data';
+import { apiClient } from '../lib/api-client';
 
 export default function CertificateRecipientHub() {
   const [activeTab, setActiveTab] = useState('view'); // 'view', 'email', 'qr', 'search'
@@ -45,13 +46,33 @@ export default function CertificateRecipientHub() {
     }
   }, []);
 
-  // Handle Search by Certificate ID
-  function handleSearchSubmit(e) {
+  // Handle Search by Certificate ID (Integrated with MySQL Database & Fallback)
+  async function handleSearchSubmit(e) {
     e.preventDefault();
     const clean = searchId.trim().toUpperCase();
     if (!clean) return;
 
-    const match = verifiedCertificates.find((c) => c.id.toUpperCase() === clean || c.verificationCode.toUpperCase() === clean);
+    try {
+      const data = await apiClient.getCertificate(clean);
+      if (data && data.certificate) {
+        const cert = {
+          ...data.certificate,
+          cin: data.certificate.cin || 'U85300BR2024NPL069123',
+          mcaReg: data.certificate.mca_reg || 'BR/2024/049102',
+          pan: data.certificate.pan || 'AABTG1234F',
+          tax80g: data.certificate.tax_80g || 'AAATG2026PF01',
+          issueDate: data.certificate.issue_date || data.certificate.issueDate,
+          issuingOrganization: data.certificate.issuing_organization || data.certificate.issuingOrganization,
+        };
+        setCurrentCert(cert);
+        setVerificationResult({ checked: true, isValid: true, cert });
+        return;
+      }
+    } catch {
+      // If API not reachable or returns 404, fallback to local registry
+    }
+
+    const match = verifiedCertificates.find((c) => c.id.toUpperCase() === clean || c.verificationCode?.toUpperCase() === clean);
     if (match) {
       setCurrentCert(match);
       setVerificationResult({ checked: true, isValid: true, cert: match });
@@ -60,21 +81,65 @@ export default function CertificateRecipientHub() {
     }
   }
 
-  // Handle Email Lookup (Receive Certificate)
-  function handleEmailLookup(e) {
+  // Handle Email Lookup (Integrated with MySQL Database & Fallback)
+  async function handleEmailLookup(e) {
     e.preventDefault();
     const clean = recipientEmail.trim().toLowerCase();
     if (!clean) return;
+
+    try {
+      const data = await apiClient.getCertificatesByEmail(clean);
+      if (data && data.certificates && data.certificates.length > 0) {
+        const mapped = data.certificates.map((c) => ({
+          ...c,
+          cin: c.cin || 'U85300BR2024NPL069123',
+          mcaReg: c.mca_reg || 'BR/2024/049102',
+          pan: c.pan || 'AABTG1234F',
+          tax80g: c.tax_80g || 'AAATG2026PF01',
+          issueDate: c.issue_date || c.issueDate,
+          emailSubject: c.email_subject || `Official Certificate Issued: ${c.type} (#${c.id})`,
+          emailDelivered: c.email_delivered || 'Delivered to verified recipient',
+        }));
+        setFoundEmails(mapped);
+        setEmailSearched(true);
+        return;
+      }
+    } catch {
+      // Fallback
+    }
 
     const matches = verifiedCertificates.filter((c) => c.email.toLowerCase().includes(clean) || c.recipient.toLowerCase().includes(clean));
     setFoundEmails(matches);
     setEmailSearched(true);
   }
 
-  // Handle Simulated QR Scan
-  function handleSimulateScan(targetCert) {
+  // Handle Simulated QR Scan with MySQL Verification Engine
+  async function handleSimulateScan(targetCert) {
     setQrScanning(true);
     setScannerActive(true);
+    try {
+      const verifyRes = await apiClient.verifyCertificate({ id: targetCert.id });
+      if (verifyRes && verifyRes.is_authentic && verifyRes.certificate) {
+        setQrScanning(false);
+        const cert = {
+          ...verifyRes.certificate,
+          cin: verifyRes.certificate.cin || 'U85300BR2024NPL069123',
+          mcaReg: verifyRes.certificate.mca_reg || 'BR/2024/049102',
+          pan: verifyRes.certificate.pan || 'AABTG1234F',
+          tax80g: verifyRes.certificate.tax_80g || 'AAATG2026PF01',
+          issueDate: verifyRes.certificate.issue_date || verifyRes.certificate.issueDate,
+          issuingOrganization: verifyRes.certificate.issuing_organization || verifyRes.certificate.issuingOrganization,
+          isFake: false,
+        };
+        setScannedResult(cert);
+        setCurrentCert(cert);
+        setVerificationResult({ checked: true, isValid: true, cert });
+        return;
+      }
+    } catch {
+      // Fallback
+    }
+
     setTimeout(() => {
       setQrScanning(false);
       setScannedResult({ ...targetCert, isFake: false });

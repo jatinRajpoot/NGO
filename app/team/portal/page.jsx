@@ -10,6 +10,7 @@ import {
   UploadCloud, ArrowRight, Printer, Download, Eye
 } from 'lucide-react';
 import { defaultTeamMembers } from '../team-data';
+import { apiClient } from '../../lib/api-client';
 
 const sidebarTabs = [
   { id: 'profile', label: 'View Profile', icon: User },
@@ -48,6 +49,21 @@ export default function TeamMemberPortalPage() {
 
   // Notifications State with Mark As Read
   const [notifList, setNotifList] = useState(defaultTeamMembers[0].notifications || []);
+  const [teamList, setTeamList] = useState(defaultTeamMembers);
+
+  useEffect(() => {
+    try {
+      apiClient.getTeamMembers()
+        .then((data) => {
+          if (data && data.team && data.team.length > 0) {
+            setTeamList(data.team);
+          }
+        })
+        .catch(() => {});
+    } catch {
+      // Fallback to local defaultTeamMembers
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -116,9 +132,15 @@ export default function TeamMemberPortalPage() {
     }
   }
 
-  function handlePhotoRequest(e) {
+  async function handlePhotoRequest(e) {
     e.preventDefault();
     if (!photoUrl.trim()) return;
+
+    try {
+      await apiClient.updateTeamPhoto(member.id, photoUrl.trim());
+    } catch {
+      // Ignore if offline
+    }
 
     const requestObj = {
       requestedUrl: photoUrl.trim(),
@@ -578,7 +600,7 @@ export default function TeamMemberPortalPage() {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
-                {defaultTeamMembers
+                {teamList
                   .filter((tm) => {
                     if (teamDeptFilter === 'all') return true;
                     return tm.department.toLowerCase().includes(teamDeptFilter.toLowerCase());
