@@ -11,9 +11,9 @@ export const metadata = {
 export default function VerifyPage() {
   return <>
     <PageHero
-      eyebrow="Official Document Registry"
-      title="Certificate Verification & Recipient Portal"
-      description="Verify authenticity, receive certificates via email, scan document QR codes, and view, download, or print genuine Section 8 non-profit credentials."
+      eyebrow="Document verification"
+      title="Check a document code."
+      description="Check a document code. Verify authenticity, receive certificates via email, scan document QR codes, and view, download, or print genuine Section 8 non-profit credentials."
     />
     <section className="section-pad verification-section">
       <div className="container" style={{ maxWidth: '1100px', margin: '0 auto' }}>
