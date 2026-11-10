@@ -130,7 +130,7 @@ def issue_certificate():
             'Jatin Rajpoot (President), GSDD Foundation',
             'Founder Director & General Secretary',
             'Global Skills & Digital Development Welfare Foundation',
-            'U85300BR2024NPL069123', 'BR/2024/049102', 'AABTG1234F', 'AAATG2026PF01',
+            'U88900BR2026NPL086114', 'BR/2026/1140209', 'AANCG1860E', 'AANCG1860EF20261',
             purpose, 'Authentic & Verified', 1, verification_code, cert_hash,
             '07 Nov 2026, 08:00 PM IST', f"Official Certificate Issued: {cert_type} (#{cert_id})"
         )

@@ -13,46 +13,37 @@ export default function TeamMemberLoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault();
     setError('');
+
+    if (!identifier.trim() || !password) {
+      setError('Please enter your official Email / Team ID and password.');
+      return;
+    }
+
     setLoading(true);
-
-    const term = identifier.trim().toLowerCase();
-    const found = defaultTeamMembers.find(
-      (m) =>
-        m.email.toLowerCase() === term ||
-        m.id.toLowerCase() === term ||
-        m.phone.replace(/\s+/g, '') === term.replace(/\s+/g, '')
-    );
-
-    if (!found) {
-      setError('Invalid Team Member credentials. Please check your official Email or Team ID.');
-      setLoading(false);
-      return;
-    }
-
-    if (password.trim() === '') {
-      setError('Please enter your account password.');
-      setLoading(false);
-      return;
-    }
-
     try {
-      localStorage.setItem('gsdd_active_team_member', JSON.stringify(found));
+      const res = await fetch('/api/team/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ identifier: identifier.trim(), password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.member) {
+        setError(data?.error || 'Invalid Team Member credentials.');
+        setLoading(false);
+        return;
+      }
+      router.push('/team/portal');
     } catch {
-      // Ignore
+      setError('Unable to sign in right now. Please try again.');
+      setLoading(false);
     }
-
-    router.push('/team/portal');
   }
 
-  function handleDemoLogin(member) {
-    try {
-      localStorage.setItem('gsdd_active_team_member', JSON.stringify(member));
-    } catch {
-      // Ignore
-    }
+  function handlePreviewPortal() {
     router.push('/team/portal');
   }
 
@@ -120,36 +111,39 @@ export default function TeamMemberLoginPage() {
           </button>
         </form>
 
-        {/* Demo Fast Login Box */}
+        {/* Executive Directory & Read-Only Preview Box */}
         <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px solid #E2E8F0' }}>
           <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#64748B', display: 'block', marginBottom: '10px' }}>
-            ⚡ 1-Click Demo Executive Logins
+            Executive Directory • Read-Only Portal Preview
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
               type="button"
-              onClick={() => handleDemoLogin(defaultTeamMembers[0])}
+              onClick={handlePreviewPortal}
               style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #CBD5E1', background: '#F8FAFC', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
               <div>
                 <strong style={{ fontSize: '12px', color: '#0F172A', display: 'block' }}>Manoj Kumar Bishwas</strong>
-                <span style={{ fontSize: '11px', color: '#64748B' }}>Founder / CEO • Governing Board</span>
+                <span style={{ fontSize: '11px', color: '#64748B' }}>Founder / CEO • Governing Board (Preview Only)</span>
               </div>
               <ArrowRight size={14} color="#1E40AF" />
             </button>
 
             <button
               type="button"
-              onClick={() => handleDemoLogin(defaultTeamMembers[1])}
+              onClick={handlePreviewPortal}
               style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #CBD5E1', background: '#F8FAFC', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
               <div>
                 <strong style={{ fontSize: '12px', color: '#0F172A', display: 'block' }}>Arvind Kumar</strong>
-                <span style={{ fontSize: '11px', color: '#64748B' }}>Founder / MD • Operations & Finance</span>
+                <span style={{ fontSize: '11px', color: '#64748B' }}>Founder / MD • Operations & Finance (Preview Only)</span>
               </div>
               <ArrowRight size={14} color="#1E40AF" />
             </button>
           </div>
+          <p style={{ margin: '10px 0 0', fontSize: '11px', color: '#64748B' }}>
+            Administrative changes require verified executive sign-in.
+          </p>
         </div>
 
         <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '12px', color: '#64748B' }}>

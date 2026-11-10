@@ -47,37 +47,41 @@ export default function TeamMemberPortalPage() {
   // Team Directory Filter State
   const [teamDeptFilter, setTeamDeptFilter] = useState('all');
 
-  // Notifications State with Mark As Read
+  // Session & Notifications State
+  const [authenticated, setAuthenticated] = useState(false);
+  const [authNotice, setAuthNotice] = useState('');
   const [notifList, setNotifList] = useState(defaultTeamMembers[0].notifications || []);
   const [teamList, setTeamList] = useState(defaultTeamMembers);
 
   useEffect(() => {
-    try {
-      apiClient.getTeamMembers()
-        .then((data) => {
-          if (data && data.team && data.team.length > 0) {
+    let active = true;
+    async function loadSession() {
+      try {
+        const res = await fetch('/api/team/me/', { credentials: 'same-origin', cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (!active) return;
+          if (Array.isArray(data?.team) && data.team.length > 0) {
             setTeamList(data.team);
           }
-        })
-        .catch(() => {});
-    } catch {
-      // Fallback to local defaultTeamMembers
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('gsdd_active_team_member');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setMember(parsed);
-        initForm(parsed);
-      } else {
-        initForm(defaultTeamMembers[0]);
+          if (data?.authenticated && data?.member) {
+            setAuthenticated(true);
+            setMember(data.member);
+            initForm(data.member);
+            return;
+          }
+        }
+      } catch {
+        // Fallback to read-only sample directory preview below
       }
-    } catch {
+      if (!active) return;
+      setAuthenticated(false);
       initForm(defaultTeamMembers[0]);
     }
+    loadSession();
+    return () => {
+      active = false;
+    };
   }, []);
 
   function initForm(m) {
@@ -90,77 +94,104 @@ export default function TeamMemberPortalPage() {
     setNotifList(m.notifications || []);
   }
 
-  function handleMarkRead(id) {
-    const updated = notifList.map((n) => (n.id === id ? { ...n, unread: false } : n));
-    setNotifList(updated);
-    const updatedMember = { ...member, notifications: updated };
-    setMember(updatedMember);
+  async function handleMarkRead(id) {
+    setAuthNotice('');
+    if (!authenticated) {
+      setAuthNotice('Sign in via Team Member Login to update notification state.');
+      return;
+    }
     try {
-      localStorage.setItem('gsdd_active_team_member', JSON.stringify(updatedMember));
+      const res = await fetch('/api/team/notifications/', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ notificationId: id }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.member) {
+        setMember(data.member);
+        setNotifList(data.member.notifications || []);
+      } else {
+        setAuthNotice(data?.error || 'Could not update notification.');
+      }
     } catch {
-      // Ignore
+      setAuthNotice('Network error updating notification.');
     }
   }
 
-  function handleLogout() {
+  async function handleLogout() {
     try {
-      localStorage.removeItem('gsdd_active_team_member');
+      await fetch('/api/team/logout/', {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
     } catch {
-      // Ignore
+      // Proceed to login page
     }
+    setAuthenticated(false);
     router.push('/team/login');
   }
 
-  function handleSaveProfile(e) {
+  async function handleSaveProfile(e) {
     e.preventDefault();
-    const updated = {
-      ...member,
-      name: formName,
-      phone: formPhone,
-      email: formEmail,
-      address: formAddress,
-      qualifications: formQualifications,
-      bio: formBio,
-    };
-    setMember(updated);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 4000);
+    setAuthNotice('');
+    if (!authenticated) {
+      setAuthNotice('Read-Only Demo Preview: Sign in with executive credentials to save profile changes.');
+      return;
+    }
     try {
-      localStorage.setItem('gsdd_active_team_member', JSON.stringify(updated));
+      const res = await fetch('/api/team/profile/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          name: formName,
+          phone: formPhone,
+          email: formEmail,
+          address: formAddress,
+          qualifications: formQualifications,
+          bio: formBio,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.member) {
+        setMember(data.member);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 4000);
+      } else {
+        setAuthNotice(data?.error || 'Failed to save profile.');
+      }
     } catch {
-      // Ignore
+      setAuthNotice('Network error saving profile.');
     }
   }
 
   async function handlePhotoRequest(e) {
     e.preventDefault();
     if (!photoUrl.trim()) return;
-
-    try {
-      await apiClient.updateTeamPhoto(member.id, photoUrl.trim());
-    } catch {
-      // Ignore if offline
+    setAuthNotice('');
+    if (!authenticated) {
+      setAuthNotice('Read-Only Demo Preview: Sign in via Team Member Login to submit a photo review request.');
+      return;
     }
 
-    const requestObj = {
-      requestedUrl: photoUrl.trim(),
-      status: 'Pending Admin Review',
-      date: new Date().toISOString().split('T')[0],
-    };
-
-    const updated = {
-      ...member,
-      photoPending: requestObj,
-      photo: photoUrl.trim(), // Live preview for simulation
-    };
-
-    setMember(updated);
-    setPhotoRequestSuccess(true);
-    setTimeout(() => setPhotoRequestSuccess(false), 4000);
     try {
-      localStorage.setItem('gsdd_active_team_member', JSON.stringify(updated));
+      const res = await fetch('/api/team/profile/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ photoUrl: photoUrl.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.member) {
+        setMember(data.member);
+        setPhotoRequestSuccess(true);
+        setTimeout(() => setPhotoRequestSuccess(false), 4000);
+        return;
+      }
+      setAuthNotice(data?.error || 'Unable to submit photo update request.');
     } catch {
-      // Ignore
+      setAuthNotice('Network error submitting photo review request.');
     }
   }
 
@@ -187,21 +218,56 @@ export default function TeamMemberPortalPage() {
               </span>
             </div>
             <span style={{ fontSize: '12px', color: '#94A3B8' }}>
-              Logged in as: <strong style={{ color: '#E2E8F0' }}>{member.name}</strong> ({member.role})
+              {authenticated ? (
+                <>
+                  Logged in as: <strong style={{ color: '#E2E8F0' }}>{member.name}</strong> ({member.role})
+                </>
+              ) : (
+                <>
+                  Read-Only Preview: <strong style={{ color: '#E2E8F0' }}>{member.name}</strong> ({member.role})
+                </>
+              )}
             </span>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            type="button"
-            onClick={handleLogout}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px solid #475569', color: '#F87171', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
-          >
-            <LogOut size={14} /> Sign Out
-          </button>
+          {authenticated ? (
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px solid #475569', color: '#F87171', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
+            >
+              <LogOut size={14} /> Sign Out
+            </button>
+          ) : (
+            <Link
+              href="/team/login"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#2563EB', border: '1px solid #2563EB', color: '#FFF', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', textDecoration: 'none', fontWeight: '700' }}
+            >
+              Sign In
+            </Link>
+          )}
         </div>
       </header>
+
+      {!authenticated && (
+        <div style={{ background: '#FEF3C7', borderBottom: '1px solid #FCD34D', color: '#92400E', padding: '10px 24px', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <span>
+            <strong>Read-Only Demo Preview:</strong> Viewing public executive summary. Sign in via Team Member Login to save edits or update notifications.
+          </span>
+          <Link href="/team/login" style={{ color: '#1D4ED8', fontWeight: '700', textDecoration: 'underline' }}>
+            Executive Sign In →
+          </Link>
+        </div>
+      )}
+
+      {authNotice && (
+        <div style={{ background: '#FEE2E2', borderBottom: '1px solid #FCA5A5', color: '#991B1B', padding: '10px 24px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AlertCircle size={15} />
+          <span>{authNotice}</span>
+        </div>
+      )}
 
       {/* Main Workspace Layout */}
       <div style={{ display: 'flex', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', padding: '24px 16px', gap: '24px', boxSizing: 'border-box' }}>
@@ -819,7 +885,7 @@ export default function TeamMemberPortalPage() {
               GLOBAL SKILLS & DIGITAL DEVELOPMENT WELFARE FOUNDATION
             </span>
             <span style={{ fontSize: '10px', color: '#64748B', display: 'block', marginBottom: '14px' }}>
-              Registered Section 8 Non-Profit Organization • MCA Govt of India • {selectedCert.regNo || 'CIN: U85300BR2024NPL069123'}
+              Registered Section 8 Non-Profit Organization • MCA Govt of India • {selectedCert.regNo || 'CIN: U88900BR2026NPL086114'}
             </span>
 
             <h2 style={{ fontSize: '20px', color: '#78350F', margin: '0 0 16px' }}>{selectedCert.title}</h2>

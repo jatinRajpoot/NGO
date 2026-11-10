@@ -76,7 +76,7 @@ def get_id_card(member_id):
         'state': member['state'],
         'status': member['status'],
         'issuing_org': 'Global Skills & Digital Development Welfare Foundation (GSDD)',
-        'cin': 'U85300BR2024NPL069123',
+        'cin': 'U88900BR2026NPL086114',
         'validity': 'Permanent Life Member'
     }
     return jsonify({'status': 'success', 'id_card': card_data}), 200

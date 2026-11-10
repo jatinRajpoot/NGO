@@ -27,11 +27,14 @@ export default function CertificateRecipientHub() {
 
   // Read URL query parameter if present
   useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const queryId = params.get('id') || params.get('code');
-      if (queryId) {
-        const found = verifiedCertificates.find((c) => c.id.toUpperCase() === queryId.trim().toUpperCase());
+    let active = true;
+    async function loadFromQuery() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const queryId = params.get('id') || params.get('code');
+        if (!queryId) return;
+        const found = await lookupCertificateFromServer(queryId);
+        if (!active) return;
         if (found) {
           setCurrentCert(found);
           setVerificationResult({ checked: true, isValid: true, cert: found });
@@ -40,48 +43,95 @@ export default function CertificateRecipientHub() {
           setVerificationResult({ checked: true, isValid: false, cert: null, attemptedId: queryId });
           setActiveTab('search');
         }
+      } catch {
+        // Ignore
       }
-    } catch {
-      // Ignore
     }
+    loadFromQuery();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  // Handle Search by Certificate ID (Integrated with MySQL Database & Fallback)
+  function normalizeCertRecord(raw) {
+    if (!raw) return null;
+    return {
+      ...raw,
+      id: raw.id || raw.trackingId || raw.certificateId,
+      recipient: raw.recipient || raw.recipientName || 'Verified Recipient',
+      type: raw.type || raw.certificateType || 'Official Certificate',
+      issueDate: raw.issue_date || raw.issueDate || raw.issuedAt || 'Verified',
+      issuingOrganization:
+        raw.issuing_organization ||
+        raw.issuingOrganization ||
+        'Global Skills & Digital Development Welfare Foundation',
+      authority: raw.authority || 'Governing Council, GSDD Foundation',
+      cin: raw.cin || 'U88900BR2026NPL086114',
+      mcaReg: raw.mca_reg || raw.mcaReg || 'BR/2026/1140209',
+      pan: raw.pan || 'AANCG1860E',
+      tax80g: raw.tax_80g || raw.tax80g || 'AANCG1860EF20261',
+      status: raw.status || 'Authentic & Verified',
+    };
+  }
+
+  async function lookupCertificateFromServer(code) {
+    const clean = String(code || '').trim().toUpperCase();
+    if (!clean) return null;
+
+    // 1. Check Flask backend when configured
+    try {
+      const data = await apiClient.getCertificate(clean);
+      if (data && data.certificate) {
+        return normalizeCertRecord(data.certificate);
+      }
+    } catch {
+      // Continue to Next.js verification store / registry
+    }
+
+    // 2. Check Next.js durable verification ledger (/api/certificates/verify/)
+    try {
+      const res = await fetch(`/api/certificates/verify/?code=${encodeURIComponent(clean)}`, {
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.verified && data.record) {
+          return normalizeCertRecord({
+            id: data.record.id || data.record.trackingId || clean,
+            recipient: data.record.name || data.record.recipientName,
+            type: data.record.certificateType || data.record.category || 'Official Certificate',
+            issueDate: data.record.issuedAt || data.record.updatedAt || 'Issued',
+            status: 'Authentic & Verified',
+            purpose: data.record.purpose || data.record.summary,
+          });
+        }
+      }
+    } catch {
+      // Fallback to static registry
+    }
+
+    const match = verifiedCertificates.find(
+      (c) => c.id.toUpperCase() === clean || c.verificationCode?.toUpperCase() === clean
+    );
+    return match || null;
+  }
+
+  // Handle Search by Certificate ID (Flask API + Next.js registry + verified static records)
   async function handleSearchSubmit(e) {
     e.preventDefault();
     const clean = searchId.trim().toUpperCase();
     if (!clean) return;
 
-    try {
-      const data = await apiClient.getCertificate(clean);
-      if (data && data.certificate) {
-        const cert = {
-          ...data.certificate,
-          cin: data.certificate.cin || 'U85300BR2024NPL069123',
-          mcaReg: data.certificate.mca_reg || 'BR/2024/049102',
-          pan: data.certificate.pan || 'AABTG1234F',
-          tax80g: data.certificate.tax_80g || 'AAATG2026PF01',
-          issueDate: data.certificate.issue_date || data.certificate.issueDate,
-          issuingOrganization: data.certificate.issuing_organization || data.certificate.issuingOrganization,
-        };
-        setCurrentCert(cert);
-        setVerificationResult({ checked: true, isValid: true, cert });
-        return;
-      }
-    } catch {
-      // If API not reachable or returns 404, fallback to local registry
-    }
-
-    const match = verifiedCertificates.find((c) => c.id.toUpperCase() === clean || c.verificationCode?.toUpperCase() === clean);
-    if (match) {
-      setCurrentCert(match);
-      setVerificationResult({ checked: true, isValid: true, cert: match });
+    const cert = await lookupCertificateFromServer(clean);
+    if (cert) {
+      setCurrentCert(cert);
+      setVerificationResult({ checked: true, isValid: true, cert });
     } else {
       setVerificationResult({ checked: true, isValid: false, cert: null, attemptedId: clean });
     }
   }
 
-  // Handle Email Lookup (Integrated with MySQL Database & Fallback)
+  // Handle Email Lookup (Integrated with Database & Fallback)
   async function handleEmailLookup(e) {
     e.preventDefault();
     const clean = recipientEmail.trim().toLowerCase();
@@ -91,12 +141,7 @@ export default function CertificateRecipientHub() {
       const data = await apiClient.getCertificatesByEmail(clean);
       if (data && data.certificates && data.certificates.length > 0) {
         const mapped = data.certificates.map((c) => ({
-          ...c,
-          cin: c.cin || 'U85300BR2024NPL069123',
-          mcaReg: c.mca_reg || 'BR/2024/049102',
-          pan: c.pan || 'AABTG1234F',
-          tax80g: c.tax_80g || 'AAATG2026PF01',
-          issueDate: c.issue_date || c.issueDate,
+          ...normalizeCertRecord(c),
           emailSubject: c.email_subject || `Official Certificate Issued: ${c.type} (#${c.id})`,
           emailDelivered: c.email_delivered || 'Delivered to verified recipient',
         }));
@@ -108,12 +153,14 @@ export default function CertificateRecipientHub() {
       // Fallback
     }
 
-    const matches = verifiedCertificates.filter((c) => c.email.toLowerCase().includes(clean) || c.recipient.toLowerCase().includes(clean));
+    const matches = verifiedCertificates.filter(
+      (c) => c.email.toLowerCase().includes(clean) || c.recipient.toLowerCase().includes(clean)
+    );
     setFoundEmails(matches);
     setEmailSearched(true);
   }
 
-  // Handle Simulated QR Scan with MySQL Verification Engine
+  // Handle Simulated QR Scan with Verification Engine
   async function handleSimulateScan(targetCert) {
     setQrScanning(true);
     setScannerActive(true);
@@ -122,13 +169,7 @@ export default function CertificateRecipientHub() {
       if (verifyRes && verifyRes.is_authentic && verifyRes.certificate) {
         setQrScanning(false);
         const cert = {
-          ...verifyRes.certificate,
-          cin: verifyRes.certificate.cin || 'U85300BR2024NPL069123',
-          mcaReg: verifyRes.certificate.mca_reg || 'BR/2024/049102',
-          pan: verifyRes.certificate.pan || 'AABTG1234F',
-          tax80g: verifyRes.certificate.tax_80g || 'AAATG2026PF01',
-          issueDate: verifyRes.certificate.issue_date || verifyRes.certificate.issueDate,
-          issuingOrganization: verifyRes.certificate.issuing_organization || verifyRes.certificate.issuingOrganization,
+          ...normalizeCertRecord(verifyRes.certificate),
           isFake: false,
         };
         setScannedResult(cert);
@@ -137,7 +178,7 @@ export default function CertificateRecipientHub() {
         return;
       }
     } catch {
-      // Fallback
+      // Fallback to server/registry lookup
     }
 
     setTimeout(() => {
@@ -163,18 +204,64 @@ export default function CertificateRecipientHub() {
     }, 1000);
   }
 
-  // Handle QR Image Upload simulation
-  function handleQrFileUpload(e) {
+  // Real browser BarcodeDetector QR decoding when available; never fabricates valid certs for arbitrary images
+  async function handleQrFileUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
     setQrScanning(true);
-    setTimeout(() => {
+    setScannerActive(true);
+
+    try {
+      if (typeof window !== 'undefined' && 'BarcodeDetector' in window && typeof createImageBitmap === 'function') {
+        const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        const bitmap = await createImageBitmap(file);
+        const codes = await detector.detect(bitmap);
+        bitmap.close?.();
+        const rawValue = String(codes?.[0]?.rawValue || '').trim();
+        if (rawValue) {
+          let extracted = rawValue;
+          try {
+            const parsedUrl = new URL(rawValue);
+            extracted = parsedUrl.searchParams.get('id') || parsedUrl.searchParams.get('code') || rawValue;
+          } catch {
+            // Raw certificate identifier
+          }
+          const matched = await lookupCertificateFromServer(extracted);
+          setQrScanning(false);
+          if (matched) {
+            const verified = { ...matched, isFake: false };
+            setScannedResult(verified);
+            setCurrentCert(verified);
+            setVerificationResult({ checked: true, isValid: true, cert: verified });
+            return;
+          }
+          setScannedResult({
+            isFake: true,
+            id: extracted,
+            recipient: 'Unverified QR Payload',
+            errorReason: `No verified GSDD certificate record found matching scanned QR value "${extracted}".`,
+          });
+          return;
+        }
+      }
       setQrScanning(false);
-      const randomCert = verifiedCertificates[0];
-      setScannedResult({ ...randomCert, isFake: false });
-      setCurrentCert(randomCert);
-      setVerificationResult({ checked: true, isValid: true, cert: randomCert });
-    }, 1200);
+      setScannedResult({
+        isFake: true,
+        id: file.name,
+        recipient: 'Unable to verify image',
+        errorReason:
+          'Could not decode a valid GSDD certificate QR code from the uploaded image (browser BarcodeDetector unavailable or QR unreadable). Please enter the Certificate ID directly in Search.',
+      });
+    } catch {
+      setQrScanning(false);
+      setScannedResult({
+        isFake: true,
+        id: file.name,
+        recipient: 'Image scan failed',
+        errorReason:
+          'Unable to verify QR code from uploaded file. Enter the Certificate ID in the Search tab to verify against the registry.',
+      });
+    }
   }
 
   // Print & PDF Download Handler

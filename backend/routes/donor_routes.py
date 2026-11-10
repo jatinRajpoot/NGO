@@ -63,8 +63,8 @@ def make_donation():
         'tax_benefit': {
             '80g_receipt_number': receipt_80g,
             'statutory_clause': 'Eligible for 50% deduction under Section 80G of the Income Tax Act, Govt. of India',
-            'pan_organization': 'AABTG1234F',
-            '80g_order_no': 'AAATG2026PF01'
+            'pan_organization': 'AANCG1860E',
+            '80g_order_no': 'AANCG1860EF20261'
         }
     }), 201
 

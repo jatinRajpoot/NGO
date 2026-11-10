@@ -59,7 +59,7 @@ export const defaultTeamMembers = [
         type: 'Executive Appointment',
         issueDate: '15 Aug 2023',
         authority: 'Governing Council, GSDD Welfare Foundation',
-        regNo: 'CIN: U85300BR2024NPL069123',
+        regNo: 'CIN: U88900BR2026NPL086114',
         summary: 'Formally confirms permanent appointment as Founder Director & CEO with statutory governance powers under Section 8 of the Companies Act 2013.',
       },
       {
@@ -68,7 +68,7 @@ export const defaultTeamMembers = [
         type: 'Council Affiliation',
         issueDate: '26 Jan 2024',
         authority: 'Ministry of Corporate Affairs, Govt of India',
-        regNo: 'MCA Section 8 Reg: BR/2024/049102',
+        regNo: 'MCA / NITI Darpan Reg: BR/2026/1140209',
         summary: 'Certifies official membership on the Board of Directors with verified DIN and fiduciary signing accreditation.',
       },
       {
@@ -122,7 +122,7 @@ export const defaultTeamMembers = [
         type: 'Executive Appointment',
         issueDate: '15 Aug 2023',
         authority: 'Governing Council, GSDD Welfare Foundation',
-        regNo: 'CIN: U85300BR2024NPL069123',
+        regNo: 'CIN: U88900BR2026NPL086114',
         summary: 'Confirms appointment as Managing Director overseeing execution of rural development projects.',
       },
     ],
