@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogIn, ShieldCheck, AlertCircle, ArrowRight, UserCheck } from 'lucide-react';
-import { defaultMembers } from '../member-data';
+import { LogIn, AlertCircle } from 'lucide-react';
 import '../member.css';
 
 export default function MemberLoginPage() {
@@ -15,52 +14,39 @@ export default function MemberLoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    try {
-      const active = localStorage.getItem('gsdd_active_member');
-      if (active) {
-        router.push('/member/dashboard');
-      }
-    } catch {
-      // Ignore
-    }
+    let active = true;
+    fetch('/api/member/me/')
+      .then((res) => {
+        if (active && res.ok) {
+          router.push('/member/dashboard');
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
   }, [router]);
 
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    const cleanId = identifier.trim().toLowerCase();
-    const cleanPhone = identifier.trim().replace(/[^0-9]/g, '');
-
-    setTimeout(() => {
-      let allMembers = [...defaultMembers];
-      try {
-        const stored = JSON.parse(localStorage.getItem('gsdd_members_db') || '[]');
-        allMembers = [...defaultMembers, ...stored];
-      } catch {
-        // Fallback
-      }
-
-      const found = allMembers.find((m) => {
-        const mEmail = (m.email || '').toLowerCase();
-        const mPhone = (m.phone || '').replace(/[^0-9]/g, '');
-        const idMatches = mEmail === cleanId || (cleanPhone && mPhone.includes(cleanPhone));
-        return idMatches && m.password === password;
+    try {
+      const res = await fetch('/api/member/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: identifier.trim(), password }),
       });
-
-      if (found) {
-        try {
-          localStorage.setItem('gsdd_active_member', JSON.stringify(found));
-        } catch {
-          // Ignore
-        }
-        router.push('/member/dashboard');
-      } else {
-        setError('Invalid email/mobile or password. Please try again or use a test account below.');
-        setLoading(false);
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data?.error || 'Invalid email/mobile or password. Please try again.');
+        return;
       }
-    }, 400);
+      router.push('/member/dashboard');
+    } catch {
+      setError('Network error signing in. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleQuickLogin(email, pwd) {

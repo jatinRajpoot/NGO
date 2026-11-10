@@ -29,72 +29,84 @@ const sidebarItems = [
 
 export default function MemberDashboardPage() {
   const router = useRouter();
-  const [member, setMember] = useState(null);
+  const [member, setMember] = useState(defaultMembers[0]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [actionNotice, setActionNotice] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    address: '',
-    bio: '',
+    name: defaultMembers[0].name,
+    phone: defaultMembers[0].phone,
+    email: defaultMembers[0].email,
+    address: defaultMembers[0].address,
+    bio: defaultMembers[0].bio,
   });
 
   useEffect(() => {
-    try {
-      const active = localStorage.getItem('gsdd_active_member');
-      if (active) {
-        const parsed = JSON.parse(active);
-        setMember(parsed);
-        setProfileForm({
-          name: parsed.name || '',
-          phone: parsed.phone || '',
-          email: parsed.email || '',
-          address: parsed.address || '',
-          bio: parsed.bio || '',
-        });
-      } else {
-        // Use default demo member if no session
-        const demo = defaultMembers[0];
-        setMember(demo);
-        setProfileForm({
-          name: demo.name,
-          phone: demo.phone,
-          email: demo.email,
-          address: demo.address,
-          bio: demo.bio,
-        });
-      }
-    } catch {
-      setMember(defaultMembers[0]);
-    }
+    let active = true;
+    fetch('/api/member/me/')
+      .then(async (res) => {
+        if (!active) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.member) {
+            setIsAuthenticated(true);
+            setMember(data.member);
+            setProfileForm({
+              name: data.member.name || '',
+              phone: data.member.phone || '',
+              email: data.member.email || '',
+              address: data.member.address || '',
+              bio: data.member.bio || '',
+            });
+            return;
+          }
+        }
+        setIsAuthenticated(false);
+      })
+      .catch(() => {
+        if (active) setIsAuthenticated(false);
+      });
+    return () => { active = false; };
   }, []);
 
-  function handleLogout() {
+  async function handleLogout() {
     try {
-      localStorage.removeItem('gsdd_active_member');
+      await fetch('/api/member/logout/', { method: 'POST' });
     } catch {
       // Ignore
     }
     router.push('/member/login');
   }
 
-  function handleSaveProfile(e) {
+  async function handleSaveProfile(e) {
     e.preventDefault();
-    const updated = {
-      ...member,
-      name: profileForm.name,
-      phone: profileForm.phone,
-      email: profileForm.email,
-      address: profileForm.address,
-      bio: profileForm.bio,
-    };
-    setMember(updated);
-    setEditingProfile(false);
+    setActionNotice('');
+    if (!isAuthenticated) {
+      setActionNotice('Sign in to your member account to save profile changes to the server.');
+      return;
+    }
     try {
-      localStorage.setItem('gsdd_active_member', JSON.stringify(updated));
+      const res = await fetch('/api/member/profile/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: profileForm.name,
+          phone: profileForm.phone,
+          address: profileForm.address,
+          bio: profileForm.bio,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setActionNotice(data?.error || 'Could not update profile.');
+        return;
+      }
+      setMember(data.member);
+      setEditingProfile(false);
+      setActionNotice('Profile saved to server.');
     } catch {
-      // Ignore
+      setActionNotice('Network error saving profile.');
     }
   }
 
@@ -176,6 +188,21 @@ export default function MemberDashboardPage() {
             </button>
           </div>
         </div>
+
+        {!isAuthenticated && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '12px 16px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', color: '#92400E' }} role="status">
+            <span><strong>Demo Preview Mode:</strong> Sign in with your member account to persist profile updates, payments, and messages on the server.</span>
+            <Link href="/member/login" className="button button-blue" style={{ padding: '6px 14px', fontSize: '12px' }}>
+              Sign In Now
+            </Link>
+          </div>
+        )}
+
+        {actionNotice && (
+          <div style={{ padding: '10px 14px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '6px', marginBottom: '14px', fontSize: '13px', color: '#1E40AF' }} role="status">
+            {actionNotice}
+          </div>
+        )}
 
         {/* Feature 3: Overview Tab (Apni Activities & Details Dekhna) */}
         {activeTab === 'overview' && (
