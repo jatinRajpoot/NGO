@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { defaultMembers } from '../member-data';
 import { organization } from '../../data/site-data';
+import QRCodeSvg from '../../components/QRCodeSvg';
 import '../member.css';
 
 const sidebarItems = [
@@ -31,16 +32,22 @@ const sidebarItems = [
 export default function MemberDashboardPage() {
   const router = useRouter();
   const [member, setMember] = useState(defaultMembers[0]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [actionNotice, setActionNotice] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const [editingProfile, setEditingProfile] = useState(false);
   const [feeUtr, setFeeUtr] = useState('');
-  const [feePaidSuccess, setFeePaidSuccess] = useState(false);
+  const [feeSubmitting, setFeeSubmitting] = useState(false);
+  const [feeError, setFeeError] = useState('');
+  const [feeSubmittedPayment, setFeeSubmittedPayment] = useState(null);
   const [certSubtab, setCertSubtab] = useState('membership');
   const [donationAmount, setDonationAmount] = useState('1100');
   const [donationProgram, setDonationProgram] = useState('Rural Healthcare & Medical Camps');
   const [donationPan, setDonationPan] = useState('');
   const [donationUtr, setDonationUtr] = useState('');
-  const [donationSuccess, setDonationSuccess] = useState(false);
+  const [donationSubmitting, setDonationSubmitting] = useState(false);
+  const [donationError, setDonationError] = useState('');
+  const [donationPendingRef, setDonationPendingRef] = useState(null);
   const [selectedDonationReceipt, setSelectedDonationReceipt] = useState(null);
   const [referralCopied, setReferralCopied] = useState(false);
   const [notificationsForm, setNotificationsForm] = useState({
@@ -49,85 +56,96 @@ export default function MemberDashboardPage() {
     meetingAlerts: true,
     donationReceipts: true,
   });
-  const [notifSaved, setNotifSaved] = useState(false);
+  const [notifSaved, setNotifSaved] = useState('');
+  const [notifError, setNotifError] = useState('');
   const [msgDept, setMsgDept] = useState('General Admin Office');
   const [msgSubject, setMsgSubject] = useState('');
   const [msgContent, setMsgContent] = useState('');
-  const [msgSentSuccess, setMsgSentSuccess] = useState(false);
+  const [msgStatusNotice, setMsgStatusNotice] = useState('');
+  const [msgError, setMsgError] = useState('');
+  const [msgSubmitting, setMsgSubmitting] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
   const [profileForm, setProfileForm] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    address: '',
-    bio: '',
+    name: defaultMembers[0].name,
+    phone: defaultMembers[0].phone,
+    email: defaultMembers[0].email,
+    address: defaultMembers[0].address,
+    bio: defaultMembers[0].bio,
   });
 
   useEffect(() => {
-    try {
-      const active = localStorage.getItem('gsdd_active_member');
-      if (active) {
-        const parsed = JSON.parse(active);
-        setMember(parsed);
-        setProfileForm({
-          name: parsed.name || '',
-          phone: parsed.phone || '',
-          email: parsed.email || '',
-          address: parsed.address || '',
-          bio: parsed.bio || '',
-        });
-        if (parsed.notifications) {
-          setNotificationsForm(parsed.notifications);
+    let active = true;
+    fetch('/api/member/me/')
+      .then(async (res) => {
+        if (!active) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.member) {
+            setIsAuthenticated(true);
+            setMember(data.member);
+            if (data.member.notifications) {
+              setNotificationsForm(data.member.notifications);
+            }
+            setProfileForm({
+              name: data.member.name || '',
+              phone: data.member.phone || '',
+              email: data.member.email || '',
+              address: data.member.address || '',
+              bio: data.member.bio || '',
+            });
+            return;
+          }
         }
-      } else {
-        // Use default demo member if no session
-        const demo = defaultMembers[0];
-        setMember(demo);
-        if (demo.notifications) {
-          setNotificationsForm(demo.notifications);
-        }
-        setProfileForm({
-          name: demo.name,
-          phone: demo.phone,
-          email: demo.email,
-          address: demo.address,
-          bio: demo.bio,
-        });
-      }
-    } catch {
-      setMember(defaultMembers[0]);
-    }
+        setIsAuthenticated(false);
+      })
+      .catch(() => {
+        if (active) setIsAuthenticated(false);
+      });
+    return () => { active = false; };
   }, []);
 
-  function handleLogout() {
+  async function handleLogout() {
     try {
-      localStorage.removeItem('gsdd_active_member');
+      await fetch('/api/member/logout/', { method: 'POST' });
     } catch {
       // Ignore
     }
     router.push('/member/login');
   }
 
-  function handleSaveProfile(e) {
+  async function handleSaveProfile(e) {
     e.preventDefault();
-    const updated = {
-      ...member,
-      name: profileForm.name,
-      phone: profileForm.phone,
-      email: profileForm.email,
-      address: profileForm.address,
-      bio: profileForm.bio,
-    };
-    setMember(updated);
-    setEditingProfile(false);
+    setActionNotice('');
+    if (!isAuthenticated) {
+      setActionNotice('Sign in to your member account to save profile changes to the server.');
+      return;
+    }
     try {
-      localStorage.setItem('gsdd_active_member', JSON.stringify(updated));
+      const res = await fetch('/api/member/profile/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: profileForm.name,
+          phone: profileForm.phone,
+          address: profileForm.address,
+          bio: profileForm.bio,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setActionNotice(data?.error || 'Could not update profile.');
+        return;
+      }
+      setMember(data.member);
+      setEditingProfile(false);
+      setActionNotice('Profile saved to server.');
     } catch {
-      // Ignore
+      setActionNotice('Network error saving profile.');
     }
   }
 
@@ -209,6 +227,21 @@ export default function MemberDashboardPage() {
             </button>
           </div>
         </div>
+
+        {!isAuthenticated && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '12px 16px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', color: '#92400E' }} role="status">
+            <span><strong>Demo Preview Mode:</strong> Sign in with your member account to persist profile updates, payments, and messages on the server.</span>
+            <Link href="/member/login" className="button button-blue" style={{ padding: '6px 14px', fontSize: '12px' }}>
+              Sign In Now
+            </Link>
+          </div>
+        )}
+
+        {actionNotice && (
+          <div style={{ padding: '10px 14px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '6px', marginBottom: '14px', fontSize: '13px', color: '#1E40AF' }} role="status">
+            {actionNotice}
+          </div>
+        )}
 
         {/* Feature 3: Overview Tab (Apni Activities & Details Dekhna) */}
         {activeTab === 'overview' && (
@@ -516,10 +549,10 @@ export default function MemberDashboardPage() {
                 <h2>Membership Subscription &amp; Fee Status</h2>
               </div>
 
-              <div className={`fee-status-banner ${member.feeStatus === 'Paid' || feePaidSuccess ? 'paid' : 'due'}`}>
+              <div className={`fee-status-banner ${member.feeStatus === 'Paid' ? 'paid' : 'due'}`}>
                 <div>
                   <strong style={{ fontSize: '15px' }}>
-                    Current Status: {feePaidSuccess ? 'Paid' : member.feeStatus}
+                    Current Status: {member.feeStatus}
                   </strong>
                   <p style={{ margin: '2px 0 0', fontSize: '12px', opacity: 0.9 }}>
                     Subscription Plan: <strong>{member.feeType}</strong> ({member.category})
@@ -530,12 +563,12 @@ export default function MemberDashboardPage() {
                 </span>
               </div>
 
-              {feePaidSuccess || member.feeStatus === 'Paid' ? (
+              {member.feeStatus === 'Paid' ? (
                 <div style={{ padding: '20px', background: '#F0FDF4', borderRadius: '8px', border: '1px solid #BBF7D0', textAlign: 'center' }}>
                   <CheckCircle2 size={36} color="#15803D" style={{ margin: '0 auto 8px' }} />
-                  <h3 style={{ margin: 0, color: '#166534', fontSize: '17px' }}>Fees Fully Paid &amp; Updated</h3>
+                  <h3 style={{ margin: 0, color: '#166534', fontSize: '17px' }}>Fees Verified &amp; Paid</h3>
                   <p style={{ margin: '4px 0 16px', fontSize: '13px', color: '#15803D' }}>
-                    Your subscription is in good standing. An official receipt has been issued.
+                    Your subscription is reconciled and in good standing.
                   </p>
                   <button
                     type="button"
@@ -549,9 +582,12 @@ export default function MemberDashboardPage() {
                 <div className="upi-checkout-layout">
                   <div className="upi-qr-card">
                     <div className="visual-qr-box">
-                      <QrCode size={120} aria-hidden="true" color="#1E293B" />
+                      <QRCodeSvg
+                        value={`upi://pay?pa=foundationgsdd@okaxis&pn=GSDD%20FOUNDATION&am=${member.feeAmount || 1200}&cu=INR&tn=${encodeURIComponent(`Membership Fee ${member.id}`)}`}
+                        size={130}
+                        label="Scan with UPI App"
+                      />
                     </div>
-                    <span className="qr-scan-caption">Scan with UPI App to Pay</span>
                     <strong className="qr-amount-pill">₹{member.feeAmount?.toLocaleString('en-IN') || 1200}</strong>
                     <div className="upi-id-row">
                       <span>UPI: <code>foundationgsdd@okaxis</code></span>
@@ -559,30 +595,62 @@ export default function MemberDashboardPage() {
                   </div>
 
                   <form
-                    onSubmit={(e) => {
+                    onSubmit={async (e) => {
                       e.preventDefault();
-                      setFeePaidSuccess(true);
-                      const updated = { ...member, feeStatus: 'Paid' };
-                      setMember(updated);
+                      setFeeError('');
+                      if (!isAuthenticated) {
+                        setFeeError('Please sign in to submit a membership fee payment reference.');
+                        return;
+                      }
+                      setFeeSubmitting(true);
                       try {
-                        localStorage.setItem('gsdd_active_member', JSON.stringify(updated));
-                      } catch {}
+                        const res = await fetch('/api/member/fee-payment/', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ utr: feeUtr.trim(), paymentMode: 'UPI' }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.ok) {
+                          setFeeError(data?.error || 'Could not submit fee payment UTR.');
+                          return;
+                        }
+                        if (data.member) setMember(data.member);
+                        setFeeSubmittedPayment(data.payment);
+                        setFeeUtr('');
+                      } catch {
+                        setFeeError('Network error submitting payment reference.');
+                      } finally {
+                        setFeeSubmitting(false);
+                      }
                     }}
                     className="payment-confirm-form"
                   >
+                    {feeError && (
+                      <p role="alert" style={{ margin: '0 0 10px', color: '#991B1B', fontSize: '12px', background: '#FEF2F2', padding: '8px 10px', borderRadius: '6px' }}>
+                        {feeError}
+                      </p>
+                    )}
+
+                    {(feeSubmittedPayment || member.feeStatus === 'Pending Verification') && (
+                      <div style={{ marginBottom: '12px', padding: '10px 12px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '6px', fontSize: '12px', color: '#92400E' }} role="status">
+                        <strong>Pending Verification:</strong> UTR {feeSubmittedPayment?.utr || member.feePayments?.[0]?.utr || ''} is recorded on the server. Receipt unlocks once reconciled with bank settlement.
+                      </div>
+                    )}
+
                     <label>
                       <span>UPI Ref / Transaction UTR Number *</span>
                       <input
                         type="text"
                         required
-                        placeholder="e.g. UPI/60612948211"
+                        minLength={6}
+                        placeholder="e.g. 606129482112"
                         value={feeUtr}
                         onChange={(e) => setFeeUtr(e.target.value)}
                       />
                     </label>
 
-                    <button type="submit" className="button button-blue full-width">
-                      <CheckCircle2 size={16} /> Submit Payment &amp; Update Record
+                    <button type="submit" disabled={feeSubmitting} className="button button-blue full-width">
+                      <Clock size={16} /> {feeSubmitting ? 'Submitting...' : 'Submit UTR (Pending Reconciliation)'}
                     </button>
 
                     <p style={{ fontSize: '11px', color: 'var(--gsdd-text-muted)', margin: 0 }}>
@@ -595,90 +663,102 @@ export default function MemberDashboardPage() {
           </div>
         )}
 
-        {/* Feature 7: Payment Receipt (Automatic receipt download) */}
+        {/* Feature 7: Payment Receipt (Only available after server reconciliation) */}
         {activeTab === 'receipts' && (
           <div className="dashboard-tab-receipts">
             <div className="member-dashboard-card">
               <div className="card-header-bar no-print">
                 <h2>Official Membership Payment Receipt</h2>
-                <button
-                  type="button"
-                  className="button button-blue"
-                  onClick={() => window.print()}
-                >
-                  <Printer size={16} /> Print / Download Receipt
-                </button>
+                {member.feeStatus === 'Paid' && (
+                  <button
+                    type="button"
+                    className="button button-blue"
+                    onClick={() => window.print()}
+                  >
+                    <Printer size={16} /> Print / Download Receipt
+                  </button>
+                )}
               </div>
 
-              {/* Printable Official Receipt */}
-              <div className="receipt-paper-frame">
-                <div className="receipt-header-row">
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '17px', color: 'var(--gsdd-navy-dark)' }}>
-                      {organization.legalName}
-                    </h3>
-                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--gsdd-text-muted)' }}>
-                      Section 8 Nonprofit &bull; CIN: {organization.cin} &bull; Darpan: {organization.darpan}
-                    </p>
-                    <p style={{ margin: 0, fontSize: '10px', color: 'var(--gsdd-text-muted)' }}>
-                      12A: {organization.tax12a} &bull; 80G: {organization.tax80g}
-                    </p>
+              {member.feeStatus !== 'Paid' ? (
+                <div style={{ padding: '20px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', color: '#92400E' }} role="status">
+                  <strong style={{ display: 'block', marginBottom: '6px' }}>
+                    Official Receipt Not Issued (Status: {member.feeStatus})
+                  </strong>
+                  <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5 }}>
+                    Membership receipts are generated only after your submitted UTR is verified and reconciled with bank settlement by the administration.
+                  </p>
+                </div>
+              ) : (
+                <div className="receipt-paper-frame">
+                  <div className="receipt-header-row">
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '17px', color: 'var(--gsdd-navy-dark)' }}>
+                        {organization.legalName}
+                      </h3>
+                      <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--gsdd-text-muted)' }}>
+                        Section 8 Nonprofit &bull; CIN: {organization.cin} &bull; Darpan: {organization.darpan}
+                      </p>
+                      <p style={{ margin: 0, fontSize: '10px', color: 'var(--gsdd-text-muted)' }}>
+                        12A: {organization.tax12a} &bull; 80G: {organization.tax80g}
+                      </p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span className="receipt-title-badge">MEMBERSHIP RECEIPT</span>
+                      <div style={{ fontSize: '12px', fontWeight: '700', marginTop: '4px' }}>
+                        {member.feePayments?.find((p) => p.status === 'Verified')?.receiptNo || `GSDD-M-REC-2026-${member.id.slice(-3)}`}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span className="receipt-title-badge">MEMBERSHIP RECEIPT</span>
-                    <div style={{ fontSize: '12px', fontWeight: '700', marginTop: '4px' }}>
-                      GSDD-M-REC-2026-081
+
+                  <div className="receipt-table-list">
+                    <div className="r-row-item">
+                      <span className="r-lbl">Member Name:</span>
+                      <span className="r-val">{member.name}</span>
+                    </div>
+                    <div className="r-row-item">
+                      <span className="r-lbl">Member ID:</span>
+                      <span className="r-val"><code>{member.id}</code></span>
+                    </div>
+                    <div className="r-row-item">
+                      <span className="r-lbl">Category &amp; Designation:</span>
+                      <span className="r-val">{member.category} ({member.designation})</span>
+                    </div>
+                    <div className="r-row-item">
+                      <span className="r-lbl">Fee Particulars:</span>
+                      <span className="r-val">{member.feeType} Subscription</span>
+                    </div>
+                    <div className="r-row-item">
+                      <span className="r-lbl">Amount Paid:</span>
+                      <span className="r-val" style={{ color: '#15803D', fontSize: '15px' }}>
+                        ₹{member.feeAmount?.toLocaleString('en-IN') || 1200}
+                      </span>
+                    </div>
+                    <div className="r-row-item">
+                      <span className="r-lbl">Payment Status:</span>
+                      <span className="r-val">Verified &amp; Reconciled</span>
+                    </div>
+                    <div className="r-row-item">
+                      <span className="r-lbl">Receipt Date:</span>
+                      <span className="r-val">{member.joinDate}</span>
+                    </div>
+                  </div>
+
+                  <div className="receipt-sign-row">
+                    <div>
+                      <small style={{ fontSize: '10px', color: '#64748B' }}>
+                        Head Office: {organization.address}
+                      </small>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ borderBottom: '1px solid #0F172A', width: '120px', paddingBottom: '2px', fontSize: '11px', fontWeight: '700' }}>
+                        Authorized Signatory
+                      </div>
+                      <small style={{ fontSize: '9px', color: '#64748B' }}>GSDD Foundation</small>
                     </div>
                   </div>
                 </div>
-
-                <div className="receipt-table-list">
-                  <div className="r-row-item">
-                    <span className="r-lbl">Member Name:</span>
-                    <span className="r-val">{member.name}</span>
-                  </div>
-                  <div className="r-row-item">
-                    <span className="r-lbl">Member ID:</span>
-                    <span className="r-val"><code>{member.id}</code></span>
-                  </div>
-                  <div className="r-row-item">
-                    <span className="r-lbl">Category &amp; Designation:</span>
-                    <span className="r-val">{member.category} ({member.designation})</span>
-                  </div>
-                  <div className="r-row-item">
-                    <span className="r-lbl">Fee Particulars:</span>
-                    <span className="r-val">{member.feeType} Subscription</span>
-                  </div>
-                  <div className="r-row-item">
-                    <span className="r-lbl">Amount Paid:</span>
-                    <span className="r-val" style={{ color: '#15803D', fontSize: '15px' }}>
-                      ₹{member.feeAmount?.toLocaleString('en-IN') || 1200}
-                    </span>
-                  </div>
-                  <div className="r-row-item">
-                    <span className="r-lbl">Payment Status:</span>
-                    <span className="r-val">Paid &amp; Realized</span>
-                  </div>
-                  <div className="r-row-item">
-                    <span className="r-lbl">Receipt Date:</span>
-                    <span className="r-val">{member.joinDate}</span>
-                  </div>
-                </div>
-
-                <div className="receipt-sign-row">
-                  <div>
-                    <small style={{ fontSize: '10px', color: '#64748B' }}>
-                      Head Office: {organization.address}
-                    </small>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ borderBottom: '1px solid #0F172A', width: '120px', paddingBottom: '2px', fontSize: '11px', fontWeight: '700' }}>
-                      Authorized Signatory
-                    </div>
-                    <small style={{ fontSize: '9px', color: '#64748B' }}>GSDD Foundation</small>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -754,7 +834,11 @@ export default function MemberDashboardPage() {
 
                   <div className="id-card-body">
                     <div className="id-back-qr">
-                      <QrCode size={90} color="#1E293B" />
+                      <QRCodeSvg
+                        value={`https://gsddfoundation.org/verify/?code=${encodeURIComponent(member.id)}`}
+                        size={96}
+                        label=""
+                      />
                     </div>
                     <code style={{ fontSize: '11px', fontWeight: '700', color: 'var(--gsdd-navy-dark)' }}>
                       {member.id}
@@ -1091,8 +1175,11 @@ export default function MemberDashboardPage() {
 
                   <div className="receipt-sign-row">
                     <div>
-                      <QrCode size={56} color="#0F172A" />
-                      <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>Scan to Verify</div>
+                      <QRCodeSvg
+                        value={`https://gsddfoundation.org/verify/?code=${encodeURIComponent(selectedDonationReceipt.receiptNo || selectedDonationReceipt.trackingId || selectedDonationReceipt.id)}`}
+                        size={72}
+                        label="Verify 80G"
+                      />
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ width: '150px', borderTop: '1px solid #0F172A', marginBottom: '4px' }} />
@@ -1106,62 +1193,77 @@ export default function MemberDashboardPage() {
               <div className="member-dashboard-card">
                 <div className="card-header-bar">
                   <div>
-                    <h2>My Donations & Contributions</h2>
+                    <h2>My Donations &amp; Contributions</h2>
                     <p style={{ margin: 0, fontSize: '13px', color: 'var(--gsdd-text-muted)' }}>
-                      Support foundation welfare programs and view your past contributions with instant 80G tax receipts.
+                      Submit a donation transfer reference for server verification. Official 80G receipts are generated only after settlement.
                     </p>
                   </div>
                 </div>
 
                 <div className="donation-grid-layout">
-                  {/* Feature 12: Online Donation Form */}
                   <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '20px' }}>
                     <h3 style={{ margin: '0 0 12px', fontSize: '16px', color: 'var(--gsdd-navy-dark)' }}>
-                      Contribute to a Cause (Feature 12)
+                      Contribute to a Cause
                     </h3>
 
-                    {donationSuccess && (
-                      <div className="fee-status-banner paid" style={{ marginBottom: '14px' }}>
-                        <CheckCircle2 size={16} />
-                        <span>Thank you! Your donation was submitted successfully and added to your history below.</span>
+                    {donationError && (
+                      <div style={{ marginBottom: '14px', padding: '10px 12px', background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: '6px', fontSize: '12px' }} role="alert">
+                        {donationError}
+                      </div>
+                    )}
+
+                    {donationPendingRef && (
+                      <div style={{ marginBottom: '14px', padding: '10px 12px', background: '#FFFBEB', border: '1px solid #FDE68A', color: '#92400E', borderRadius: '6px', fontSize: '12px' }} role="status">
+                        <Clock size={15} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
+                        <span>
+                          <strong>Recorded as Pending Verification:</strong> Tracking ID <code>{donationPendingRef.trackingId}</code> (UTR: <code>{donationPendingRef.utr}</code>). An 80G tax receipt will be issued after bank settlement verification.
+                        </span>
                       </div>
                     )}
 
                     <form
-                      onSubmit={(e) => {
+                      onSubmit={async (e) => {
                         e.preventDefault();
-                        if (!donationAmount || Number(donationAmount) <= 0) return;
-                        const newDonation = {
-                          id: 'don-' + Date.now(),
-                          receiptNo: 'GSDD-REC-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000),
-                          amount: Number(donationAmount),
-                          date: new Date().toISOString().split('T')[0],
-                          program: donationProgram,
-                          utr: donationUtr ? ('UPI/' + donationUtr) : 'UPI/COMPLETED',
-                          status: 'Verified',
-                        };
-                        const updated = {
-                          ...member,
-                          donations: [newDonation, ...(member.donations || [])],
-                          activities: [
-                            {
-                              id: 'act-' + Date.now(),
-                              title: `Contributed ₹${Number(donationAmount).toLocaleString('en-IN')} to ${donationProgram}`,
-                              date: new Date().toISOString().split('T')[0],
-                              role: 'Donor',
-                              status: 'Completed',
-                            },
-                            ...(member.activities || []),
-                          ],
-                        };
-                        setMember(updated);
-                        try {
-                          localStorage.setItem('gsdd_active_member', JSON.stringify(updated));
-                        } catch {
-                          // ignore
+                        setDonationError('');
+                        setDonationPendingRef(null);
+                        if (!isAuthenticated) {
+                          setDonationError('Please sign in to submit a donation verification record.');
+                          return;
                         }
-                        setDonationSuccess(true);
-                        setDonationUtr('');
+                        if (!donationAmount || Number(donationAmount) < 100) {
+                          setDonationError('Donation amount must be at least ₹100.');
+                          return;
+                        }
+                        if (donationUtr.trim().length < 6) {
+                          setDonationError('Please enter a valid UPI / bank UTR reference (at least 6 characters).');
+                          return;
+                        }
+                        setDonationSubmitting(true);
+                        try {
+                          const res = await fetch('/api/member/donations/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              amount: Number(donationAmount),
+                              program: donationProgram,
+                              pan: donationPan.trim().toUpperCase(),
+                              utr: donationUtr.trim(),
+                              method: 'UPI',
+                            }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok || !data.ok) {
+                            setDonationError(data?.error || 'Could not record donation submission.');
+                            return;
+                          }
+                          if (data.member) setMember(data.member);
+                          setDonationPendingRef(data.donation);
+                          setDonationUtr('');
+                        } catch {
+                          setDonationError('Network error submitting donation reference.');
+                        } finally {
+                          setDonationSubmitting(false);
+                        }
                       }}
                     >
                       <div className="form-group" style={{ marginBottom: '12px' }}>
@@ -1171,10 +1273,10 @@ export default function MemberDashboardPage() {
                           value={donationProgram}
                           onChange={(e) => setDonationProgram(e.target.value)}
                         >
-                          <option>Rural Healthcare & Medical Camps</option>
+                          <option>Rural Healthcare &amp; Medical Camps</option>
                           <option>Free Girl Child Education Fund</option>
-                          <option>Women Self-Help & Vocational Livelihood</option>
-                          <option>Environmental Tree Plantation & Cleanliness</option>
+                          <option>Women Self-Help &amp; Vocational Livelihood</option>
+                          <option>Environmental Tree Plantation &amp; Cleanliness</option>
                           <option>General Welfare Corpus Fund</option>
                         </select>
                       </div>
@@ -1209,15 +1311,19 @@ export default function MemberDashboardPage() {
                           Scan UPI QR to Donate ₹{Number(donationAmount || 0).toLocaleString('en-IN')}
                         </div>
                         <div style={{ display: 'inline-block', background: '#FFF', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1' }}>
-                          <QrCode size={120} color="#1E3A8A" />
+                          <QRCodeSvg
+                            value={`upi://pay?pa=foundationgsdd@okaxis&pn=GSDD%20FOUNDATION&am=${Number(donationAmount) || 1100}&cu=INR&tn=${encodeURIComponent(`Member Donation ${donationProgram}`)}`}
+                            size={120}
+                            label="Scan UPI QR"
+                          />
                         </div>
                         <div>
                           <div className="upi-string-badge">
-                            <span>{organization.bankDetails.upiId}</span>
+                            <span>foundationgsdd@okaxis</span>
                           </div>
                         </div>
                         <div style={{ fontSize: '11px', color: '#64748B' }}>
-                          Supports Google Pay, PhonePe, Paytm, BHIM & all UPI apps
+                          Supports Google Pay, PhonePe, Paytm, BHIM &amp; all UPI apps
                         </div>
                       </div>
 
@@ -1234,9 +1340,11 @@ export default function MemberDashboardPage() {
                       </div>
 
                       <div className="form-group" style={{ marginBottom: '16px' }}>
-                        <label className="form-label">UPI Reference / UTR Number</label>
+                        <label className="form-label">UPI Reference / UTR Number *</label>
                         <input
                           type="text"
+                          required
+                          minLength={6}
                           className="form-control"
                           placeholder="e.g. 604123891024"
                           value={donationUtr}
@@ -1244,8 +1352,8 @@ export default function MemberDashboardPage() {
                         />
                       </div>
 
-                      <button type="submit" className="btn-action-primary" style={{ width: '100%', justifyContent: 'center' }}>
-                        Submit Donation & Generate Receipt
+                      <button type="submit" disabled={donationSubmitting} className="btn-action-primary" style={{ width: '100%', justifyContent: 'center' }}>
+                        {donationSubmitting ? 'Submitting UTR...' : 'Submit Donation Reference (Pending Verification)'}
                       </button>
                     </form>
                   </div>
@@ -1253,20 +1361,20 @@ export default function MemberDashboardPage() {
                   {/* Feature 13: Donation History */}
                   <div>
                     <h3 style={{ margin: '0 0 12px', fontSize: '16px', color: 'var(--gsdd-navy-dark)' }}>
-                      Donation History & Past Receipts (Feature 13)
+                      Donation History &amp; Verified Receipts
                     </h3>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                       <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '12px', borderRadius: '8px' }}>
-                        <div style={{ fontSize: '11px', color: '#1E40AF', fontWeight: '700' }}>TOTAL DONATED</div>
+                        <div style={{ fontSize: '11px', color: '#1E40AF', fontWeight: '700' }}>VERIFIED DONATIONS</div>
                         <div style={{ fontSize: '20px', fontWeight: '800', color: '#1E3A8A' }}>
-                          ₹{(member.donations || []).reduce((acc, d) => acc + Number(d.amount), 0).toLocaleString('en-IN')}
+                          ₹{(member.donations || []).filter((d) => d.status === 'Verified').reduce((acc, d) => acc + Number(d.amount), 0).toLocaleString('en-IN')}
                         </div>
                       </div>
                       <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', padding: '12px', borderRadius: '8px' }}>
-                        <div style={{ fontSize: '11px', color: '#166534', fontWeight: '700' }}>80G TAX BENEFIT</div>
-                        <div style={{ fontSize: '16px', fontWeight: '800', color: '#15803D' }}>
-                          100% Eligible
+                        <div style={{ fontSize: '11px', color: '#166534', fontWeight: '700' }}>80G URN (VERIFY STATUS)</div>
+                        <div style={{ fontSize: '13px', fontWeight: '800', color: '#15803D' }}>
+                          {organization.tax80g}
                         </div>
                       </div>
                     </div>
@@ -1278,7 +1386,7 @@ export default function MemberDashboardPage() {
                             <th>Date</th>
                             <th>Program</th>
                             <th>Amount</th>
-                            <th>Receipt</th>
+                            <th>Status / Receipt</th>
                             <th>Action</th>
                           </tr>
                         </thead>
@@ -1290,33 +1398,42 @@ export default function MemberDashboardPage() {
                               </td>
                             </tr>
                           ) : (
-                            member.donations.map((don) => (
-                              <tr key={don.id}>
-                                <td>{don.date}</td>
-                                <td>
-                                  <strong>{don.program}</strong>
-                                  <div style={{ fontSize: '10px', color: '#64748B' }}>{don.utr}</div>
-                                </td>
-                                <td>
-                                  <strong>₹{Number(don.amount).toLocaleString('en-IN')}</strong>
-                                </td>
-                                <td>
-                                  <span style={{ fontSize: '11px', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px' }}>
-                                    {don.receiptNo}
-                                  </span>
-                                </td>
-                                <td>
-                                  <button
-                                    type="button"
-                                    className="btn-outline"
-                                    style={{ padding: '4px 10px', fontSize: '11px' }}
-                                    onClick={() => setSelectedDonationReceipt(don)}
-                                  >
-                                    View Receipt
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
+                            member.donations.map((don) => {
+                              const isVerified = don.status === 'Verified' && Boolean(don.receiptNo);
+                              return (
+                                <tr key={don.id}>
+                                  <td>{don.date}</td>
+                                  <td>
+                                    <strong>{don.program}</strong>
+                                    <div style={{ fontSize: '10px', color: '#64748B' }}>
+                                      {don.utr}{(!isAuthenticated || don.isDemoSample) ? ' • Demo Sample' : ''}
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <strong>₹{Number(don.amount).toLocaleString('en-IN')}</strong>
+                                  </td>
+                                  <td>
+                                    <span style={{ fontSize: '11px', background: isVerified ? '#DCFCE7' : '#FEF3C7', color: isVerified ? '#166534' : '#92400E', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                                      {isVerified ? don.receiptNo : (don.status || 'Pending Verification')}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    {isVerified ? (
+                                      <button
+                                        type="button"
+                                        className="btn-outline"
+                                        style={{ padding: '4px 10px', fontSize: '11px' }}
+                                        onClick={() => setSelectedDonationReceipt(don)}
+                                      >
+                                        View Receipt
+                                      </button>
+                                    ) : (
+                                      <span style={{ fontSize: '11px', color: '#64748B' }}>Awaiting reconciliation</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })
                           )}
                         </tbody>
                       </table>
@@ -1452,10 +1569,17 @@ export default function MemberDashboardPage() {
               </div>
             </div>
 
+            {notifError && (
+              <div className="fee-status-banner due" style={{ marginBottom: '18px' }} role="alert">
+                <AlertCircle size={16} />
+                <span>{notifError}</span>
+              </div>
+            )}
+
             {notifSaved && (
-              <div className="fee-status-banner paid" style={{ marginBottom: '18px' }}>
+              <div className="fee-status-banner paid" style={{ marginBottom: '18px' }} role="status">
                 <CheckCircle2 size={16} />
-                <span>Your notification preferences have been successfully updated!</span>
+                <span>{notifSaved}</span>
               </div>
             )}
 
@@ -1531,16 +1655,29 @@ export default function MemberDashboardPage() {
                   <button
                     type="button"
                     className="btn-action-primary"
-                    onClick={() => {
-                      const updated = { ...member, notifications: notificationsForm };
-                      setMember(updated);
-                      try {
-                        localStorage.setItem('gsdd_active_member', JSON.stringify(updated));
-                      } catch {
-                        // ignore
+                    onClick={async () => {
+                      setNotifError('');
+                      setNotifSaved('');
+                      if (!isAuthenticated) {
+                        setNotifError('Please sign in to save notification preferences on the server.');
+                        return;
                       }
-                      setNotifSaved(true);
-                      setTimeout(() => setNotifSaved(false), 3000);
+                      try {
+                        const res = await fetch('/api/member/notifications/', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(notificationsForm),
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.ok) {
+                          setNotifError(data?.error || 'Could not save notification preferences.');
+                          return;
+                        }
+                        setMember({ ...member, notifications: data.notifications });
+                        setNotifSaved('Your notification preferences have been persisted to the server.');
+                      } catch {
+                        setNotifError('Network error saving preferences.');
+                      }
                     }}
                   >
                     Save Preferences
@@ -1618,39 +1755,60 @@ export default function MemberDashboardPage() {
                   Compose Message to Administration
                 </h3>
 
-                {msgSentSuccess && (
-                  <div className="fee-status-banner paid" style={{ marginBottom: '14px' }}>
+                {msgError && (
+                  <div className="fee-status-banner due" style={{ marginBottom: '14px' }} role="alert">
+                    <AlertCircle size={16} />
+                    <span>{msgError}</span>
+                  </div>
+                )}
+
+                {msgStatusNotice && (
+                  <div className="fee-status-banner paid" style={{ marginBottom: '14px' }} role="status">
                     <CheckCircle2 size={16} />
-                    <span>Your message has been sent to the Admin office. A copy is logged in your thread.</span>
+                    <span>{msgStatusNotice}</span>
                   </div>
                 )}
 
                 <form
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
-                    if (!msgSubject || !msgContent) return;
-                    const newMsg = {
-                      id: 'msg-' + Date.now(),
-                      sender: `You (To: ${msgDept})`,
-                      subject: msgSubject,
-                      text: msgContent,
-                      date: new Date().toISOString().split('T')[0],
-                      unread: false,
-                    };
-                    const updated = {
-                      ...member,
-                      messages: [newMsg, ...(member.messages || [])],
-                    };
-                    setMember(updated);
-                    try {
-                      localStorage.setItem('gsdd_active_member', JSON.stringify(updated));
-                    } catch {
-                      // ignore
+                    setMsgError('');
+                    setMsgStatusNotice('');
+                    if (!isAuthenticated) {
+                      setMsgError('Please sign in to send messages to foundation administration.');
+                      return;
                     }
-                    setMsgSentSuccess(true);
-                    setMsgSubject('');
-                    setMsgContent('');
-                    setTimeout(() => setMsgSentSuccess(false), 4000);
+                    if (!msgSubject.trim() || !msgContent.trim()) return;
+                    setMsgSubmitting(true);
+                    try {
+                      const res = await fetch('/api/member/messages/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          department: msgDept,
+                          subject: msgSubject.trim(),
+                          text: msgContent.trim(),
+                        }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok || !data.ok) {
+                        setMsgError(data?.error || 'Could not save message.');
+                        return;
+                      }
+                      if (data.member) setMember(data.member);
+                      const delivered = Boolean(data.delivery?.delivered);
+                      setMsgStatusNotice(
+                        delivered
+                          ? 'Your message was saved and delivered to the admin notification channel.'
+                          : 'Message saved to your server thread for staff review. (External email relay is not configured on this server, so no external email was dispatched.)'
+                      );
+                      setMsgSubject('');
+                      setMsgContent('');
+                    } catch {
+                      setMsgError('Network error sending message.');
+                    } finally {
+                      setMsgSubmitting(false);
+                    }
                   }}
                 >
                   <div className="form-group" style={{ marginBottom: '12px' }}>
@@ -1694,11 +1852,12 @@ export default function MemberDashboardPage() {
 
                   <button
                     type="submit"
+                    disabled={msgSubmitting}
                     className="btn-action-primary"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
                   >
                     <Send size={15} />
-                    <span>Send Message</span>
+                    <span>{msgSubmitting ? 'Saving...' : 'Submit Message'}</span>
                   </button>
                 </form>
               </div>
@@ -1767,41 +1926,48 @@ export default function MemberDashboardPage() {
               )}
 
               <form
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   setPasswordError('');
                   setPasswordSuccess('');
 
-                  if (currentPassword && currentPassword !== (member.password || 'password123')) {
-                    setPasswordError('Current password does not match our records.');
+                  if (!isAuthenticated) {
+                    setPasswordError('Please sign in to your member account to change your password.');
                     return;
                   }
-
-                  if (newPassword.length < 6) {
-                    setPasswordError('New password must be at least 6 characters long.');
+                  if (newPassword.length < 8) {
+                    setPasswordError('New password must be at least 8 characters long.');
                     return;
                   }
-
                   if (newPassword !== confirmPassword) {
                     setPasswordError('New passwords do not match. Please re-enter.');
                     return;
                   }
 
-                  const updated = {
-                    ...member,
-                    password: newPassword,
-                  };
-                  setMember(updated);
+                  setPasswordSubmitting(true);
                   try {
-                    localStorage.setItem('gsdd_active_member', JSON.stringify(updated));
+                    const res = await fetch('/api/member/change-password/', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        currentPassword,
+                        newPassword,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) {
+                      setPasswordError(data?.error || 'Could not update password.');
+                      return;
+                    }
+                    setPasswordSuccess('Your password has been updated on the server with a fresh cryptographic hash.');
+                    setCurrentPassword('');
+                    setNewPassword('');
+                    setConfirmPassword('');
                   } catch {
-                    // ignore
+                    setPasswordError('Network error updating password.');
+                  } finally {
+                    setPasswordSubmitting(false);
                   }
-
-                  setPasswordSuccess('Your password has been changed successfully. Please remember it for your next login.');
-                  setCurrentPassword('');
-                  setNewPassword('');
-                  setConfirmPassword('');
                 }}
               >
                 <div className="form-group" style={{ marginBottom: '14px' }}>
@@ -1809,7 +1975,7 @@ export default function MemberDashboardPage() {
                   <input
                     type="password"
                     className="form-control"
-                    placeholder="Enter current password (demo: password123)"
+                    placeholder="Enter current password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     required
@@ -1821,7 +1987,8 @@ export default function MemberDashboardPage() {
                   <input
                     type="password"
                     className="form-control"
-                    placeholder="Enter new password (min. 6 characters)"
+                    placeholder="Enter new password (min. 8 characters)"
+                    minLength={8}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
@@ -1834,6 +2001,7 @@ export default function MemberDashboardPage() {
                     type="password"
                     className="form-control"
                     placeholder="Re-enter new password"
+                    minLength={8}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
@@ -1841,16 +2009,17 @@ export default function MemberDashboardPage() {
                 </div>
 
                 <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '12px', borderRadius: '6px', fontSize: '12px', color: '#64748B', marginBottom: '18px' }}>
-                  <strong>Password Requirements:</strong> Minimum 6 characters. We recommend combining letters, numbers, and special symbols.
+                  <strong>Password Requirements:</strong> Minimum 8 characters. Verified and hashed server-side using scrypt.
                 </div>
 
                 <button
                   type="submit"
+                  disabled={passwordSubmitting}
                   className="btn-action-primary"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
                 >
                   <KeyRound size={16} />
-                  <span>Update Password</span>
+                  <span>{passwordSubmitting ? 'Updating...' : 'Update Password'}</span>
                 </button>
               </form>
             </div>
