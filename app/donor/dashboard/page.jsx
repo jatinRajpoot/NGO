@@ -30,23 +30,25 @@ const sidebarItems = [
 export default function DonorDashboardPage() {
   const router = useRouter();
   const [donor, setDonor] = useState(defaultDonors[0]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Profile Edit State
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    pan: '',
-    address: '',
-    city: '',
-    state: '',
-    pin: '',
-    profileBio: '',
+    name: defaultDonors[0].name,
+    phone: defaultDonors[0].phone,
+    email: defaultDonors[0].email,
+    pan: defaultDonors[0].pan,
+    address: defaultDonors[0].address,
+    city: defaultDonors[0].city,
+    state: defaultDonors[0].state,
+    pin: defaultDonors[0].pin,
+    profileBio: defaultDonors[0].profileBio,
   });
   const [profileSuccess, setProfileSuccess] = useState(false);
+  const [profileError, setProfileError] = useState('');
 
   // Donate Form State
   const [selectedProgram, setSelectedProgram] = useState(donorPrograms[0].name);
@@ -82,79 +84,83 @@ export default function DonorDashboardPage() {
   const [copiedKey, setCopiedKey] = useState(null);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('gsdd_active_donor');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setDonor(parsed);
-        setSubs(parsed.subscriptions || []);
-        setNotifState(parsed.notifications || {
-          emailReceipts: true,
-          whatsappAlerts: true,
-          monthlyReminders: true,
-          quarterlyReports: true,
-        });
-        setProfileForm({
-          name: parsed.name || '',
-          phone: parsed.phone || '',
-          email: parsed.email || '',
-          pan: parsed.pan || '',
-          address: parsed.address || '',
-          city: parsed.city || '',
-          state: parsed.state || '',
-          pin: parsed.pin || '',
-          profileBio: parsed.profileBio || '',
-        });
-      } else {
-        setProfileForm({
-          name: defaultDonors[0].name,
-          phone: defaultDonors[0].phone,
-          email: defaultDonors[0].email,
-          pan: defaultDonors[0].pan,
-          address: defaultDonors[0].address,
-          city: defaultDonors[0].city,
-          state: defaultDonors[0].state,
-          pin: defaultDonors[0].pin,
-          profileBio: defaultDonors[0].profileBio,
-        });
-      }
-    } catch {
-      // Ignore
-    }
+    let active = true;
+    fetch('/api/donor/me/')
+      .then(async (res) => {
+        if (!active) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.donor) {
+            setIsAuthenticated(true);
+            setDonor(data.donor);
+            setSubs(data.donor.subscriptions || []);
+            if (data.donor.notifications) {
+              setNotifState(data.donor.notifications);
+            }
+            setProfileForm({
+              name: data.donor.name || '',
+              phone: data.donor.phone || '',
+              email: data.donor.email || '',
+              pan: data.donor.pan || '',
+              address: data.donor.address || '',
+              city: data.donor.city || '',
+              state: data.donor.state || '',
+              pin: data.donor.pin || '',
+              profileBio: data.donor.profileBio || '',
+            });
+            return;
+          }
+        }
+        setIsAuthenticated(false);
+      })
+      .catch(() => {
+        if (active) setIsAuthenticated(false);
+      });
+    return () => { active = false; };
   }, []);
 
-  function handleLogout() {
+  async function handleLogout() {
     try {
-      localStorage.removeItem('gsdd_active_donor');
+      await fetch('/api/donor/logout/', { method: 'POST' });
     } catch {
       // Ignore
     }
     router.push('/donor/login');
   }
 
-  function handleSaveProfile(e) {
+  async function handleSaveProfile(e) {
     e.preventDefault();
-    const updated = {
-      ...donor,
-      name: profileForm.name.trim(),
-      phone: profileForm.phone.trim(),
-      email: profileForm.email.trim(),
-      pan: profileForm.pan.trim().toUpperCase(),
-      address: profileForm.address.trim(),
-      city: profileForm.city.trim(),
-      state: profileForm.state.trim(),
-      pin: profileForm.pin.trim(),
-      profileBio: profileForm.profileBio.trim(),
-    };
-    setDonor(updated);
-    setEditingProfile(false);
-    setProfileSuccess(true);
-    setTimeout(() => setProfileSuccess(false), 3500);
-
+    setProfileError('');
+    if (!isAuthenticated) {
+      setProfileError('Sign in with your donor account to save profile changes to the server.');
+      return;
+    }
     try {
-      localStorage.setItem('gsdd_active_donor', JSON.stringify(updated));
+      const res = await fetch('/api/donor/profile/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: profileForm.name.trim(),
+          phone: profileForm.phone.trim(),
+          pan: profileForm.pan.trim().toUpperCase(),
+          address: profileForm.address.trim(),
+          city: profileForm.city.trim(),
+          state: profileForm.state.trim(),
+          pin: profileForm.pin.trim(),
+          profileBio: profileForm.profileBio.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setProfileError(data?.error || 'Could not update profile.');
+        return;
+      }
+      setDonor(data.donor);
+      setEditingProfile(false);
+      setProfileSuccess(true);
+      setTimeout(() => setProfileSuccess(false), 3500);
     } catch {
-      // Ignore
+      setProfileError('Network error saving profile.');
     }
   }
 
@@ -242,12 +248,6 @@ export default function DonorDashboardPage() {
     setLastReceipt(newDonation);
     setDonateSuccess(true);
     setDonateUtr('');
-
-    try {
-      localStorage.setItem('gsdd_active_donor', JSON.stringify(updatedDonor));
-    } catch {
-      // Ignore
-    }
   }
 
   function handleToggleSub(id) {
@@ -264,11 +264,6 @@ export default function DonorDashboardPage() {
       activeSubscriptions: updated.filter((s) => s.status === 'Active').length,
     };
     setDonor(updatedDonor);
-    try {
-      localStorage.setItem('gsdd_active_donor', JSON.stringify(updatedDonor));
-    } catch {
-      // Ignore
-    }
   }
 
   function handleSaveNotifs() {
@@ -279,17 +274,16 @@ export default function DonorDashboardPage() {
     setDonor(updatedDonor);
     setNotifSaved(true);
     setTimeout(() => setNotifSaved(false), 3000);
-    try {
-      localStorage.setItem('gsdd_active_donor', JSON.stringify(updatedDonor));
-    } catch {
-      // Ignore
-    }
   }
 
-  function handleChangePassword(e) {
+  async function handleChangePassword(e) {
     e.preventDefault();
-    if (newPassword.length < 6) {
-      setPasswordMsg({ text: 'New password must be at least 6 characters.', type: 'error' });
+    if (!isAuthenticated) {
+      setPasswordMsg({ text: 'Please sign in to your donor account to update your password.', type: 'error' });
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordMsg({ text: 'New password must be at least 8 characters.', type: 'error' });
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -297,18 +291,25 @@ export default function DonorDashboardPage() {
       return;
     }
 
-    const updated = { ...donor, password: newPassword };
-    setDonor(updated);
     try {
-      localStorage.setItem('gsdd_active_donor', JSON.stringify(updated));
+      const res = await fetch('/api/donor/change-password/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setPasswordMsg({ text: data?.error || 'Could not update password.', type: 'error' });
+        return;
+      }
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordMsg({ text: 'Password updated on server with scrypt hashing.', type: 'success' });
+      setTimeout(() => setPasswordMsg({ text: '', type: '' }), 4000);
     } catch {
-      // Ignore
+      setPasswordMsg({ text: 'Network error updating password.', type: 'error' });
     }
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setPasswordMsg({ text: 'Password successfully updated!', type: 'success' });
-    setTimeout(() => setPasswordMsg({ text: '', type: '' }), 4000);
   }
 
   function copyToClipboard(text, key) {
@@ -434,6 +435,15 @@ export default function DonorDashboardPage() {
             </button>
           </div>
         </div>
+
+        {!isAuthenticated && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '12px 16px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', color: '#92400E' }} role="status">
+            <span><strong>Demo Preview Mode:</strong> Sign in with your donor account to save profile changes, submit donations, or manage pledges on the server.</span>
+            <Link href="/donor/login" className="button button-blue" style={{ padding: '6px 14px', fontSize: '12px' }}>
+              Sign In Now
+            </Link>
+          </div>
+        )}
 
         {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (
@@ -677,6 +687,27 @@ export default function DonorDashboardPage() {
               >
                 <CheckCircle2 size={18} />
                 <span>Profile and 80G tax details updated successfully!</span>
+              </div>
+            )}
+
+            {profileError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 14px',
+                  background: '#FEF2F2',
+                  color: '#991B1B',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  marginBottom: '20px',
+                }}
+                role="alert"
+              >
+                <AlertCircle size={18} />
+                <span>{profileError}</span>
               </div>
             )}
 
