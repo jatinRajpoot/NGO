@@ -266,7 +266,7 @@ export default function DonationChooser({ compact = false }) {
         </div>
       )}
       <p className="impact-note">
-        Suggested amount only. Instant online contribution via UPI QR or official bank transfer with Section 80G tax benefit receipt.
+        Suggested amount only. Submit a UPI QR or bank transfer reference for server verification; 80G receipts are issued only after settlement.
       </p>
 
       <button
@@ -283,7 +283,7 @@ export default function DonationChooser({ compact = false }) {
           setShowOnlineModal(true);
         }}
       >
-        <QrCode size={18} aria-hidden="true" /> Donate Online (UPI QR &amp; 80G Receipt)
+        <QrCode size={18} aria-hidden="true" /> Pay via UPI QR &amp; Submit Reference
       </button>
 
       <a

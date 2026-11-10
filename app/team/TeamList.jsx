@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowRight, Mail, Phone, ShieldCheck, Award, Briefcase } from 'lucide-react';
+import { Mail, Phone } from 'lucide-react';
+import { organization } from '../data/site-data';
 
 export const teamMembers = [
   {
@@ -11,9 +11,9 @@ export const teamMembers = [
     role: 'Founder / Chief Executive Officer',
     category: 'Founders',
     badge: 'Founder / CEO',
-    bio: 'Visionary co-founder driving strategic initiatives, governance, and institutional partnerships for rural empowerment.',
-    email: 'ceo@gsddfoundation.org',
-    phone: '+91 95467 52915',
+    bio: 'Founding leadership listed in public records supplied by Global Skills & Digital Development Foundation.',
+    email: organization.email,
+    phone: organization.phone,
   },
   {
     initials: 'AK',
@@ -21,29 +21,29 @@ export const teamMembers = [
     role: 'Founder / Managing Director',
     category: 'Founders',
     badge: 'Founder / MD',
-    bio: 'Co-founder overseeing operational strategy, digital transformation roadmaps, and community outreach infrastructure.',
-    email: 'md@gsddfoundation.org',
-    phone: '+91 95467 52915',
+    bio: 'Founding leadership listed in public records supplied by Global Skills & Digital Development Foundation.',
+    email: organization.email,
+    phone: organization.phone,
   },
   {
     initials: 'JR',
     name: 'Jatin Rajpoot',
-    role: 'President',
+    role: 'President (Committee Directory)',
     category: 'Executive Committee',
     badge: 'President',
-    bio: 'Presides over executive meetings, spearheads youth digital empowerment campaigns, and coordinates district-level initiatives.',
-    email: 'president@gsddfoundation.org',
-    phone: '+91 95467 52915',
+    bio: 'Presides over executive coordination, youth digital empowerment outreach, and district-level initiatives.',
+    email: organization.email,
+    phone: organization.phone,
   },
   {
     initials: 'AS',
     name: 'Amit Kumar Singh',
-    role: 'General Secretary',
+    role: 'General Secretary (Committee Directory)',
     category: 'Executive Committee',
     badge: 'General Secretary',
-    bio: 'Oversees day-to-day NGO administration, compliance documentation, membership coordination, and official reporting.',
-    email: 'secretary@gsddfoundation.org',
-    phone: '+91 91223 44556',
+    bio: 'Supports foundation administration, compliance documentation, membership coordination, and official reporting.',
+    email: organization.email,
+    phone: organization.phone,
   },
   {
     initials: 'SD',
@@ -51,9 +51,9 @@ export const teamMembers = [
     role: 'Vice President & Women Empowerment Head',
     category: 'Executive Committee',
     badge: 'Vice President',
-    bio: 'Leads community self-help groups, vocational skill centers for women, and grassroots awareness drives in Araria district.',
-    email: 'sunita.devi@gsddfoundation.org',
-    phone: '+91 94312 98765',
+    bio: 'Coordinates community self-help groups, vocational skill centers for women, and grassroots awareness drives.',
+    email: organization.email,
+    phone: organization.phone,
   },
   {
     initials: 'PK',
@@ -61,19 +61,19 @@ export const teamMembers = [
     role: 'Executive Member & Education In-charge',
     category: 'Executive Committee',
     badge: 'Education In-charge',
-    bio: 'Coordinates free tuition centers, student mentorship programs, and rural digital literacy workshops.',
-    email: 'education@gsddfoundation.org',
-    phone: '+91 82100 55678',
+    bio: 'Coordinates tuition centers, student mentorship programs, and rural digital literacy workshops.',
+    email: organization.email,
+    phone: organization.phone,
   },
   {
     initials: 'RS',
     name: 'Dr. Ramesh Kumar Sharma',
-    role: 'Chief Medical Advisor',
+    role: 'Medical Advisor',
     category: 'Advisory Board',
     badge: 'Advisory Board',
-    bio: 'Senior physician advising on community health camps, preventive sanitation workshops, and rural medical outreach programs.',
-    email: 'health.advisor@gsddfoundation.org',
-    phone: '+91 98350 12345',
+    bio: 'Advises on community health camps, preventive sanitation workshops, and rural medical outreach programs.',
+    email: organization.email,
+    phone: organization.phone,
   },
   {
     initials: 'RV',
@@ -81,9 +81,9 @@ export const teamMembers = [
     role: 'Legal & Governance Counsel',
     category: 'Advisory Board',
     badge: 'Legal Advisory',
-    bio: 'Practicing advocate advising on Section 8 compliance, statutory transparencies, CSR partnerships, and legal governance.',
-    email: 'legal@gsddfoundation.org',
-    phone: '+91 94300 11223',
+    bio: 'Advises on Section 8 compliance, statutory transparency, CSR partnerships, and legal governance.',
+    email: organization.email,
+    phone: organization.phone,
   },
 ];
 
@@ -113,7 +113,11 @@ export default function TeamList() {
         ))}
       </div>
 
-      <div className="team-profile-list" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+      <p style={{ fontSize: '13px', color: 'var(--gsdd-text-muted)', marginBottom: '16px' }}>
+        Founding leadership is reproduced from public records supplied by GSDD Foundation. Executive committee and advisory entries are directory contacts routed through the foundation office.
+      </p>
+
+      <div className="team-profile-list" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))' }}>
         {filteredMembers.map((member) => (
           <article className="team-card-expanded" key={member.name}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
