@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { UserPlus, ShieldCheck, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
-import { defaultMembers } from '../member-data';
 import '../member.css';
 
 export default function MemberRegisterPage() {
@@ -28,16 +27,17 @@ export default function MemberRegisterPage() {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   function handleChange(e) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
   }
 
-  function handleRegister(e) {
+  async function handleRegister(e) {
     e.preventDefault();
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters.');
       return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -45,64 +45,36 @@ export default function MemberRegisterPage() {
       return;
     }
 
-    const randomSuffix = Math.floor(100 + Math.random() * 900);
-    const newId = `GSDD-M-2026-${randomSuffix}`;
-
-    const newMember = {
-      id: newId,
-      name: formData.name.trim(),
-      fatherSpouse: formData.fatherSpouse.trim(),
-      phone: formData.phone.trim(),
-      email: formData.email.trim().toLowerCase(),
-      password: formData.password,
-      address: `${formData.address.trim()}, ${formData.district}, ${formData.state} - ${formData.pincode}`,
-      designation: formData.designation,
-      category: formData.category,
-      feeType: formData.category === 'Life Member' ? 'Life (₹11,000)' : 'Annual (₹1,200)',
-      feeAmount: formData.category === 'Life Member' ? 11000 : 1200,
-      feeStatus: 'Pending',
-      status: 'Active',
-      joinDate: new Date().toISOString().split('T')[0],
-      validTill: formData.category === 'Life Member' ? 'Lifetime' : '2027-01-15',
-      bloodGroup: formData.bloodGroup,
-      avatar: '',
-      bio: `Registered ${formData.designation} of GSDD Foundation.`,
-      referralCode: formData.name.trim().split(' ')[0].toUpperCase() + '2026',
-      referralCount: 0,
-      activities: [
-        { id: 'act-new-1', title: 'Foundation Membership Orientation 2026', date: new Date().toISOString().split('T')[0], role: formData.designation, status: 'Registered' },
-      ],
-      donations: [],
-      certificates: [
-        { id: 'cert-m-1', certNo: newId, title: `Official ${formData.category} Certificate`, type: 'Membership Certificate', date: new Date().toISOString().split('T')[0], authority: 'Executive Body, GSDD' },
-      ],
-      notifications: {
-        emailUpdates: true,
-        whatsappUpdates: true,
-        meetingAlerts: true,
-        donationReceipts: true,
-      },
-      messages: [
-        { id: 'msg-w-1', sender: 'Welcome Desk', text: 'Welcome to GSDD Foundation! Your membership record is active.', date: new Date().toISOString().split('T')[0], unread: true },
-      ],
-    };
-
+    setSubmitting(true);
+    setError('');
     try {
-      const stored = JSON.parse(localStorage.getItem('gsdd_members_db') || '[]');
-      const combined = [...defaultMembers, ...stored];
-      if (combined.some((m) => m.email.toLowerCase() === newMember.email)) {
-        setError('An account with this email is already registered. Please login.');
+      const res = await fetch('/api/member/register/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          fatherSpouse: formData.fatherSpouse.trim(),
+          email: formData.email.trim().toLowerCase(),
+          phone: formData.phone.trim(),
+          password: formData.password,
+          category: formData.category,
+          designation: formData.designation,
+          bloodGroup: formData.bloodGroup,
+          gender: formData.gender,
+          address: `${formData.address.trim()}, ${formData.district}, ${formData.state} - ${formData.pincode}`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data?.error || 'Registration failed. Please check your details.');
         return;
       }
-      stored.push(newMember);
-      localStorage.setItem('gsdd_members_db', JSON.stringify(stored));
-      // Log in immediately
-      localStorage.setItem('gsdd_active_member', JSON.stringify(newMember));
+      setSuccess(data.member);
     } catch {
-      // Fallback
+      setError('Network error during registration. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
-
-    setSuccess(newMember);
   }
 
   return (
@@ -287,7 +259,8 @@ export default function MemberRegisterPage() {
                   type="password"
                   name="password"
                   required
-                  placeholder="Minimum 6 characters"
+                  placeholder="Minimum 8 characters"
+                  minLength={8}
                   value={formData.password}
                   onChange={handleChange}
                 />
@@ -299,6 +272,7 @@ export default function MemberRegisterPage() {
                   type="password"
                   name="confirmPassword"
                   required
+                  minLength={8}
                   placeholder="Re-enter password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
@@ -306,8 +280,8 @@ export default function MemberRegisterPage() {
               </div>
             </div>
 
-            <button type="submit" className="button button-blue" style={{ width: '100%', padding: '12px' }}>
-              <UserPlus size={18} /> Complete Member Registration
+            <button type="submit" disabled={submitting} className="button button-blue" style={{ width: '100%', padding: '12px' }}>
+              <UserPlus size={18} /> {submitting ? 'Creating Account...' : 'Complete Member Registration'}
             </button>
 
             <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--gsdd-text-muted)', marginTop: '16px' }}>
