@@ -94,7 +94,9 @@ export default function DonorDashboardPage() {
     monthlyReminders: true,
     quarterlyReports: true,
   });
-  const [notifSaved, setNotifSaved] = useState(false);
+  const [notifSaved, setNotifSaved] = useState('');
+  const [notifError, setNotifError] = useState('');
+  const [dispatchBusy, setDispatchBusy] = useState(false);
 
   // Password State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -250,37 +252,63 @@ export default function DonorDashboardPage() {
     }
   }
 
-  function handleToggleSub(id) {
-    const updated = subs.map((s) => {
-      if (s.id === id) {
-        return { ...s, status: s.status === 'Active' ? 'Paused' : 'Active' };
+  async function handleToggleSub(id) {
+    setSubError('');
+    if (!isAuthenticated) {
+      setSubError('Please sign in with your donor account to pause or resume a mandate.');
+      return;
+    }
+    const target = subs.find((s) => s.id === id);
+    if (!target) return;
+    const nextStatus = target.status === 'Active' ? 'Paused' : 'Active';
+
+    try {
+      const res = await fetch(`/api/donor/subscriptions/${encodeURIComponent(id)}/status/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setSubError(data?.error || 'Could not update subscription status on server.');
+        return;
       }
-      return s;
-    });
-    setSubs(updated);
-    const updatedDonor = {
-      ...donor,
-      subscriptions: updated,
-      activeSubscriptions: updated.filter((s) => s.status === 'Active').length,
-    };
-    setDonor(updatedDonor);
+      if (data.donor) {
+        setDonor(data.donor);
+        setSubs(data.donor.subscriptions || []);
+      }
+    } catch {
+      setSubError('Network error updating subscription status.');
+    }
   }
 
-  function handleCancelSub(id) {
-    const updated = subs.map((s) => {
-      if (s.id === id) {
-        return { ...s, status: 'Cancelled', cancelReason: cancelReason };
+  async function handleCancelSub(id) {
+    setSubError('');
+    if (!isAuthenticated) {
+      setSubError('Please sign in with your donor account to cancel a mandate.');
+      setCancelModalSubId(null);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/donor/subscriptions/${encodeURIComponent(id)}/status/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Cancelled', reason: cancelReason }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setSubError(data?.error || 'Could not cancel subscription on server.');
+        return;
       }
-      return s;
-    });
-    setSubs(updated);
-    setCancelModalSubId(null);
-    const updatedDonor = {
-      ...donor,
-      subscriptions: updated,
-      activeSubscriptions: updated.filter((s) => s.status === 'Active').length,
-    };
-    setDonor(updatedDonor);
+      if (data.donor) {
+        setDonor(data.donor);
+        setSubs(data.donor.subscriptions || []);
+      }
+      setCancelModalSubId(null);
+    } catch {
+      setSubError('Network error cancelling subscription.');
+    }
   }
 
   async function handleSetupRecurring(e) {
@@ -359,14 +387,62 @@ export default function DonorDashboardPage() {
     }
   }
 
-  function handleSaveNotifs() {
-    const updatedDonor = {
-      ...donor,
-      notifications: notifState,
-    };
-    setDonor(updatedDonor);
-    setNotifSaved(true);
-    setTimeout(() => setNotifSaved(false), 3000);
+  async function handleSaveNotifs() {
+    setNotifError('');
+    setNotifSaved('');
+    if (!isAuthenticated) {
+      setNotifError('Please sign in with your donor account to persist notification preferences.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/donor/notifications/', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notifState),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setNotifError(data?.error || 'Could not save notification preferences.');
+        return;
+      }
+      setDonor({ ...donor, notifications: data.notifications });
+      setNotifSaved('Notification preferences saved on the server.');
+      setTimeout(() => setNotifSaved(''), 4000);
+    } catch {
+      setNotifError('Network error saving notification preferences.');
+    }
+  }
+
+  async function handleTestDispatch(channel) {
+    setNotifError('');
+    setNotifSaved('');
+    if (!isAuthenticated) {
+      setNotifError('Please sign in with your donor account to test notification dispatch.');
+      return;
+    }
+    setDispatchBusy(true);
+    try {
+      const res = await fetch('/api/donor/notifications/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setNotifError(data?.error || 'Dispatch request failed.');
+        return;
+      }
+      if (data.donor) setDonor(data.donor);
+      if (data.delivery?.delivered) {
+        setNotifSaved(`Delivered via ${data.delivery.provider}: ${data.delivery.detail}`);
+      } else {
+        setNotifError(data.delivery?.detail || 'External delivery provider is not configured; event logged on server without external send.');
+      }
+    } catch {
+      setNotifError('Network error checking notification delivery.');
+    } finally {
+      setDispatchBusy(false);
+    }
   }
 
   async function handleChangePassword(e) {
@@ -2038,6 +2114,27 @@ export default function DonorDashboardPage() {
               </div>
             </div>
 
+            {notifError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px 16px',
+                  background: '#FEF2F2',
+                  color: '#991B1B',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  marginBottom: '20px',
+                }}
+                role="alert"
+              >
+                <AlertCircle size={18} />
+                <span>{notifError}</span>
+              </div>
+            )}
+
             {notifSaved && (
               <div
                 style={{
@@ -2051,9 +2148,10 @@ export default function DonorDashboardPage() {
                   fontSize: '13px',
                   marginBottom: '20px',
                 }}
+                role="status"
               >
                 <CheckCircle2 size={18} />
-                <span>Notification preferences saved successfully!</span>
+                <span>{notifSaved}</span>
               </div>
             )}
 
@@ -2110,51 +2208,70 @@ export default function DonorDashboardPage() {
                 />
               </div>
 
-              <button
-                type="button"
-                className="button button-blue"
-                onClick={handleSaveNotifs}
-                style={{ alignSelf: 'flex-start', marginTop: '10px', padding: '10px 20px', fontWeight: '700' }}
-              >
-                Save Preferences
-              </button>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  className="button button-blue"
+                  onClick={handleSaveNotifs}
+                  style={{ padding: '10px 20px', fontWeight: '700' }}
+                >
+                  Save Preferences
+                </button>
+                <button
+                  type="button"
+                  className="button button-outline"
+                  disabled={dispatchBusy}
+                  onClick={() => handleTestDispatch('email')}
+                  style={{ padding: '10px 16px', fontWeight: '600' }}
+                >
+                  Test Email Dispatch
+                </button>
+                <button
+                  type="button"
+                  className="button button-outline"
+                  disabled={dispatchBusy}
+                  onClick={() => handleTestDispatch('whatsapp')}
+                  style={{ padding: '10px 16px', fontWeight: '600' }}
+                >
+                  Test WhatsApp Dispatch
+                </button>
+              </div>
             </div>
 
             <div style={{ marginTop: '28px', borderTop: '1px solid #E2E8F0', paddingTop: '20px' }}>
               <h3 style={{ fontSize: '15px', color: '#0F172A', marginBottom: '12px' }}>
-                Recent Alerts & Payment Confirmations Dispatched (WhatsApp & Email)
+                Server Notification Dispatch Log
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '8px', borderLeft: '4px solid #16A34A', fontSize: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <strong style={{ color: '#166534' }}>WhatsApp Payment Confirmation Dispatched</strong>
-                    <span style={{ color: '#64748B' }}>Today</span>
-                  </div>
-                  <p style={{ margin: 0, color: '#334155' }}>
-                    Sent to <strong>{donor.phone}</strong>: &quot;Thank you for your generous contribution of ₹2,500. Your official 80G receipt #GSDD-REC-2026-4401 is ready.&quot;
-                  </p>
+              {(donor.dispatchLog || []).length === 0 ? (
+                <p style={{ fontSize: '13px', color: '#64748B', background: '#F8FAFC', padding: '14px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                  No external notification dispatches have been triggered for this session yet. Use the Test Dispatch buttons above to inspect live transport status.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {(donor.dispatchLog || []).map((entry) => (
+                    <div
+                      key={entry.id}
+                      style={{
+                        padding: '12px 14px',
+                        background: '#F8FAFC',
+                        borderRadius: '8px',
+                        borderLeft: `4px solid ${entry.delivered ? '#16A34A' : '#D97706'}`,
+                        fontSize: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <strong style={{ color: entry.delivered ? '#166534' : '#92400E' }}>
+                          {entry.channel} — {entry.delivered ? 'Delivered' : 'Not Dispatched (No Provider Configured)'}
+                        </strong>
+                        <span style={{ color: '#64748B' }}>{entry.timestamp}</span>
+                      </div>
+                      <p style={{ margin: 0, color: '#334155' }}>
+                        Target: <strong>{entry.recipient}</strong> &bull; {entry.detail}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-
-                <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '8px', borderLeft: '4px solid #2563EB', fontSize: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <strong style={{ color: '#1E40AF' }}>Email 80G Tax Receipt Dispatched</strong>
-                    <span style={{ color: '#64748B' }}>01 March 2026</span>
-                  </div>
-                  <p style={{ margin: 0, color: '#334155' }}>
-                    Dispatched to <strong>{donor.email}</strong>: Attached official Section 80G donation receipt with QR validation for your IT returns.
-                  </p>
-                </div>
-
-                <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '8px', borderLeft: '4px solid #D97706', fontSize: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <strong style={{ color: '#92400E' }}>Monthly Recurring Pledge Notice</strong>
-                    <span style={{ color: '#64748B' }}>26 Feb 2026</span>
-                  </div>
-                  <p style={{ margin: 0, color: '#334155' }}>
-                    Upcoming auto-debit reminder: ₹2,500 scheduled for deduction on 01 March 2026 under UPI Autopay.
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         )}
