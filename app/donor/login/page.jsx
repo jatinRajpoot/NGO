@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogIn, HeartHandshake, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import { defaultDonors } from '../donor-data';
+import { LogIn, HeartHandshake, AlertCircle, ArrowRight } from 'lucide-react';
 import '../donor.css';
 
 export default function DonorLoginPage() {
@@ -15,57 +14,39 @@ export default function DonorLoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    try {
-      const active = localStorage.getItem('gsdd_active_donor');
-      if (active) {
-        router.push('/donor/dashboard');
-      }
-    } catch {
-      // Ignore SSR
-    }
+    let active = true;
+    fetch('/api/donor/me/')
+      .then((res) => {
+        if (active && res.ok) {
+          router.push('/donor/dashboard');
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
   }, [router]);
 
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    const cleanId = identifier.trim().toLowerCase();
-    const cleanDigits = identifier.trim().replace(/[^0-9]/g, '');
-
-    setTimeout(() => {
-      let allDonors = [...defaultDonors];
-      try {
-        const stored = JSON.parse(localStorage.getItem('gsdd_donors_db') || '[]');
-        allDonors = [...defaultDonors, ...stored];
-      } catch {
-        // Fallback to defaults
-      }
-
-      const found = allDonors.find((d) => {
-        const dId = (d.id || '').toLowerCase();
-        const dEmail = (d.email || '').toLowerCase();
-        const dPhone = (d.phone || '').replace(/[^0-9]/g, '');
-        const idMatches =
-          dEmail === cleanId ||
-          dId === cleanId ||
-          (cleanDigits.length >= 8 && dPhone.includes(cleanDigits));
-        const pwdMatches = !d.password || d.password === password;
-        return idMatches && pwdMatches;
+    try {
+      const res = await fetch('/api/donor/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: identifier.trim(), password }),
       });
-
-      if (found) {
-        try {
-          localStorage.setItem('gsdd_active_donor', JSON.stringify(found));
-        } catch {
-          // Ignore
-        }
-        router.push('/donor/dashboard');
-      } else {
-        setError('Invalid Donor ID, email, or password. Please try again or use a demo account below.');
-        setLoading(false);
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data?.error || 'Invalid Donor ID, email, or password.');
+        return;
       }
-    }, 350);
+      router.push('/donor/dashboard');
+    } catch {
+      setError('Network error signing in. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleQuickLogin(email, pwd) {
