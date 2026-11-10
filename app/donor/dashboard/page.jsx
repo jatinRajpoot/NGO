@@ -8,10 +8,11 @@ import {
   FileText, Bell, KeyRound, LogOut, ShieldCheck, CheckCircle2,
   Calendar, MapPin, Mail, Phone, ExternalLink, ArrowRight,
   Download, Printer, Copy, Check, Send, AlertCircle, Menu, X,
-  Building2, QrCode, Sparkles, TrendingUp, HelpCircle
+  Building2, QrCode, Sparkles, TrendingUp, HelpCircle, Clock
 } from 'lucide-react';
 import { defaultDonors, donorPrograms, donorTaxDetails, donorImpactStories } from '../donor-data';
 import { organization } from '../../data/site-data';
+import QRCodeSvg from '../../components/QRCodeSvg';
 import '../donor.css';
 
 const sidebarItems = [
@@ -54,10 +55,12 @@ export default function DonorDashboardPage() {
   const [selectedProgram, setSelectedProgram] = useState(donorPrograms[0].name);
   const [frequency, setFrequency] = useState('one-time'); // 'one-time' or 'monthly'
   const [amount, setAmount] = useState('2500');
-  const [paymentMode, setPaymentMode] = useState('upi'); // 'upi', 'bank', 'card'
+  const [paymentMode, setPaymentMode] = useState('upi'); // 'upi', 'bank', 'card', 'cash'
   const [donateUtr, setDonateUtr] = useState('');
-  const [donateSuccess, setDonateSuccess] = useState(false);
-  const [lastReceipt, setLastReceipt] = useState(null);
+  const [cashNote, setCashNote] = useState('');
+  const [donateSubmitting, setDonateSubmitting] = useState(false);
+  const [donateError, setDonateError] = useState('');
+  const [pendingSubmission, setPendingSubmission] = useState(null);
 
   // View Receipt Modal
   const [selectedReceipt, setSelectedReceipt] = useState(null);
@@ -164,90 +167,68 @@ export default function DonorDashboardPage() {
     }
   }
 
-  function handleMakeDonation(e) {
+  async function handleMakeDonation(e) {
     e.preventDefault();
-    const numericAmount = parseInt(amount, 10);
-    if (isNaN(numericAmount) || numericAmount < 100) {
-      alert('Please enter a valid donation amount of at least ₹100.');
+    setDonateError('');
+    setPendingSubmission(null);
+    if (!isAuthenticated) {
+      setDonateError('Please sign in with your donor account to submit a payment verification record.');
       return;
     }
 
-    const randomSerial = Math.floor(1000 + Math.random() * 9000);
-    const newReceiptId = `GSDD-REC-2026-${randomSerial}`;
-    const today = new Date().toISOString().split('T')[0];
-    const generatedUtr = donateUtr.trim() || (
-      paymentMode === 'cash'
-        ? `CASH/GSDD-RAN-${Math.floor(1000 + Math.random() * 9000)}`
-        : paymentMode === 'bank'
-          ? `NEFT/SBIN${Math.floor(1000000000 + Math.random() * 9000000000)}`
-          : paymentMode === 'card'
-            ? `TXN/CARD${Math.floor(1000000000 + Math.random() * 9000000000)}`
-            : `UPI/${Math.floor(100000000000 + Math.random() * 900000000000)}`
-    );
-
-    const newDonation = {
-      id: newReceiptId,
-      date: today,
-      amount: numericAmount,
-      program: selectedProgram,
-      method:
-        paymentMode === 'cash'
-          ? 'Cash Entry (Official Admin Counter)'
-          : paymentMode === 'bank'
-            ? 'Bank Transfer (NEFT/RTGS)'
-            : paymentMode === 'card'
-              ? 'Card / Netbanking'
-              : 'UPI QR Payment',
-      utr: generatedUtr,
-      status: 'Verified',
-      taxDeductible: true,
-      type:
-        paymentMode === 'cash'
-          ? 'Cash Donation'
-          : frequency === 'monthly'
-            ? 'Recurring Monthly'
-            : 'One-Time Donation',
-    };
-
-    let updatedSubs = [...subs];
-    if (frequency === 'monthly') {
-      const newSub = {
-        id: `GSDD-SUB-${Math.floor(1000 + Math.random() * 9000)}`,
-        program: selectedProgram,
-        amount: numericAmount,
-        billingDay: '1st of every month',
-        nextDeduction: '2026-04-01',
-        paymentMethod: paymentMode === 'upi' ? 'UPI Autopay' : 'Mandate / Card',
-        status: 'Active',
-        startDate: today,
-        durationMonths: 12,
-        completedDeductions: 1,
-        totalRecurringPaid: numericAmount,
-      };
-      updatedSubs = [newSub, ...updatedSubs];
-      setSubs(updatedSubs);
+    const numericAmount = parseInt(amount, 10);
+    if (isNaN(numericAmount) || numericAmount < 100) {
+      setDonateError('Please enter a valid donation amount of at least ₹100.');
+      return;
     }
 
-    const newTotal = (donor.totalDonated || 0) + numericAmount;
-    const newCount = (donor.donationCount || 0) + 1;
-    let newTier = donor.tier || 'Silver Donor';
-    if (newTotal >= 25000) newTier = 'Gold Patron';
-    else if (newTotal >= 50000) newTier = 'Platinum Benefactor';
+    if (paymentMode === 'cash') {
+      if (cashNote.trim().length < 4) {
+        setDonateError('Please enter the office counter or executive name for cash deposit verification.');
+        return;
+      }
+    } else if (donateUtr.trim().length < 6) {
+      setDonateError('Please enter a valid UPI / Bank / Card transaction reference (minimum 6 characters).');
+      return;
+    }
 
-    const updatedDonor = {
-      ...donor,
-      totalDonated: newTotal,
-      donationCount: newCount,
-      tier: newTier,
-      activeSubscriptions: updatedSubs.filter((s) => s.status === 'Active').length,
-      donations: [newDonation, ...(donor.donations || [])],
-      subscriptions: updatedSubs,
-    };
+    const methodLabel =
+      paymentMode === 'cash'
+        ? 'Cash Pledge (Counter Verification Required)'
+        : paymentMode === 'bank'
+          ? 'Bank Transfer (NEFT/RTGS)'
+          : paymentMode === 'card'
+            ? 'Card / Netbanking'
+            : 'UPI QR Payment';
 
-    setDonor(updatedDonor);
-    setLastReceipt(newDonation);
-    setDonateSuccess(true);
-    setDonateUtr('');
+    setDonateSubmitting(true);
+    try {
+      const res = await fetch('/api/donor/donations/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: numericAmount,
+          program: selectedProgram,
+          frequency,
+          method: methodLabel,
+          utr: paymentMode === 'cash' ? '' : donateUtr.trim(),
+          cashNote: paymentMode === 'cash' ? cashNote.trim() : '',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setDonateError(data?.error || 'Could not submit donation verification record.');
+        return;
+      }
+      if (data.donor) setDonor(data.donor);
+      setPendingSubmission(data.donation);
+      setDonateUtr('');
+      setCashNote('');
+    } catch {
+      setDonateError('Network error submitting donation reference.');
+    } finally {
+      setDonateSubmitting(false);
+    }
   }
 
   function handleToggleSub(id) {
@@ -335,6 +316,10 @@ export default function DonorDashboardPage() {
 
     return num ? `Rupees ${inWords(num)} Only` : 'Rupees Zero Only';
   }
+
+  const donations = donor.donations || [];
+  const verifiedDonations = donations.filter((d) => d.status === 'Verified' && (d.receiptNo || d.id?.startsWith('GSDD-REC-')));
+  const upiPaymentUri = `upi://pay?pa=${donorTaxDetails.bankAccount.upiId}&pn=GSDD%20FOUNDATION&am=${parseInt(amount, 10) || 2500}&cu=INR&tn=${encodeURIComponent(`Donation ${selectedProgram}`)}`;
 
   return (
     <div className="donor-dashboard-layout">
@@ -911,46 +896,47 @@ export default function DonorDashboardPage() {
               </div>
             </div>
 
-            {donateSuccess && lastReceipt && (
+            {donateError && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: '8px', marginBottom: '20px', fontSize: '13px' }} role="alert">
+                <AlertCircle size={18} />
+                <span>{donateError}</span>
+              </div>
+            )}
+
+            {pendingSubmission && (
               <div
                 style={{
-                  background: '#F0FDF4',
-                  border: '2px solid #86EFAC',
+                  background: '#FFFBEB',
+                  border: '2px solid #FDE68A',
                   borderRadius: '10px',
                   padding: '24px',
                   marginBottom: '24px',
                 }}
+                role="status"
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                  <CheckCircle2 size={24} color="#16A34A" />
-                  <h3 style={{ margin: 0, color: '#166534', fontSize: '18px' }}>
-                    Thank You for Your Generous Donation!
+                  <Clock size={24} color="#B45309" />
+                  <h3 style={{ margin: 0, color: '#92400E', fontSize: '18px' }}>
+                    Donation Submitted — {pendingSubmission.status}
                   </h3>
                 </div>
-                <p style={{ fontSize: '13px', color: '#15803D', margin: '0 0 16px' }}>
-                  Your contribution of <strong>₹{lastReceipt.amount.toLocaleString('en-IN')}</strong> towards{' '}
-                  <strong>{lastReceipt.program}</strong> has been logged. Receipt ID: <strong>{lastReceipt.id}</strong>.
+                <p style={{ fontSize: '13px', color: '#78350F', margin: '0 0 12px' }}>
+                  Your contribution reference of <strong>₹{Number(pendingSubmission.amount).toLocaleString('en-IN')}</strong> towards{' '}
+                  <strong>{pendingSubmission.program}</strong> has been persisted on the server under tracking ID{' '}
+                  <code>{pendingSubmission.trackingId}</code> (Reference: <code>{pendingSubmission.utr}</code>).
+                </p>
+                <p style={{ fontSize: '12px', color: '#92400E', margin: '0 0 16px' }}>
+                  No 80G tax receipt has been issued yet. An official receipt will be issued only after bank settlement and server-side verification.
                 </p>
 
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="button button-blue"
-                    onClick={() => setSelectedReceipt(lastReceipt)}
-                    style={{ padding: '8px 16px', fontSize: '13px', fontWeight: '700' }}
-                  >
-                    <Printer size={15} /> View Official 80G Tax Receipt
-                  </button>
-
-                  <button
-                    type="button"
-                    className="button button-outline"
-                    onClick={() => setDonateSuccess(false)}
-                    style={{ padding: '8px 16px', fontSize: '13px' }}
-                  >
-                    Make Another Donation
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="button button-outline"
+                  onClick={() => setPendingSubmission(null)}
+                  style={{ padding: '8px 16px', fontSize: '13px' }}
+                >
+                  Submit Another Reference
+                </button>
               </div>
             )}
 
@@ -1092,12 +1078,11 @@ export default function DonorDashboardPage() {
                 {paymentMode === 'upi' && (
                   <div className="upi-scan-panel">
                     <div className="qr-code-placeholder">
-                      <div style={{ textAlign: 'center' }}>
-                        <QrCode size={90} color="#0F172A" />
-                        <span style={{ fontSize: '10px', color: '#64748B', display: 'block', marginTop: '4px' }}>
-                          Scan with GPay / PhonePe / Paytm
-                        </span>
-                      </div>
+                      <QRCodeSvg
+                        value={upiPaymentUri}
+                        size={135}
+                        label="Scan with GPay / PhonePe / Paytm"
+                      />
                     </div>
                     <span
                       style={{
@@ -1184,23 +1169,40 @@ export default function DonorDashboardPage() {
                   </div>
                 )}
 
-                <div className="donor-form-group" style={{ maxWidth: '420px', marginTop: '16px' }}>
-                  <label>Transaction UTR / Reference ID (Optional for Demo)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. UPI/382910482019 or TXN/CARD992817"
-                    value={donateUtr}
-                    onChange={(e) => setDonateUtr(e.target.value)}
-                  />
-                </div>
+                {paymentMode === 'cash' ? (
+                  <div className="donor-form-group" style={{ maxWidth: '460px', marginTop: '16px' }}>
+                    <label>Office Counter / Authorized Executive Name (for verification) *</label>
+                    <input
+                      type="text"
+                      required
+                      minLength={4}
+                      placeholder="e.g. Raniganj Central Office Desk — Cash Pledge"
+                      value={cashNote}
+                      onChange={(e) => setCashNote(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="donor-form-group" style={{ maxWidth: '420px', marginTop: '16px' }}>
+                    <label>Transaction UTR / Reference ID *</label>
+                    <input
+                      type="text"
+                      required
+                      minLength={6}
+                      placeholder="e.g. UPI/382910482019 or TXN/CARD992817"
+                      value={donateUtr}
+                      onChange={(e) => setDonateUtr(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
 
               <button
                 type="submit"
+                disabled={donateSubmitting}
                 className="button button-gold"
                 style={{ padding: '14px 28px', fontSize: '15px', fontWeight: '800' }}
               >
-                Confirm & Generate Official 80G Receipt (₹{parseInt(amount, 10) || 0})
+                {donateSubmitting ? 'Submitting for Verification...' : `Submit Payment Reference (₹${parseInt(amount, 10) || 0}) — Pending Verification`}
               </button>
             </form>
           </div>
@@ -1230,11 +1232,11 @@ export default function DonorDashboardPage() {
             <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '16px', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <span style={{ fontSize: '12px', color: '#64748B' }}>TOTAL RECEIPTS ISSUED</span>
-                  <div style={{ fontSize: '20px', fontWeight: '800', color: '#0F172A' }}>{donations.length} Receipts</div>
+                  <span style={{ fontSize: '12px', color: '#64748B' }}>VERIFIED 80G RECEIPTS ISSUED</span>
+                  <div style={{ fontSize: '20px', fontWeight: '800', color: '#0F172A' }}>{verifiedDonations.length} Receipts</div>
                 </div>
                 <div>
-                  <span style={{ fontSize: '12px', color: '#64748B' }}>TOTAL TAX EXEMPT VALUE</span>
+                  <span style={{ fontSize: '12px', color: '#64748B' }}>VERIFIED CONTRIBUTION TOTAL</span>
                   <div style={{ fontSize: '20px', fontWeight: '800', color: '#16A34A' }}>
                     ₹{(donor.totalDonated || 0).toLocaleString('en-IN')}
                   </div>
@@ -1250,41 +1252,51 @@ export default function DonorDashboardPage() {
               <table className="donor-table">
                 <thead>
                   <tr>
-                    <th>Receipt No.</th>
+                    <th>Receipt / Tracking ID</th>
                     <th>Date</th>
                     <th>Program / Cause</th>
                     <th>Amount</th>
-                    <th>Mode & UTR</th>
-                    <th>Action</th>
+                    <th>Mode &amp; UTR</th>
+                    <th>Status / Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {donations.map((d) => (
-                    <tr key={d.id}>
-                      <td>
-                        <strong style={{ fontFamily: 'monospace', color: '#1E40AF' }}>{d.id}</strong>
-                      </td>
-                      <td>{d.date}</td>
-                      <td>{d.program}</td>
-                      <td>
-                        <strong style={{ color: '#0F172A' }}>₹{d.amount.toLocaleString('en-IN')}</strong>
-                      </td>
-                      <td>
-                        <span style={{ fontSize: '12px', display: 'block' }}>{d.method}</span>
-                        <code style={{ fontSize: '11px', color: '#64748B' }}>{d.utr}</code>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="button button-outline"
-                          onClick={() => setSelectedReceipt(d)}
-                          style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                        >
-                          <Download size={13} /> Download Receipt
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {donations.map((d) => {
+                    const isVerified = d.status === 'Verified' && (d.receiptNo || d.id?.startsWith('GSDD-REC-'));
+                    const displayCode = d.receiptNo || d.trackingId || d.id;
+                    return (
+                      <tr key={d.id}>
+                        <td>
+                          <strong style={{ fontFamily: 'monospace', color: isVerified ? '#1E40AF' : '#92400E' }}>{displayCode}</strong>
+                        </td>
+                        <td>{d.date}</td>
+                        <td>{d.program}</td>
+                        <td>
+                          <strong style={{ color: '#0F172A' }}>₹{d.amount.toLocaleString('en-IN')}</strong>
+                        </td>
+                        <td>
+                          <span style={{ fontSize: '12px', display: 'block' }}>{d.method}</span>
+                          <code style={{ fontSize: '11px', color: '#64748B' }}>{d.utr}</code>
+                        </td>
+                        <td>
+                          {isVerified ? (
+                            <button
+                              type="button"
+                              className="button button-outline"
+                              onClick={() => setSelectedReceipt({ ...d, id: displayCode })}
+                              style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                            >
+                              <Download size={13} /> Download Receipt
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400E', background: '#FEF3C7', padding: '4px 8px', borderRadius: '4px' }}>
+                              {d.status || 'Pending Verification'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1327,40 +1339,50 @@ export default function DonorDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(donor.donations || []).map((d) => (
-                    <tr key={d.id}>
-                      <td style={{ fontWeight: '700', fontFamily: 'monospace' }}>{d.id}</td>
-                      <td>{d.date}</td>
-                      <td>
-                        <span
-                          style={{
-                            background: d.type.includes('Recurring') ? '#FEF3C7' : '#EFF6FF',
-                            color: d.type.includes('Recurring') ? '#92400E' : '#1D4ED8',
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                          }}
-                        >
-                          {d.type}
-                        </span>
-                      </td>
-                      <td style={{ fontWeight: '600' }}>{d.program}</td>
-                      <td style={{ fontWeight: '800', color: '#0F172A' }}>₹{d.amount.toLocaleString('en-IN')}</td>
-                      <td>{d.method}</td>
-                      <td style={{ fontFamily: 'monospace', fontSize: '11px', color: '#64748B' }}>{d.utr}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="donor-chip-btn"
-                          onClick={() => setSelectedReceipt(d)}
-                          style={{ margin: 0, padding: '5px 10px', fontSize: '12px' }}
-                        >
-                          <Printer size={13} /> View 80G Receipt
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {(donor.donations || []).map((d) => {
+                    const isVerified = d.status === 'Verified' && (d.receiptNo || d.id?.startsWith('GSDD-REC-'));
+                    const displayCode = d.receiptNo || d.trackingId || d.id;
+                    return (
+                      <tr key={d.id}>
+                        <td style={{ fontWeight: '700', fontFamily: 'monospace' }}>{displayCode}</td>
+                        <td>{d.date}</td>
+                        <td>
+                          <span
+                            style={{
+                              background: d.type?.includes('Recurring') ? '#FEF3C7' : '#EFF6FF',
+                              color: d.type?.includes('Recurring') ? '#92400E' : '#1D4ED8',
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                            }}
+                          >
+                            {d.type}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: '600' }}>{d.program}</td>
+                        <td style={{ fontWeight: '800', color: '#0F172A' }}>₹{d.amount.toLocaleString('en-IN')}</td>
+                        <td>{d.method}</td>
+                        <td style={{ fontFamily: 'monospace', fontSize: '11px', color: '#64748B' }}>{d.utr}</td>
+                        <td>
+                          {isVerified ? (
+                            <button
+                              type="button"
+                              className="donor-chip-btn"
+                              onClick={() => setSelectedReceipt({ ...d, id: displayCode })}
+                              style={{ margin: 0, padding: '5px 10px', fontSize: '12px' }}
+                            >
+                              <Printer size={13} /> View 80G Receipt
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400E', background: '#FEF3C7', padding: '4px 8px', borderRadius: '4px' }}>
+                              {d.status || 'Pending Verification'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1859,7 +1881,7 @@ export default function DonorDashboardPage() {
                   MCA Reg: {donorTaxDetails.mcaRegNumber} • PAN: {donorTaxDetails.panNumber} • 12A Reg: {donorTaxDetails.section12ANumber}
                 </p>
                 <p className="receipt-org-sub">
-                  Head Office: 24 Netaji Subhash Road, Fairley Place, Kolkata, West Bengal - 700001
+                  Head Office: {organization.address}
                 </p>
                 <span className="receipt-title-badge">OFFICIAL DONATION RECEIPT (UNDER SECTION 80G)</span>
               </div>
@@ -1927,10 +1949,11 @@ export default function DonorDashboardPage() {
 
               <div className="receipt-footer-signatures">
                 <div className="signature-box">
-                  <div style={{ width: '90px', height: '55px', border: '1px dashed #94A3B8', margin: '0 auto 4px', display: 'grid', placeItems: 'center', fontSize: '9px', color: '#64748B' }}>
-                    [ GSDD SEAL ]
-                  </div>
-                  <span>Official Stamp</span>
+                  <QRCodeSvg
+                    value={`https://gsddfoundation.org/verify/?code=${encodeURIComponent(selectedReceipt.receiptNo || selectedReceipt.id)}`}
+                    size={76}
+                    label="Verify Receipt"
+                  />
                 </div>
 
                 <div className="signature-box">
