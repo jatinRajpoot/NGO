@@ -4,11 +4,14 @@ import { useEffect, useState } from 'react';
 import {
   LayoutGrid, Globe, Users, UserCog, Award, HandHeart, CalendarClock,
   MessageSquare, CalendarCheck, TrendingUp, User, Lock, LogOut,
-  Loader2, Menu, X, ArrowUpRight, Bell, ChevronRight, Check
+  Loader2, Menu, X, ArrowUpRight, Bell, ChevronRight, Check,
+  FileText, Newspaper
 } from 'lucide-react';
 
 import './sections/admin-sections.css';
 import WebsiteManagement from './sections/WebsiteManagement';
+import PostsActivitySection from './sections/PostsActivitySection';
+import NewsManagementSection from './sections/NewsManagementSection';
 import MembershipManagement from './sections/MembershipManagement';
 import TeamManagement from './sections/TeamManagement';
 import CertificateManagement from './sections/CertificateManagement';
@@ -22,6 +25,8 @@ import SecuritySection from './sections/SecuritySection';
 
 const navItems = [
   { key: 'website', label: 'Website Management', icon: Globe },
+  { key: 'posts', label: 'Posts & Activity', icon: FileText },
+  { key: 'news', label: 'News Management', icon: Newspaper },
   { key: 'membership', label: 'Membership Management', icon: Users },
   { key: 'team', label: 'Team Management', icon: UserCog },
   { key: 'certificates', label: 'Certificate Management', icon: Award },
@@ -277,6 +282,8 @@ export default function AdminDashboard() {
           )}
 
           {activeKey === 'website' && <WebsiteManagement notify={notify} initialTab={websiteSubTab} />}
+          {activeKey === 'posts' && <PostsActivitySection notify={notify} />}
+          {activeKey === 'news' && <NewsManagementSection notify={notify} />}
           {activeKey === 'membership' && <MembershipManagement notify={notify} />}
           {activeKey === 'team' && <TeamManagement notify={notify} />}
           {activeKey === 'certificates' && <CertificateManagement notify={notify} />}
