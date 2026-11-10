@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { UserPlus, HeartHandshake, ShieldCheck, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
-import { defaultDonors, donorPrograms } from '../donor-data';
+import { UserPlus, HeartHandshake, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
+import { donorPrograms } from '../donor-data';
 import '../donor.css';
 
 export default function DonorRegisterPage() {
@@ -27,6 +27,7 @@ export default function DonorRegisterPage() {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
@@ -37,10 +38,10 @@ export default function DonorRegisterPage() {
     setError('');
   }
 
-  function handleRegister(e) {
+  async function handleRegister(e) {
     e.preventDefault();
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long.');
       return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -49,54 +50,43 @@ export default function DonorRegisterPage() {
     }
 
     const cleanPan = formData.pan.trim().toUpperCase();
-    if (cleanPan && cleanPan.length !== 10) {
-      setError('Please provide a valid 10-character PAN number for Section 80G tax receipts.');
+    if (cleanPan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(cleanPan)) {
+      setError('Please provide a valid 10-character PAN number (e.g. ABCDE1234F) for Section 80G tax receipts.');
       return;
     }
 
-    const randomSuffix = Math.floor(100 + Math.random() * 900);
-    const newId = `GSDD-D-2026-${randomSuffix}`;
-
-    const newDonor = {
-      id: newId,
-      name: formData.name.trim(),
-      email: formData.email.trim().toLowerCase(),
-      phone: formData.phone.trim(),
-      password: formData.password,
-      pan: cleanPan,
-      donorType: formData.donorType,
-      preferredProgram: formData.preferredProgram,
-      city: formData.city.trim(),
-      state: formData.state.trim(),
-      pin: formData.pin.trim(),
-      address: `${formData.address.trim()}, ${formData.city.trim()}, ${formData.state.trim()} - ${formData.pin.trim()}`,
-      tier: 'Silver Donor',
-      totalDonated: 0,
-      donationCount: 0,
-      activeSubscriptions: 0,
-      joinDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      profileBio: `Dedicated philanthropist supporting ${formData.preferredProgram}.`,
-      donations: [],
-      subscriptions: [],
-      notifications: {
-        emailReceipts: true,
-        whatsappAlerts: formData.whatsappConsent,
-        monthlyReminders: true,
-        quarterlyReports: true,
-      },
-      certificates: [],
-    };
-
+    setSubmitting(true);
+    setError('');
     try {
-      const stored = JSON.parse(localStorage.getItem('gsdd_donors_db') || '[]');
-      stored.push(newDonor);
-      localStorage.setItem('gsdd_donors_db', JSON.stringify(stored));
-      localStorage.setItem('gsdd_active_donor', JSON.stringify(newDonor));
+      const res = await fetch('/api/donor/register/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          email: formData.email.trim().toLowerCase(),
+          phone: formData.phone.trim(),
+          pan: cleanPan,
+          donorType: formData.donorType,
+          preferredProgram: formData.preferredProgram,
+          address: formData.address.trim(),
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          pin: formData.pin.trim(),
+          password: formData.password,
+          whatsappConsent: formData.whatsappConsent,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data?.error || 'Could not register donor account.');
+        return;
+      }
+      setSuccess(data.donor);
     } catch {
-      // Ignore
+      setError('Network error during donor registration. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
-
-    setSuccess(newDonor);
   }
 
   return (
@@ -305,7 +295,8 @@ export default function DonorRegisterPage() {
                   type="password"
                   name="password"
                   required
-                  placeholder="Minimum 6 characters"
+                  placeholder="Minimum 8 characters"
+                  minLength={8}
                   value={formData.password}
                   onChange={handleChange}
                 />
@@ -317,6 +308,7 @@ export default function DonorRegisterPage() {
                   type="password"
                   name="confirmPassword"
                   required
+                  minLength={8}
                   placeholder="Confirm your password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
@@ -333,7 +325,7 @@ export default function DonorRegisterPage() {
                     style={{ width: '16px', height: '16px' }}
                   />
                   <span style={{ fontWeight: '500', fontSize: '12px', color: '#475569' }}>
-                    I agree to receive instant donation tax receipts, Form 10BE filing updates, and impact reports via WhatsApp & Email.
+                    I agree to receive donation tax receipts, Form 10BE filing updates, and impact reports via WhatsApp & Email.
                   </span>
                 </label>
               </div>
@@ -341,10 +333,11 @@ export default function DonorRegisterPage() {
 
             <button
               type="submit"
+              disabled={submitting}
               className="button button-blue"
               style={{ width: '100%', padding: '14px', fontSize: '15px', fontWeight: '700' }}
             >
-              <UserPlus size={18} /> Register as Foundation Patron
+              <UserPlus size={18} /> {submitting ? 'Creating Donor Account...' : 'Register as Foundation Patron'}
             </button>
 
             <div
