@@ -35,6 +35,19 @@ const nextConfig = {
       },
     ];
   },
+  async rewrites() {
+    const flaskApiUrl = process.env.FLASK_API_URL || 'http://127.0.0.1:5000';
+    return [
+      {
+        source: '/api/v1/:path*/',
+        destination: `${flaskApiUrl}/api/v1/:path*`,
+      },
+      {
+        source: '/api/v1/:path*',
+        destination: `${flaskApiUrl}/api/v1/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
