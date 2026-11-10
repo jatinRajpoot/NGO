@@ -95,14 +95,15 @@ export default function CertificateRecipientHub() {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data?.verified && data.record) {
+        if (data?.verified && data.document) {
           return normalizeCertRecord({
-            id: data.record.id || data.record.trackingId || clean,
-            recipient: data.record.name || data.record.recipientName,
-            type: data.record.certificateType || data.record.category || 'Official Certificate',
-            issueDate: data.record.issuedAt || data.record.updatedAt || 'Issued',
+            id: data.document.code || clean,
+            recipient: data.document.recipient,
+            type: data.document.type || 'Official Certificate',
+            issueDate: data.document.date || 'Issued',
+            authority: data.document.authority,
             status: 'Authentic & Verified',
-            purpose: data.record.purpose || data.record.summary,
+            purpose: data.document.purpose,
           });
         }
       }
