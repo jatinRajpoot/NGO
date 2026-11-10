@@ -7,6 +7,7 @@ import Link from 'next/link';
 
 const loginRoles = [
   { label: 'Member Login', href: '/member/login' },
+  { label: 'Donor Login', href: '/donor/login' },
   { label: 'Management Login', href: '/admin/' },
   { label: 'Coordinator Login' },
 ];
@@ -19,7 +20,7 @@ export default function PortalLoginMenu() {
   const menuRef = useRef(null);
   const pathname = usePathname() || '/';
 
-  const isLoginActive = pathname.startsWith('/admin') || pathname.startsWith('/member');
+  const isLoginActive = pathname.startsWith('/admin') || pathname.startsWith('/member') || pathname.startsWith('/donor');
 
   // Close on pathname change
   useEffect(() => {

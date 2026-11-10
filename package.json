@@ -12,7 +12,8 @@
     "test:storage": "node tests/gallery-store.regression.mjs",
     "test:profile": "node tests/admin-profile-and-image-edit.test.mjs",
     "test:public": "node tests/public-pages.integration.mjs",
-    "test:member": "node tests/member-portal.test.mjs"
+    "test:member": "node tests/member-portal.test.mjs",
+    "test:donor": "node tests/donor-portal.test.mjs"
   },
   "overrides": {
     "postcss": "8.5.32"
