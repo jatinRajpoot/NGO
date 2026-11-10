@@ -8,6 +8,7 @@ import { MessageCircle } from 'lucide-react';
 import SiteHeader from './components/SiteHeader';
 import SiteFooter from './components/SiteFooter';
 import LanguageProvider from './components/LanguageProvider';
+import FloatingWhatsApp from './components/FloatingWhatsApp';
 import { organization } from './data/site-data';
 
 const organizationSchema = {
@@ -63,8 +64,8 @@ export default function RootLayout({ children }) {
             <main id="main">{children}</main>
             <SiteFooter />
           </div>
+          <FloatingWhatsApp />
         </LanguageProvider>
-        <a className="floating-whatsapp" href="https://wa.me/919546752915" target="_blank" rel="noreferrer" aria-label="Chat with GSDD Foundation on WhatsApp"><MessageCircle size={21} aria-hidden="true" /><span>Chat with us</span></a>
       </body>
     </html>
   );

@@ -15,8 +15,11 @@ import {
   UserPlus,
   Megaphone,
   UsersRound,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { coreAreas, organization } from '../data/site-data';
+import SocialMediaBar from './SocialMediaBar';
 
 const slides = [
   {
@@ -83,7 +86,16 @@ function SectionHeading({ eyebrow, title, description, href, linkLabel }) {
 
 export default function PortalHome() {
   const [activeSlide, setActiveSlide] = useState(0);
+  const [copiedField, setCopiedField] = useState('');
   const touchStartXRef = useRef(null);
+
+  const copyText = useCallback((text, field) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+    }
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(''), 2500);
+  }, []);
 
   const moveSlide = useCallback((step) => {
     setActiveSlide((current) => (current + step + slides.length) % slides.length);
@@ -244,6 +256,89 @@ export default function PortalHome() {
           <Link href="/transparency" aria-label="View registration and transparency disclosures">
             Registration &amp; transparency <ArrowUpRight size={17} aria-hidden="true" />
           </Link>
+        </div>
+      </section>
+
+      {/* Feature 1 & 11: Foundation ki details dekhna & Social media visit */}
+      <section className="foundation-details-section" aria-label="Official Foundation Details & Statutory Disclosures" id="foundation-details">
+        <div className="home-container">
+          <div className="foundation-details-card">
+            <div className="foundation-details-header">
+              <div>
+                <p className="home-eyebrow" style={{ marginBottom: '4px' }}><span aria-hidden="true" /> Govt. Registered Section 8 NGO</p>
+                <h3>Foundation Details &amp; Registration</h3>
+              </div>
+              <Link href="/transparency" className="button button-outline-blue" style={{ fontSize: '13px', padding: '8px 16px' }}>
+                Verify on MCA / Darpan <ArrowUpRight size={14} aria-hidden="true" />
+              </Link>
+            </div>
+            
+            <div className="foundation-details-grid">
+              <div className="detail-item">
+                <span className="label">Legal Registered Name</span>
+                <div className="value-row">
+                  <span className="value">{organization.legalName}</span>
+                </div>
+              </div>
+              
+              <div className="detail-item">
+                <span className="label">Corporate ID Number (CIN)</span>
+                <div className="value-row">
+                  <span className="value"><code>{organization.cin}</code></span>
+                  <button type="button" className="copy-pill" onClick={() => copyText(organization.cin, 'cin')}>
+                    {copiedField === 'cin' ? 'Copied!' : 'Copy CIN'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="detail-item">
+                <span className="label">NGO Darpan ID (NITI Aayog)</span>
+                <div className="value-row">
+                  <span className="value"><code>{organization.darpan}</code></span>
+                  <button type="button" className="copy-pill" onClick={() => copyText(organization.darpan, 'darpan')}>
+                    {copiedField === 'darpan' ? 'Copied!' : 'Copy Darpan'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="detail-item">
+                <span className="label">12A &amp; 80G Identifiers (Foundation Records)</span>
+                <div className="value-row">
+                  <span className="value">12A: <code>{organization.tax12a}</code> &bull; 80G: <code>{organization.tax80g}</code></span>
+                  <button type="button" className="copy-pill" onClick={() => copyText(organization.tax80g, '80g')}>
+                    {copiedField === '80g' ? 'Copied!' : 'Copy 80G'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="detail-item">
+                <span className="label">PAN, TAN &amp; Udyam Registration</span>
+                <div className="value-row">
+                  <span className="value">PAN: <code>{organization.pan}</code> &bull; TAN: <code>{organization.tan}</code> &bull; Udyam: <code>{organization.udyam}</code></span>
+                  <button type="button" className="copy-pill" onClick={() => copyText(organization.pan, 'pan')}>
+                    {copiedField === 'pan' ? 'Copied!' : 'Copy PAN'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="detail-item">
+                <span className="label">Registered Office Location</span>
+                <div className="value-row">
+                  <span className="value">{organization.address}</span>
+                </div>
+              </div>
+            </div>
+
+            <p style={{ margin: '14px 0 0', fontSize: '12px', color: 'var(--gsdd-text-muted)', lineHeight: 1.5 }}>
+              Statutory identifiers above are reproduced from records supplied by the foundation. Please{' '}
+              <Link href="/transparency" style={{ color: 'var(--gsdd-blue-primary)', fontWeight: 600 }}>
+                view the Transparency page
+              </Link>{' '}
+              or contact the foundation to verify current MCA, NITI Aayog Darpan, and Section 12A/80G certificates directly.
+            </p>
+
+            <SocialMediaBar title="Connect with GSDD Foundation on Social Media" />
+          </div>
         </div>
       </section>
 

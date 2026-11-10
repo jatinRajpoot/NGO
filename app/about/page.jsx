@@ -1,7 +1,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Compass, Target, Eye, BookOpen, Users, ShieldCheck } from 'lucide-react';
 import PageHero from '../components/PageHero';
+import SocialMediaBar from '../components/SocialMediaBar';
 import { aims, organization, visionPillars } from '../data/site-data';
 
 export const metadata = {
@@ -12,6 +13,23 @@ export const metadata = {
 export default function AboutPage() {
   return <>
     <PageHero eyebrow="About GSDD Foundation" title="Opportunity grows when communities can shape their own next step." description="Our work brings people, practical learning and useful information together in support of inclusive community development." image="/images/rural-community.jpg" imageAlt="Women and children gathered in a rural community" actionLabel="Explore our work" actionHref="/core-areas" />
+    
+    <nav className="container" aria-label="About section quick navigation" style={{ marginBlock: '20px' }}>
+      <div className="about-filter-tabs">
+        <a href="#mission" className="about-tab-btn" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <Target size={16} aria-hidden="true" /> NGO Mission
+        </a>
+        <a href="#vision" className="about-tab-btn" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <Eye size={16} aria-hidden="true" /> NGO Vision
+        </a>
+        <a href="#aims" className="about-tab-btn" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <Compass size={16} aria-hidden="true" /> 13 Core Objectives
+        </a>
+        <a href="#leadership" className="about-tab-btn" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <Users size={16} aria-hidden="true" /> Leadership &amp; Team
+        </a>
+      </div>
+    </nav>
     <section className="section-pad" id="foundation">
       <div className="container about-story-grid">
         <div className="about-story-image"><Image src="/hero-bg.jpg" alt="Children studying and reading together in a village" fill sizes="(max-width: 800px) 100vw, 42vw" /><span className="image-caption">Headquartered in Araria, Bihar</span></div>
@@ -81,6 +99,9 @@ export default function AboutPage() {
           <article className="leader-card leader-card-gold"><div className="leader-avatar" aria-hidden="true">AK</div><div className="leader-info"><span>Founder / MD</span><h3>Arvind Kumar</h3><p>Global Skills &amp; Digital Development Foundation</p></div></article>
         </div>
         <div className="section-action"><Link className="button button-outline-blue" href="/team">View management team <ArrowRight size={16} aria-hidden="true" /></Link><Link className="button button-blue" href="/transparency">View statutory registrations <ArrowRight size={16} aria-hidden="true" /></Link></div>
+        <div style={{ marginTop: '36px' }}>
+          <SocialMediaBar title="Follow GSDD Foundation's Mission on Social Media" />
+        </div>
       </div>
     </section>
   </>;

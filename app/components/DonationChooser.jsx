@@ -1,8 +1,9 @@
 'use client';
 
 import { useId, useMemo, useState } from 'react';
-import { ArrowRight, Heart, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Heart, ShieldCheck, QrCode } from 'lucide-react';
 import { organization } from '../data/site-data';
+import OnlineDonationModal from './OnlineDonationModal';
 
 const amounts = [500, 1500, 3000, 6000];
 const MIN_CUSTOM_AMOUNT = 1;
@@ -21,6 +22,7 @@ export default function DonationChooser({ compact = false }) {
   const [donorEmail, setDonorEmail] = useState('');
   const [requestStatus, setRequestStatus] = useState('');
   const [requestError, setRequestError] = useState('');
+  const [showOnlineModal, setShowOnlineModal] = useState(false);
 
   const isCustom = custom !== '';
   const customValue = isCustom ? Number(custom) : Number.NaN;
@@ -264,18 +266,46 @@ export default function DonationChooser({ compact = false }) {
         </div>
       )}
       <p className="impact-note">
-        Suggested amount only. Confirm current programme priorities, payment instructions and receipt details directly
-        with the foundation.
+        Suggested amount only. Submit a UPI QR or bank transfer reference for server verification; 80G receipts are issued only after settlement.
       </p>
-      <a
+
+      <button
+        type="button"
         className="button button-donate donation-submit"
+        style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+        onClick={() => {
+          const check = validateDonation();
+          if (!check.valid) {
+            setRequestError(check.error);
+            return;
+          }
+          setRequestError('');
+          setShowOnlineModal(true);
+        }}
+      >
+        <QrCode size={18} aria-hidden="true" /> Pay via UPI QR &amp; Submit Reference
+      </button>
+
+      <a
+        className="button button-outline-blue donation-submit"
+        style={{ width: '100%', marginBottom: '10px' }}
         href={whatsappHref}
         target="_blank"
         rel="noopener noreferrer"
         onClick={handleWhatsAppClick}
       >
-        Ask for official donation details <ArrowRight size={16} aria-hidden="true" />
+        Ask for official donation details via WhatsApp <ArrowRight size={16} aria-hidden="true" />
       </a>
+      {showOnlineModal && (
+        <OnlineDonationModal
+          amount={chosenAmount}
+          frequency={frequency}
+          purpose={purpose}
+          donorName={donorName}
+          donorEmail={donorEmail}
+          onClose={() => setShowOnlineModal(false)}
+        />
+      )}
       {requestError && (
         <p id={errorId} className="donation-request-error" role="alert">
           {requestError}

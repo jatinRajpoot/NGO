@@ -34,6 +34,8 @@ export function ContactForm() {
   const [ready, setReady] = useState(false);
   const [errors, setErrors] = useState({});
   const [summary, setSummary] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submittedEnquiry, setSubmittedEnquiry] = useState(null);
 
   function clearMessages() {
     setReady(false);
@@ -41,13 +43,14 @@ export function ContactForm() {
     setSummary('');
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
     const name = trimmed(data, 'name');
     const email = trimmed(data, 'email');
     const phone = trimmed(data, 'phone');
+    const topic = trimmed(data, 'topic') || 'General enquiry';
     const message = trimmed(data, 'message');
     const nextErrors = {};
     if (!name) nextErrors.name = 'Enter your name.';
@@ -62,19 +65,86 @@ export function ContactForm() {
       form.elements[firstInvalid]?.focus();
       return;
     }
-    const href = buildMailtoHref(
-      `Website enquiry: ${data.get('topic')}`,
-      `Name: ${name}\nEmail: ${email}\nMobile / WhatsApp: ${phone || 'Not provided'}\n\n${message}`,
-    );
-    if (href.length > MAILTO_URL_LIMIT) {
-      setReady(false);
-      setSummary(`These details are too long for one email draft. Please shorten your message, or email ${organization.email} directly.`);
-      return;
-    }
+
     setErrors({});
     setSummary('');
-    setReady(true);
-    window.location.href = href;
+    setSubmitting(true);
+
+    try {
+      const res = await fetch('/api/inquiries/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, topic, message }),
+      });
+      const payload = await res.json();
+      if (!res.ok || !payload.ok) {
+        setSummary(payload?.error || 'Could not save your enquiry ticket. Please try again.');
+        return;
+      }
+      setSubmittedEnquiry({
+        ...payload.ticket,
+        delivery: payload.delivery,
+      });
+    } catch {
+      setSummary('Network error saving your enquiry ticket. Please try again or email us directly.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (submittedEnquiry) {
+    const waText = `Hello GSDD Foundation, I have submitted an online enquiry [Ticket: ${submittedEnquiry.ticketId}].\nName: ${submittedEnquiry.name}\nTopic: ${submittedEnquiry.topic}\nMessage: ${submittedEnquiry.message}`;
+    const mailText = `Enquiry Ticket: ${submittedEnquiry.ticketId}\nName: ${submittedEnquiry.name}\nEmail: ${submittedEnquiry.email}\nPhone: ${submittedEnquiry.phone}\nTopic: ${submittedEnquiry.topic}\n\n${submittedEnquiry.message}`;
+    const deliveredExternally = Boolean(submittedEnquiry.delivery?.delivered);
+
+    return (
+      <div className="enquiry-success-panel" role="status" aria-live="polite">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+          <span style={{ display: 'grid', placeItems: 'center', width: '36px', height: '36px', borderRadius: '50%', background: '#DCFCE7', color: '#15803D' }}>
+            ✓
+          </span>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--gsdd-navy-dark)' }}>Enquiry Ticket Saved!</h3>
+            <span style={{ fontSize: '12px', color: 'var(--gsdd-text-muted)' }}>Server Ticket ID: <strong><code>{submittedEnquiry.ticketId}</code></strong></span>
+          </div>
+        </div>
+        <p style={{ fontSize: '13px', lineHeight: 1.6, color: '#334155', margin: '0 0 10px' }}>
+          Thank you <strong>{submittedEnquiry.name}</strong>. Your enquiry regarding <strong>{submittedEnquiry.topic}</strong> has been persisted in the foundation server queue for staff review.
+        </p>
+        <p style={{ fontSize: '12px', color: deliveredExternally ? '#15803D' : '#92400E', margin: '0 0 16px' }}>
+          {deliveredExternally
+            ? 'An email notification was dispatched to foundation staff.'
+            : 'External email relay is not configured on this server; your ticket is stored for admin review and you can also forward it immediately via WhatsApp or Email below.'}
+        </p>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          <a
+            href={`https://wa.me/${organization.phoneHref.replace(/\+/g, '')}?text=${encodeURIComponent(waText)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="button button-blue"
+            style={{ fontSize: '13px', padding: '8px 14px' }}
+          >
+            Forward to WhatsApp
+          </a>
+          <a
+            href={buildMailtoHref(`Website enquiry: ${submittedEnquiry.topic} [${submittedEnquiry.ticketId}]`, mailText)}
+            className="button button-outline-blue"
+            style={{ fontSize: '13px', padding: '8px 14px' }}
+          >
+            Send via Email
+          </a>
+          <button
+            type="button"
+            onClick={() => setSubmittedEnquiry(null)}
+            className="button-text"
+            style={{ fontSize: '13px' }}
+          >
+            Submit another enquiry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return <form className="contact-form" onSubmit={handleSubmit} onInput={clearMessages}>
@@ -100,10 +170,11 @@ export function ContactForm() {
       <textarea id="contact-message" name="message" rows="4" maxLength={1200} required placeholder="Tell us how we can help." {...invalidProps('message', errors)} />
       {errors.message && fieldErrorMessage('message-error', errors.message)}
     </label>
-    <button type="submit" className="button button-blue">Prepare email <ArrowRight size={16} aria-hidden="true" /></button>
+    <button type="submit" className="button button-blue" disabled={submitting}>
+      {submitting ? 'Submitting enquiry...' : 'Submit enquiry'} <ArrowRight size={16} aria-hidden="true" />
+    </button>
     {summary && <p className="form-status" role="alert" style={errorBannerStyle}>{summary}</p>}
-    {ready && !summary && <p className="form-status" role="status">Your email app should open with a draft. If it does not open, you can email {organization.email} directly.</p>}
-    <p className="form-caption">Submitting opens your email app. This form does not store your information on this website.</p>
+    <p className="form-caption">Your enquiry is saved in our staff queue with a ticket ID for follow-up.</p>
   </form>;
 }
 
