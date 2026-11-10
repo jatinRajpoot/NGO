@@ -302,9 +302,9 @@ export default function PortalHome() {
               </div>
 
               <div className="detail-item">
-                <span className="label">12A &amp; 80G Tax Exemption</span>
+                <span className="label">12A &amp; 80G Identifiers (Foundation Records)</span>
                 <div className="value-row">
-                  <span className="value">80G: <code>{organization.tax80g}</code></span>
+                  <span className="value">12A: <code>{organization.tax12a}</code> &bull; 80G: <code>{organization.tax80g}</code></span>
                   <button type="button" className="copy-pill" onClick={() => copyText(organization.tax80g, '80g')}>
                     {copiedField === '80g' ? 'Copied!' : 'Copy 80G'}
                   </button>
@@ -312,9 +312,9 @@ export default function PortalHome() {
               </div>
 
               <div className="detail-item">
-                <span className="label">Permanent Account Number (PAN)</span>
+                <span className="label">PAN, TAN &amp; Udyam Registration</span>
                 <div className="value-row">
-                  <span className="value"><code>{organization.pan}</code> &bull; TAN: <code>{organization.tan}</code></span>
+                  <span className="value">PAN: <code>{organization.pan}</code> &bull; TAN: <code>{organization.tan}</code> &bull; Udyam: <code>{organization.udyam}</code></span>
                   <button type="button" className="copy-pill" onClick={() => copyText(organization.pan, 'pan')}>
                     {copiedField === 'pan' ? 'Copied!' : 'Copy PAN'}
                   </button>
@@ -328,6 +328,14 @@ export default function PortalHome() {
                 </div>
               </div>
             </div>
+
+            <p style={{ margin: '14px 0 0', fontSize: '12px', color: 'var(--gsdd-text-muted)', lineHeight: 1.5 }}>
+              Statutory identifiers above are reproduced from records supplied by the foundation. Please{' '}
+              <Link href="/transparency" style={{ color: 'var(--gsdd-blue-primary)', fontWeight: 600 }}>
+                view the Transparency page
+              </Link>{' '}
+              or contact the foundation to verify current MCA, NITI Aayog Darpan, and Section 12A/80G certificates directly.
+            </p>
 
             <SocialMediaBar title="Connect with GSDD Foundation on Social Media" />
           </div>
