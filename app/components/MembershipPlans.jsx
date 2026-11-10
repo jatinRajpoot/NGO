@@ -108,30 +108,40 @@ export default function MembershipPlans() {
 
   const [applicationResult, setApplicationResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  function handleApplySubmit(e) {
+  async function handleApplySubmit(e) {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg('');
 
-    const randomId = Math.floor(1000 + Math.random() * 9000);
-    const appId = `GSDD-M-APP-2026-${randomId}`;
-
-    setTimeout(() => {
-      setApplicationResult({
-        appId,
-        name: fullName.trim(),
-        fatherSpouse: fatherSpouse.trim(),
-        phone: phone.trim(),
-        email: email.trim(),
-        tier: selectedTier,
-        designation: desiredDesignation,
-        address: `${address}, ${district}, ${state} - ${pincode}`,
-        interest: interestArea,
-        bloodGroup,
-        appliedDate: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+    try {
+      const res = await fetch('/api/members/apply/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: fullName.trim(),
+          fatherSpouse: fatherSpouse.trim(),
+          phone: phone.trim(),
+          email: email.trim(),
+          tier: selectedTier,
+          designation: desiredDesignation,
+          address: `${address}, ${district}, ${state} - ${pincode}`,
+          interest: interestArea,
+          bloodGroup,
+        }),
       });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setErrorMsg(data?.error || 'Could not submit membership application.');
+        return;
+      }
+      setApplicationResult(data.application);
+    } catch {
+      setErrorMsg('Network error submitting application. Please try again.');
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   }
 
   return (
@@ -371,6 +381,12 @@ export default function MembershipPlans() {
                   </select>
                 </label>
               </div>
+
+              {errorMsg && (
+                <p role="alert" style={{ color: '#991B1B', background: '#FEF2F2', border: '1px solid #FCA5A5', padding: '10px 12px', borderRadius: '6px', fontSize: '13px', marginBottom: '12px' }}>
+                  {errorMsg}
+                </p>
+              )}
 
               <div className="form-action-row">
                 <button type="submit" className="button button-blue" disabled={loading}>

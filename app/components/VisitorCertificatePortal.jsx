@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Award, Download, Printer, CheckCircle2, ShieldCheck, ArrowRight, ExternalLink, Calendar, User, FileText, QrCode } from 'lucide-react';
+import { Award, Printer, CheckCircle2, ShieldCheck, QrCode, Clock, RefreshCw, AlertCircle } from 'lucide-react';
 import { organization } from '../data/site-data';
+import QRCodeSvg from './QRCodeSvg';
 
 export default function VisitorCertificatePortal() {
   const [visitorName, setVisitorName] = useState('');
@@ -13,47 +14,88 @@ export default function VisitorCertificatePortal() {
   const [visitPurpose, setVisitPurpose] = useState('Annual Skill Development Conclave 2026');
   const [visitDate, setVisitDate] = useState('2026-03-05');
   const [comments, setComments] = useState('');
-  
-  const [issuedCert, setIssuedCert] = useState(null);
-  const [loading, setLoading] = useState(false);
 
-  function handleGenerate(e) {
+  const [certRecord, setCertRecord] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  async function handleGenerate(e) {
     e.preventDefault();
     if (!visitorName.trim()) return;
     setLoading(true);
+    setErrorMsg('');
 
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const certNo = `GSDD-VIS-2026-${randomSuffix}`;
-
-    setTimeout(() => {
-      setIssuedCert({
-        certNo,
-        name: visitorName.trim(),
-        organization: organizationName.trim() || 'Independent Visitor',
-        email: email.trim(),
-        phone: phone.trim(),
-        purpose: visitPurpose,
-        date: visitDate,
-        issuedBy: 'Jatin Rajpoot (President) & Amit Kumar Singh (General Secretary)',
-        timestamp: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+    try {
+      const res = await fetch('/api/certificates/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: visitorName.trim(),
+          organization: organizationName.trim() || 'Independent Visitor',
+          email: email.trim(),
+          phone: phone.trim(),
+          purpose: visitPurpose,
+          date: visitDate,
+          comments: comments.trim(),
+        }),
       });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setErrorMsg(data?.error || 'Unable to log certificate request.');
+        return;
+      }
+      setCertRecord(data.certificate);
+    } catch {
+      setErrorMsg('Network error submitting certificate request. Please try again.');
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   }
 
-  function handlePrint() {
-    window.print();
+  async function handleRefreshStatus() {
+    if (!certRecord?.id) return;
+    setChecking(true);
+    setErrorMsg('');
+    try {
+      const res = await fetch(`/api/certificates/verify/?code=${encodeURIComponent(certRecord.id)}`);
+      const data = await res.json();
+      if (data?.document) {
+        setCertRecord((prev) => ({
+          ...prev,
+          id: data.document.code || prev.id,
+          status: data.document.status,
+          isVerifiedOfficial: data.document.isVerifiedOfficial,
+          authority: data.document.authority,
+          type: data.document.type,
+        }));
+      }
+    } catch {
+      setErrorMsg('Unable to check approval status right now.');
+    } finally {
+      setChecking(false);
+    }
   }
+
+  const isOfficial = Boolean(certRecord?.isVerifiedOfficial && certRecord?.status === 'Verified');
+  const verifyUrl = certRecord ? `https://gsddfoundation.org/verify/?code=${encodeURIComponent(certRecord.id)}` : '';
 
   return (
     <div className="visitor-cert-portal">
-      {!issuedCert ? (
+      {!certRecord ? (
         <form onSubmit={handleGenerate} className="visitor-cert-form card-surface">
           <div className="form-header">
             <span className="pill-badge"><Award size={14} aria-hidden="true" /> Visitor Certificate Request</span>
-            <h2>Request Your Official Visitor Certificate</h2>
-            <p>Non-members, guests, seminar participants, and community visitors can request an official GSDD Foundation Visitor Certificate of Honor &amp; Participation.</p>
+            <h2>Request Your Visitor Certificate</h2>
+            <p>Non-members, guests, seminar participants, and community visitors can submit a certificate request for staff verification and official issuance.</p>
           </div>
+
+          {errorMsg && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }} role="alert">
+              <AlertCircle size={16} aria-hidden="true" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
           <div className="form-grid">
             <label>
@@ -138,32 +180,66 @@ export default function VisitorCertificatePortal() {
           <div className="form-action-row">
             <button type="submit" className="button button-blue" disabled={loading}>
               <Award size={18} aria-hidden="true" />
-              {loading ? 'Generating Certificate...' : 'Generate Official Certificate'}
+              {loading ? 'Submitting Request...' : 'Submit Certificate Request'}
             </button>
           </div>
-          <p className="form-note"><ShieldCheck size={14} aria-hidden="true" /> Each certificate comes with an official serial number and QR verification link verifiable on our portal.</p>
+          <p className="form-note"><ShieldCheck size={14} aria-hidden="true" /> Requests are logged on our server and become verifiable official certificates once approved by foundation staff.</p>
         </form>
+      ) : !isOfficial ? (
+        <div className="issued-cert-wrapper card-surface" style={{ padding: '24px' }} role="status" aria-live="polite">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', marginBottom: '18px' }}>
+            <Clock size={22} color="#B45309" aria-hidden="true" />
+            <div>
+              <strong style={{ display: 'block', color: '#92400E' }}>
+                Request Logged — {certRecord.status}
+              </strong>
+              <span style={{ fontSize: '13px', color: '#78350F' }}>
+                Request ID: <code>{certRecord.id}</code>. This certificate is not official or verified until approved by foundation staff.
+              </span>
+            </div>
+          </div>
+
+          <div className="app-summary-box" style={{ marginBottom: '18px' }}>
+            <div className="summary-row"><span className="lbl">Request Tracking ID:</span><span className="val"><code>{certRecord.id}</code></span></div>
+            <div className="summary-row"><span className="lbl">Visitor Name:</span><span className="val">{certRecord.recipient}</span></div>
+            <div className="summary-row"><span className="lbl">Affiliation:</span><span className="val">{certRecord.organization}</span></div>
+            <div className="summary-row"><span className="lbl">Program / Event:</span><span className="val">{certRecord.purpose}</span></div>
+            <div className="summary-row"><span className="lbl">Visit Date:</span><span className="val">{certRecord.date}</span></div>
+            <div className="summary-row"><span className="lbl">Status:</span><span className="val"><strong>{certRecord.status}</strong></span></div>
+          </div>
+
+          <div className="cert-action-buttons" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            <button type="button" onClick={handleRefreshStatus} disabled={checking} className="button button-blue">
+              <RefreshCw size={15} aria-hidden="true" /> {checking ? 'Checking...' : 'Check Approval Status'}
+            </button>
+            <Link href={`/verify/?code=${encodeURIComponent(certRecord.id)}`} className="button button-outline-blue">
+              <QrCode size={16} aria-hidden="true" /> View Verification Status
+            </Link>
+            <button type="button" onClick={() => setCertRecord(null)} className="button-text">
+              Submit Another Request
+            </button>
+          </div>
+        </div>
       ) : (
         <div className="issued-cert-wrapper">
           <div className="cert-toolbar no-print">
             <div className="cert-status-msg">
               <CheckCircle2 size={20} color="#15803D" aria-hidden="true" />
-              <span><strong>Certificate Successfully Issued!</strong> Verified Serial: <code>{issuedCert.certNo}</code></span>
+              <span><strong>Verified Official Certificate!</strong> Serial: <code>{certRecord.id}</code></span>
             </div>
             <div className="cert-action-buttons">
-              <button type="button" onClick={handlePrint} className="button button-blue">
+              <button type="button" onClick={() => window.print()} className="button button-blue">
                 <Printer size={16} aria-hidden="true" /> Print / Save as PDF
               </button>
-              <Link href={`/verify?code=${issuedCert.certNo}`} className="button button-outline-blue">
+              <Link href={`/verify/?code=${encodeURIComponent(certRecord.id)}`} className="button button-outline-blue">
                 <QrCode size={16} aria-hidden="true" /> Verify Online
               </Link>
-              <button type="button" onClick={() => setIssuedCert(null)} className="button-text">
+              <button type="button" onClick={() => setCertRecord(null)} className="button-text">
                 Request Another
               </button>
             </div>
           </div>
 
-          {/* Official Printable Certificate Layout */}
           <div className="printable-certificate-frame">
             <div className="cert-border-outer">
               <div className="cert-border-inner">
@@ -175,44 +251,43 @@ export default function VisitorCertificatePortal() {
                 </div>
 
                 <div className="cert-ribbon-badge">CERTIFICATE OF PARTICIPATION &amp; HONOR</div>
-                
+
                 <p className="cert-certifies">THIS CERTIFICATE IS PROUDLY PRESENTED TO</p>
-                <div className="cert-recipient-name">{issuedCert.name}</div>
-                {issuedCert.organization && (
-                  <p className="cert-recipient-org">Representing: <strong>{issuedCert.organization}</strong></p>
+                <div className="cert-recipient-name">{certRecord.recipient}</div>
+                {certRecord.organization && (
+                  <p className="cert-recipient-org">Representing: <strong>{certRecord.organization}</strong></p>
                 )}
 
                 <p className="cert-body-text">
                   in recognition and appreciation of your valuable presence, participation, and contribution during the{' '}
-                  <strong>&ldquo;{issuedCert.purpose}&rdquo;</strong> organized by Global Skills &amp; Digital Development Foundation at Raniganj, Araria, Bihar on <strong>{issuedCert.date}</strong>.
+                  <strong>&ldquo;{certRecord.purpose}&rdquo;</strong> organized by Global Skills &amp; Digital Development Foundation at Raniganj, Araria, Bihar on <strong>{certRecord.date}</strong>.
                 </p>
 
                 <div className="cert-footer">
                   <div className="cert-sig-block">
-                    <div className="sig-line">Jatin Rajpoot</div>
-                    <span className="sig-title">President</span>
+                    <div className="sig-line">Manoj Kumar Bishwas</div>
+                    <span className="sig-title">Founder / CEO</span>
                     <span className="sig-org">GSDD Foundation</span>
                   </div>
 
                   <div className="cert-qr-block">
                     <div className="cert-qr-box">
-                      <QrCode size={64} aria-hidden="true" />
+                      <QRCodeSvg value={verifyUrl} size={96} label={certRecord.id} />
                     </div>
-                    <span className="qr-code-text">{issuedCert.certNo}</span>
                     <small>Scan or visit /verify to validate</small>
                   </div>
 
                   <div className="cert-sig-block">
-                    <div className="sig-line">Amit Kumar Singh</div>
-                    <span className="sig-title">General Secretary</span>
+                    <div className="sig-line">Arvind Kumar</div>
+                    <span className="sig-title">Founder / MD</span>
                     <span className="sig-org">GSDD Foundation</span>
                   </div>
                 </div>
 
                 <div className="cert-bottom-id">
-                  <span>Certificate ID: <strong>{issuedCert.certNo}</strong></span>
-                  <span>Issued Date: {issuedCert.timestamp}</span>
-                  <span>Authenticity: Verified Section 8 Registry</span>
+                  <span>Certificate ID: <strong>{certRecord.id}</strong></span>
+                  <span>Visit Date: {certRecord.date}</span>
+                  <span>Authenticity: Verified Server Registry</span>
                 </div>
               </div>
             </div>
