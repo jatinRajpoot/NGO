@@ -10,7 +10,7 @@ const loginRoles = [
   { label: 'Donor Login', href: '/donor/login' },
   { label: 'Team Member Login', href: '/team/login' },
   { label: 'Management Login', href: '/admin/' },
-  { label: 'Coordinator Login' },
+  { label: 'Coordinator Login', href: '/coordinator/login' },
 ];
 
 export default function PortalLoginMenu() {
@@ -25,7 +25,8 @@ export default function PortalLoginMenu() {
     pathname.startsWith('/admin') ||
     pathname.startsWith('/member') ||
     pathname.startsWith('/donor') ||
-    pathname.startsWith('/team');
+    pathname.startsWith('/team') ||
+    pathname.startsWith('/coordinator');
 
   // Close on pathname change
   useEffect(() => {

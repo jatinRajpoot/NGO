@@ -1,6 +1,6 @@
 const publicPaths = [
-  '', 'about', 'activities', 'campaigns', 'complaints', 'contact', 'core-areas',
-  'donate', 'events', 'gallery', 'get-involved', 'internships', 'membership',
+  '', 'about', 'activities', 'autopay-donate', 'autopay-donate/status', 'campaigns', 'complaints', 'contact', 'core-areas',
+  'donate', 'donation-history', 'events', 'gallery', 'get-involved', 'internships', 'membership',
   'news', 'privacy-policy', 'projects', 'refund-policy', 'team', 'terms',
   'transparency', 'verify', 'visitor-certificate', 'work-sectors',
 ];

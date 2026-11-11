@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import {
   LayoutGrid, Globe, Users, UserCog, Award, HandHeart, CalendarClock,
   MessageSquare, CalendarCheck, TrendingUp, User, Lock, LogOut,
-  Loader2, Menu, X, ArrowUpRight, Bell, ChevronRight, Check
+  Loader2, Menu, X, ArrowUpRight, Bell, ChevronRight, Check, Briefcase
 } from 'lucide-react';
 
 import './sections/admin-sections.css';
 import WebsiteManagement from './sections/WebsiteManagement';
 import MembershipManagement from './sections/MembershipManagement';
 import TeamManagement from './sections/TeamManagement';
+import CoordinatorSection from './sections/CoordinatorSection';
 import CertificateManagement from './sections/CertificateManagement';
 import DonationManagement from './sections/DonationManagement';
 import RecurringDonations from './sections/RecurringDonations';
@@ -26,6 +27,7 @@ const navItems = [
   { key: 'team', label: 'Team Management', icon: UserCog },
   { key: 'certificates', label: 'Certificate Management', icon: Award },
   { key: 'donations', label: 'Donation Management', icon: HandHeart },
+  { key: 'coordinators', label: 'Coordinators & Collections', icon: Briefcase },
   { key: 'recurring', label: 'Recurring Donations', icon: CalendarClock },
   { key: 'messages', label: 'Messages & Notifications', icon: MessageSquare },
   { key: 'appointments', label: 'Appointments', icon: CalendarCheck },
@@ -281,6 +283,7 @@ export default function AdminDashboard() {
           {activeKey === 'team' && <TeamManagement notify={notify} />}
           {activeKey === 'certificates' && <CertificateManagement notify={notify} />}
           {activeKey === 'donations' && <DonationManagement notify={notify} />}
+          {activeKey === 'coordinators' && <CoordinatorSection notify={notify} />}
           {activeKey === 'recurring' && <RecurringDonations notify={notify} />}
           {activeKey === 'messages' && <MessagesNotifications notify={notify} />}
           {activeKey === 'appointments' && <AppointmentsSection notify={notify} />}
