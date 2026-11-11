@@ -3,14 +3,20 @@ import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import PageHero from '../components/PageHero';
 import ProjectGallery from '../components/ProjectGallery';
+import PublicProjectTracker from '../components/PublicProjectTracker';
+import { listProjects } from '../lib/operations-store';
 import { projects } from '../data/site-data';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Projects | GSDD Foundation',
   description: 'Explore illustrative project concepts based on the stated focus areas of Global Skills & Digital Development Foundation.',
 };
 
-export default function ProjectsPage() {
+export default async function ProjectsPage() {
+  const opsProjects = await listProjects({ tab: 'all' });
+
   return <>
     <PageHero eyebrow="Projects" title="Ideas for community-centred work." description="Explore illustrative programme concepts based on the foundation’s stated focus areas. No approved or operating project details were supplied for publication." image="/hero-bg.jpg" imageAlt="Children learning together in a village" actionLabel="Discuss a partnership" actionHref="/get-involved#partnerships" />
     <section className="section-pad projects-section">
@@ -22,6 +28,11 @@ export default function ProjectsPage() {
             <div className="project-card-copy"><span className="project-area">{project.area}</span><h3>{project.title}</h3><p>{project.objective}</p><Link className="text-link" href={`/projects/${project.slug}`}>View concept details <ArrowRight size={15} aria-hidden="true" /></Link></div>
           </article>)}
         </div>
+      </div>
+    </section>
+    <section className="section-pad">
+      <div className="container">
+        <PublicProjectTracker initialProjects={opsProjects} />
       </div>
     </section>
     <section className="section-pad gallery-section">
