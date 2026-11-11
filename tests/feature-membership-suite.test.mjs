@@ -209,8 +209,9 @@ async function main() {
         name: 'Member Extension User',
         email: 'member.ext@example.org',
         phone: '9835055443',
+        address: 'Raniganj, Araria, Bihar',
         password: 'StrongPassword123!',
-        plan: 'Annual Member',
+        category: 'Annual Member',
       }),
     });
     assert.equal(memRegRes.status, 201);
