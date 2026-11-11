@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import {
   LayoutGrid, Globe, Users, UserCog, Award, HandHeart, CalendarClock,
   MessageSquare, CalendarCheck, TrendingUp, User, Lock, LogOut,
-  Loader2, Menu, X, ArrowUpRight, Bell, ChevronRight, Check
+  Loader2, Menu, X, ArrowUpRight, Bell, ChevronRight, Check, HeartHandshake
 } from 'lucide-react';
 
 import './sections/admin-sections.css';
 import WebsiteManagement from './sections/WebsiteManagement';
+import BeneficiariesSupportSection from './sections/BeneficiariesSupportSection';
 import MembershipManagement from './sections/MembershipManagement';
 import TeamManagement from './sections/TeamManagement';
 import CertificateManagement from './sections/CertificateManagement';
@@ -28,6 +29,7 @@ const navItems = [
   { key: 'donations', label: 'Donation Management', icon: HandHeart },
   { key: 'recurring', label: 'Recurring Donations', icon: CalendarClock },
   { key: 'messages', label: 'Messages & Notifications', icon: MessageSquare },
+  { key: 'support', label: 'Beneficiaries & Grievances', icon: HeartHandshake },
   { key: 'appointments', label: 'Appointments', icon: CalendarCheck },
   { key: 'reports', label: 'Reports & Analytics', icon: TrendingUp },
   { key: 'profile', label: 'Admin Profile', icon: User },
@@ -283,6 +285,7 @@ export default function AdminDashboard() {
           {activeKey === 'donations' && <DonationManagement notify={notify} />}
           {activeKey === 'recurring' && <RecurringDonations notify={notify} />}
           {activeKey === 'messages' && <MessagesNotifications notify={notify} />}
+          {activeKey === 'support' && <BeneficiariesSupportSection notify={notify} />}
           {activeKey === 'appointments' && <AppointmentsSection notify={notify} />}
           {activeKey === 'reports' && <ReportsAnalytics notify={notify} />}
           {activeKey === 'profile' && (
