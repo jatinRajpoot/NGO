@@ -10,6 +10,7 @@ import {
 import './sections/admin-sections.css';
 import WebsiteManagement from './sections/WebsiteManagement';
 import MembershipManagement from './sections/MembershipManagement';
+import MembershipSuiteSection from './sections/MembershipSuiteSection';
 import TeamManagement from './sections/TeamManagement';
 import CertificateManagement from './sections/CertificateManagement';
 import DonationManagement from './sections/DonationManagement';
@@ -23,6 +24,7 @@ import SecuritySection from './sections/SecuritySection';
 const navItems = [
   { key: 'website', label: 'Website Management', icon: Globe },
   { key: 'membership', label: 'Membership Management', icon: Users },
+  { key: 'member-suite', label: 'Members Suite & Governance', icon: Award },
   { key: 'team', label: 'Team Management', icon: UserCog },
   { key: 'certificates', label: 'Certificate Management', icon: Award },
   { key: 'donations', label: 'Donation Management', icon: HandHeart },
@@ -278,6 +280,7 @@ export default function AdminDashboard() {
 
           {activeKey === 'website' && <WebsiteManagement notify={notify} initialTab={websiteSubTab} />}
           {activeKey === 'membership' && <MembershipManagement notify={notify} />}
+          {activeKey === 'member-suite' && <MembershipSuiteSection notify={notify} />}
           {activeKey === 'team' && <TeamManagement notify={notify} />}
           {activeKey === 'certificates' && <CertificateManagement notify={notify} />}
           {activeKey === 'donations' && <DonationManagement notify={notify} />}
