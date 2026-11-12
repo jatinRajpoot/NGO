@@ -5,7 +5,7 @@ import {
   LayoutGrid, Globe, Users, UserCog, Award, HandHeart, CalendarClock,
   MessageSquare, CalendarCheck, TrendingUp, User, Lock, LogOut,
   Loader2, Menu, X, ArrowUpRight, Bell, ChevronRight, Check,
-  FileText, Newspaper, Cake, QrCode, ScrollText, Settings, Briefcase
+  FileText, Newspaper, Cake, QrCode, ScrollText, Settings, Briefcase, FolderKanban
 } from 'lucide-react';
 
 import './sections/admin-sections.css';
@@ -14,6 +14,7 @@ import AdminOverviewSection from './sections/AdminOverviewSection';
 import WebsiteManagement from './sections/WebsiteManagement';
 import PostsActivitySection from './sections/PostsActivitySection';
 import NewsManagementSection from './sections/NewsManagementSection';
+import OperationsManagementSection from './sections/OperationsManagementSection';
 import BirthdayWishesSection from './sections/BirthdayWishesSection';
 import WebsiteQrSection from './sections/WebsiteQrSection';
 import LetterHeadSection from './sections/LetterHeadSection';
@@ -35,6 +36,7 @@ const navItems = [
   { key: 'website', label: 'Website Management', icon: Globe },
   { key: 'posts', label: 'Posts & Activity', icon: FileText },
   { key: 'news', label: 'News Management', icon: Newspaper },
+  { key: 'operations', label: 'Operations Suite', icon: FolderKanban },
   { key: 'membership', label: 'Membership Management', icon: Users },
   { key: 'team', label: 'Team Management', icon: UserCog },
   { key: 'certificates', label: 'Certificate Management', icon: Award },
@@ -299,6 +301,7 @@ export default function AdminDashboard() {
           {activeKey === 'website' && <WebsiteManagement notify={notify} initialTab={websiteSubTab} />}
           {activeKey === 'posts' && <PostsActivitySection notify={notify} />}
           {activeKey === 'news' && <NewsManagementSection notify={notify} />}
+          {activeKey === 'operations' && <OperationsManagementSection notify={notify} />}
           {activeKey === 'membership' && <MembershipManagement notify={notify} />}
           {activeKey === 'team' && <TeamManagement notify={notify} />}
           {activeKey === 'certificates' && <CertificateManagement notify={notify} />}
