@@ -104,7 +104,7 @@ function isProduction() {
 }
 
 function isProductionWithoutBucket() {
-  return isProduction() && !getBucketName();
+  return isProduction() && !getBucketName() && !process.env.GALLERY_DATA_DIR;
 }
 
 function getLocalDataDir() {

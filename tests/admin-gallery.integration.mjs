@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes, scryptSync } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -22,13 +23,16 @@ const passwordHash = `${salt}:${scryptSync(password, salt, 64).toString('hex')}`
 const sessionSecret = randomBytes(48).toString('hex');
 const testDataDir = await mkdtemp(path.join(tmpdir(), 'gsdd-gallery-test-'));
 
+const hasBuild = existsSync(path.join(process.cwd(), '.next', 'BUILD_ID'));
+const nextCmd = hasBuild ? 'start' : 'dev';
+
 const child = spawn(
   process.execPath,
-  ['node_modules/next/dist/bin/next', 'dev', '--hostname', '127.0.0.1', '--port', String(port)],
+  ['node_modules/next/dist/bin/next', nextCmd, '--hostname', '127.0.0.1', '--port', String(port)],
   {
     env: {
       ...process.env,
-      NODE_ENV: 'development',
+      NODE_ENV: hasBuild ? 'production' : 'development',
       GALLERY_BUCKET: '',
       GALLERY_DATA_DIR: testDataDir,
       ADMIN_USERNAME: 'integration-admin',
