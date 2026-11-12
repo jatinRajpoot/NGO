@@ -1,0 +1,121 @@
+/* Scoped CSS for public Campaigns Directory and Gateway Checkout Modal */
+.posts-feed-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e4e1d8;
+}
+
+.posts-filter-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.posts-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 7px 14px;
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gsdd-navy-dark);
+  background: #f5f3ed;
+  border: 1px solid #dfd9cc;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.posts-filter-btn.is-active {
+  color: #fff;
+  background: var(--gsdd-navy-dark);
+  border-color: var(--gsdd-navy-dark);
+}
+
+.posts-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 22px;
+}
+
+.post-feed-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e6e2d8;
+  border-radius: 12px;
+  box-shadow: 0 8px 22px rgba(9, 21, 47, 0.05);
+}
+
+.post-card-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  padding: 18px 20px 20px;
+  gap: 10px;
+}
+
+.post-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.post-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  border-radius: 999px;
+}
+
+.post-type-badge.is-activity {
+  color: #164e63;
+  background: #e0f2fe;
+}
+
+.post-type-badge.is-press {
+  color: #6b4e16;
+  background: #fef3c7;
+}
+
+.post-type-badge.is-news {
+  color: #1e3a8a;
+  background: #dbeafe;
+}
+
+.post-card-title {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--gsdd-navy-dark);
+}
+
+.post-richtext {
+  color: #334155;
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+.post-card-actions {
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.spin {
+  animation: finance-spin 0.9s linear infinite;
+}
+
+@keyframes finance-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

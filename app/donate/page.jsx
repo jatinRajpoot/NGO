@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, BadgeCheck, ClipboardCheck, HeartHandshake, MessageCircle, ShieldCheck } from 'lucide-react';
 import PageHero from '../components/PageHero';
 import DonationChooser from '../components/DonationChooser';
+import DonateGatewaySection from '../components/DonateGatewaySection';
 import { organization } from '../data/site-data';
 
 export const metadata = {
@@ -32,7 +33,10 @@ export default function DonatePage() {
           </div>
           <div className="donate-contact-card"><span>Donor support</span><a href={`tel:${organization.phoneHref}`}>{organization.phone}</a><a href={`mailto:${organization.email}`}>{organization.email}</a></div>
         </div>
-        <DonationChooser />
+        <div>
+          <DonationChooser />
+          <DonateGatewaySection />
+        </div>
       </div>
     </section>
     <section className="section-pad donation-steps-section">

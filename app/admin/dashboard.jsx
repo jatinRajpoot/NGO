@@ -5,7 +5,7 @@ import {
   LayoutGrid, Globe, Users, UserCog, Award, HandHeart, CalendarClock,
   MessageSquare, CalendarCheck, TrendingUp, User, Lock, LogOut,
   Loader2, Menu, X, ArrowUpRight, Bell, ChevronRight, Check,
-  FileText, Newspaper, Cake, QrCode, ScrollText, Settings
+  FileText, Newspaper, Cake, QrCode, ScrollText, Settings, Briefcase
 } from 'lucide-react';
 
 import './sections/admin-sections.css';
@@ -20,6 +20,7 @@ import LetterHeadSection from './sections/LetterHeadSection';
 import SoftwareUpdateSection from './sections/SoftwareUpdateSection';
 import MembershipManagement from './sections/MembershipManagement';
 import TeamManagement from './sections/TeamManagement';
+import CoordinatorSection from './sections/CoordinatorSection';
 import CertificateManagement from './sections/CertificateManagement';
 import DonationManagement from './sections/DonationManagement';
 import RecurringDonations from './sections/RecurringDonations';
@@ -39,6 +40,7 @@ const navItems = [
   { key: 'certificates', label: 'Certificate Management', icon: Award },
   { key: 'birthday', label: 'Birthday Wishes', icon: Cake },
   { key: 'donations', label: 'Donation Management', icon: HandHeart },
+  { key: 'coordinators', label: 'Coordinators & Collections', icon: Briefcase },
   { key: 'recurring', label: 'Recurring Donations', icon: CalendarClock },
   { key: 'messages', label: 'Messages & Notifications', icon: MessageSquare },
   { key: 'appointments', label: 'Appointments', icon: CalendarCheck },
@@ -302,6 +304,7 @@ export default function AdminDashboard() {
           {activeKey === 'certificates' && <CertificateManagement notify={notify} />}
           {activeKey === 'birthday' && <BirthdayWishesSection notify={notify} />}
           {activeKey === 'donations' && <DonationManagement notify={notify} />}
+          {activeKey === 'coordinators' && <CoordinatorSection notify={notify} />}
           {activeKey === 'recurring' && <RecurringDonations notify={notify} />}
           {activeKey === 'messages' && <MessagesNotifications notify={notify} />}
           {activeKey === 'appointments' && <AppointmentsSection notify={notify} />}
