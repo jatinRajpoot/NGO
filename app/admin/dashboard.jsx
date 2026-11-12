@@ -21,6 +21,7 @@ import WebsiteQrSection from './sections/WebsiteQrSection';
 import LetterHeadSection from './sections/LetterHeadSection';
 import SoftwareUpdateSection from './sections/SoftwareUpdateSection';
 import MembershipManagement from './sections/MembershipManagement';
+import MembershipSuiteSection from './sections/MembershipSuiteSection';
 import TeamManagement from './sections/TeamManagement';
 import CoordinatorSection from './sections/CoordinatorSection';
 import CertificateManagement from './sections/CertificateManagement';
@@ -39,6 +40,7 @@ const navItems = [
   { key: 'news', label: 'News Management', icon: Newspaper },
   { key: 'operations', label: 'Operations Suite', icon: FolderKanban },
   { key: 'membership', label: 'Membership Management', icon: Users },
+  { key: 'member-suite', label: 'Members Suite & Governance', icon: Award },
   { key: 'team', label: 'Team Management', icon: UserCog },
   { key: 'certificates', label: 'Certificate Management', icon: Award },
   { key: 'birthday', label: 'Birthday Wishes', icon: Cake },
@@ -305,6 +307,7 @@ export default function AdminDashboard() {
           {activeKey === 'news' && <NewsManagementSection notify={notify} />}
           {activeKey === 'operations' && <OperationsManagementSection notify={notify} />}
           {activeKey === 'membership' && <MembershipManagement notify={notify} />}
+          {activeKey === 'member-suite' && <MembershipSuiteSection notify={notify} />}
           {activeKey === 'team' && <TeamManagement notify={notify} />}
           {activeKey === 'certificates' && <CertificateManagement notify={notify} />}
           {activeKey === 'birthday' && <BirthdayWishesSection notify={notify} />}

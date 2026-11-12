@@ -1,8 +1,9 @@
 const publicPaths = [
   '', 'about', 'achievements', 'activities', 'activity-post', 'autopay-donate', 'autopay-donate/status',
   'beneficiaries', 'beneficiaries/apply', 'campaigns', 'careers', 'check-status', 'complaints', 'contact', 'core-areas',
-  'donate', 'donation-history', 'events', 'gallery', 'get-involved', 'internships', 'internships/verify-certificate',
-  'membership', 'news', 'press-release', 'privacy-policy', 'projects', 'refund-policy', 'team', 'terms',
+  'donate', 'donation-history', 'events', 'forgot-password', 'gallery', 'general-members', 'get-involved', 'internships',
+  'internships/verify-certificate', 'management-body', 'member-verification', 'membership', 'news', 'press-release',
+  'privacy-policy', 'projects', 'refund-policy', 'team', 'terms',
   'transparency', 'verify', 'visitor-certificate', 'work-sectors',
 ];
 

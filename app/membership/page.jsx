@@ -3,6 +3,7 @@ import { ArrowRight, UsersRound, ShieldCheck, UserCheck } from 'lucide-react';
 import EmailDraftForm from '../components/EmailDraftForm';
 import PageHero from '../components/PageHero';
 import MembershipPlans from '../components/MembershipPlans';
+import ExtendedMembershipForm from '../components/ExtendedMembershipForm';
 
 export const metadata = {
   title: 'Membership | GSDD Foundation',
@@ -29,6 +30,7 @@ export default function MembershipPage() {
     <section className="section-pad" style={{ background: '#FAF9F6', paddingBottom: 0 }}>
       <div className="container">
         <MembershipPlans />
+        <ExtendedMembershipForm />
       </div>
     </section>
 
