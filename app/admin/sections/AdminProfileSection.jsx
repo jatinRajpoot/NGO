@@ -59,11 +59,67 @@ export default function AdminProfileSection({ notify, onGoToSecurity }) {
     load();
   }, []);
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    setProfile({ ...editData });
-    setIsEditing(false);
-    notify?.('Administrator profile details updated successfully.');
+    try {
+      const res = await fetch('/api/admin/auth/profile/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editData.name,
+          email: editData.email,
+          phone: editData.phone,
+          address: editData.address,
+          cin: editData.cin,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.ok && data.profile) {
+        setProfile((prev) => ({ ...prev, ...data.profile }));
+        setEditData((prev) => ({ ...prev, ...data.profile }));
+        setIsEditing(false);
+        notify?.('Administrator profile details updated successfully.');
+        return;
+      }
+      notify?.(data?.error || 'Could not update profile.');
+    } catch {
+      notify?.('Network error saving profile.');
+    }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('photo', file);
+    try {
+      const res = await fetch('/api/admin/profile/photo/', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok && data?.ok && data.profile) {
+        setProfile((prev) => ({ ...prev, ...data.profile }));
+        notify?.('Admin profile photo updated.');
+      } else {
+        notify?.(data?.error || 'Could not upload photo.');
+      }
+    } catch {
+      notify?.('Network error uploading photo.');
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    try {
+      const res = await fetch('/api/admin/profile/photo/', { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data?.ok && data.profile) {
+        setProfile((prev) => ({ ...prev, ...data.profile }));
+        notify?.('Admin profile photo removed.');
+      } else {
+        notify?.(data?.error || 'Could not remove photo.');
+      }
+    } catch {
+      notify?.('Network error removing photo.');
+    }
   };
 
   const handleToggleUserStatus = (id) => {
@@ -166,9 +222,9 @@ export default function AdminProfileSection({ notify, onGoToSecurity }) {
           <div className="adm-card" style={{ padding: '28px', textAlign: 'center' }}>
             <div
               style={{
-                width: '90px',
-                height: '90px',
-                margin: '0 auto 16px',
+                width: '96px',
+                height: '96px',
+                margin: '0 auto 12px',
                 borderRadius: '50%',
                 background: 'linear-gradient(135deg, #1e40af, #3b82f6)',
                 color: '#ffffff',
@@ -176,11 +232,44 @@ export default function AdminProfileSection({ notify, onGoToSecurity }) {
                 placeItems: 'center',
                 fontSize: '32px',
                 fontWeight: 800,
+                overflow: 'hidden',
                 boxShadow: '0 8px 20px rgba(37, 99, 235, 0.25)',
                 border: '3px solid #ffffff',
               }}
             >
-              FA
+              {profile.photoSrc ? (
+                <img
+                  src={profile.photoSrc}
+                  alt={profile.name || 'Admin avatar'}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                'FA'
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 14 }}>
+              <label
+                className="adm-btn adm-btn-sm adm-btn-outline"
+                style={{ cursor: 'pointer' }}
+              >
+                Upload Photo
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handlePhotoUpload}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {profile.photoSrc && (
+                <button
+                  type="button"
+                  className="adm-btn adm-btn-sm adm-btn-outline"
+                  style={{ color: '#dc2626', borderColor: '#fca5a5' }}
+                  onClick={handleRemovePhoto}
+                >
+                  Remove Photo
+                </button>
+              )}
             </div>
             <h3 style={{ margin: '0 0 4px', fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
               {profile.name}

@@ -5,13 +5,19 @@ import {
   LayoutGrid, Globe, Users, UserCog, Award, HandHeart, CalendarClock,
   MessageSquare, CalendarCheck, TrendingUp, User, Lock, LogOut,
   Loader2, Menu, X, ArrowUpRight, Bell, ChevronRight, Check,
-  FileText, Newspaper
+  FileText, Newspaper, Cake, QrCode, ScrollText, Settings
 } from 'lucide-react';
 
 import './sections/admin-sections.css';
+import { AdminUtilityHeader, AdminBottomQuickBar } from './sections/AdminChromeBar';
+import AdminOverviewSection from './sections/AdminOverviewSection';
 import WebsiteManagement from './sections/WebsiteManagement';
 import PostsActivitySection from './sections/PostsActivitySection';
 import NewsManagementSection from './sections/NewsManagementSection';
+import BirthdayWishesSection from './sections/BirthdayWishesSection';
+import WebsiteQrSection from './sections/WebsiteQrSection';
+import LetterHeadSection from './sections/LetterHeadSection';
+import SoftwareUpdateSection from './sections/SoftwareUpdateSection';
 import MembershipManagement from './sections/MembershipManagement';
 import TeamManagement from './sections/TeamManagement';
 import CertificateManagement from './sections/CertificateManagement';
@@ -24,17 +30,22 @@ import AdminProfileSection from './sections/AdminProfileSection';
 import SecuritySection from './sections/SecuritySection';
 
 const navItems = [
+  { key: 'overview', label: 'Dashboard Overview', icon: LayoutGrid },
   { key: 'website', label: 'Website Management', icon: Globe },
   { key: 'posts', label: 'Posts & Activity', icon: FileText },
   { key: 'news', label: 'News Management', icon: Newspaper },
   { key: 'membership', label: 'Membership Management', icon: Users },
   { key: 'team', label: 'Team Management', icon: UserCog },
   { key: 'certificates', label: 'Certificate Management', icon: Award },
+  { key: 'birthday', label: 'Birthday Wishes', icon: Cake },
   { key: 'donations', label: 'Donation Management', icon: HandHeart },
   { key: 'recurring', label: 'Recurring Donations', icon: CalendarClock },
   { key: 'messages', label: 'Messages & Notifications', icon: MessageSquare },
   { key: 'appointments', label: 'Appointments', icon: CalendarCheck },
   { key: 'reports', label: 'Reports & Analytics', icon: TrendingUp },
+  { key: 'qr', label: 'Website QR Generator', icon: QrCode },
+  { key: 'letterhead', label: 'Letter Head', icon: ScrollText },
+  { key: 'software', label: 'Software Update', icon: Settings },
   { key: 'profile', label: 'Admin Profile', icon: User },
   { key: 'security', label: 'Security & Password', icon: Lock },
 ];
@@ -281,21 +292,28 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          <AdminUtilityHeader activeKey={activeKey} onNavigate={selectSection} />
+          {activeKey === 'overview' && <AdminOverviewSection onNavigate={selectSection} notify={notify} />}
           {activeKey === 'website' && <WebsiteManagement notify={notify} initialTab={websiteSubTab} />}
           {activeKey === 'posts' && <PostsActivitySection notify={notify} />}
           {activeKey === 'news' && <NewsManagementSection notify={notify} />}
           {activeKey === 'membership' && <MembershipManagement notify={notify} />}
           {activeKey === 'team' && <TeamManagement notify={notify} />}
           {activeKey === 'certificates' && <CertificateManagement notify={notify} />}
+          {activeKey === 'birthday' && <BirthdayWishesSection notify={notify} />}
           {activeKey === 'donations' && <DonationManagement notify={notify} />}
           {activeKey === 'recurring' && <RecurringDonations notify={notify} />}
           {activeKey === 'messages' && <MessagesNotifications notify={notify} />}
           {activeKey === 'appointments' && <AppointmentsSection notify={notify} />}
           {activeKey === 'reports' && <ReportsAnalytics notify={notify} />}
+          {activeKey === 'qr' && <WebsiteQrSection notify={notify} />}
+          {activeKey === 'letterhead' && <LetterHeadSection notify={notify} />}
+          {activeKey === 'software' && <SoftwareUpdateSection notify={notify} />}
           {activeKey === 'profile' && (
             <AdminProfileSection notify={notify} onGoToSecurity={() => selectSection('security')} />
           )}
           {activeKey === 'security' && <SecuritySection notify={notify} />}
+          <AdminBottomQuickBar activeKey={activeKey} onNavigate={selectSection} />
 
           <footer className="admin-footer" style={{ marginTop: '48px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#64748b' }}>
             <span>GLOBAL SKILLS &amp; DIGITAL DEVELOPMENT FOUNDATION &bull; ADMIN DASHBOARD</span>

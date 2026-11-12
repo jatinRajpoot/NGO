@@ -1,33 +1,69 @@
-import { NextResponse } from 'next/server';
 import {
   getAdminProfile,
+  isSameOrigin,
   requireAdminSession,
 } from '../../../../lib/admin-auth';
+import {
+  getExtendedAdminProfile,
+  updateExtendedAdminProfile,
+} from '../../../../lib/admin-system-store';
+import { jsonResponse } from '../../../../lib/admin-system-api';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-const NO_STORE_HEADERS = {
-  'Cache-Control': 'no-store, max-age=0',
-  Pragma: 'no-cache',
-  'X-Content-Type-Options': 'nosniff',
-};
-
-export async function GET() {
-  const isAuth = await requireAdminSession();
+export async function GET(request) {
+  const isAuth = await requireAdminSession(request);
   if (!isAuth) {
-    return NextResponse.json(
-      { ok: false, error: 'unauthorized' },
-      { status: 401, headers: NO_STORE_HEADERS }
-    );
+    return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
   }
 
-  const profile = getAdminProfile();
-  if (!profile) {
-    return NextResponse.json(
-      { ok: false, error: 'not_configured' },
-      { status: 503, headers: NO_STORE_HEADERS }
-    );
+  const baseProfile = getAdminProfile();
+  if (!baseProfile) {
+    return jsonResponse({ ok: false, error: 'not_configured' }, 503);
   }
 
-  return NextResponse.json({ ok: true, profile }, { status: 200, headers: NO_STORE_HEADERS });
+  const extended = await getExtendedAdminProfile();
+  return jsonResponse(
+    {
+      ok: true,
+      profile: {
+        ...extended,
+        ...baseProfile,
+      },
+    },
+    200
+  );
+}
+
+export async function PATCH(request) {
+  if (!isSameOrigin(request)) {
+    return jsonResponse({ ok: false, error: 'forbidden_origin' }, 403);
+  }
+  const isAuth = await requireAdminSession(request);
+  if (!isAuth) {
+    return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
+  }
+
+  const baseProfile = getAdminProfile();
+  if (!baseProfile) {
+    return jsonResponse({ ok: false, error: 'not_configured' }, 503);
+  }
+
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== 'object') {
+    return jsonResponse({ ok: false, error: 'invalid_json' }, 400);
+  }
+
+  const updated = await updateExtendedAdminProfile(body);
+  return jsonResponse(
+    {
+      ok: true,
+      profile: {
+        ...updated,
+        ...baseProfile,
+      },
+    },
+    200
+  );
 }
