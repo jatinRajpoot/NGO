@@ -1,6 +1,7 @@
 import { AlertTriangle } from 'lucide-react';
 import EmailDraftForm from '../components/EmailDraftForm';
 import PageHero from '../components/PageHero';
+import PublicComplaintSubmitForm from '../components/PublicComplaintSubmitForm';
 import { organization } from '../data/site-data';
 
 export const metadata = {
@@ -27,6 +28,9 @@ export default function ComplaintsPage() {
       <div className="container complaints-layout">
         <aside className="complaint-safety-note"><AlertTriangle size={22} aria-hidden="true" /><div><h2>Before you write</h2><p>Your message is prepared in your email app and is not sent or stored by this website. No reference number will be created here.</p><p>Please avoid including passwords, bank details or other highly sensitive personal information. For urgent concerns, contact the foundation directly by phone.</p><a href={`tel:${organization.phoneHref}`}>Call {organization.phone}</a></div></aside>
         <div className="form-panel complaint-form-panel"><p className="eyebrow"><span /> Feedback form</p><h2>Complaint or suggestion</h2><EmailDraftForm formId="complaint" subject="Website complaint or suggestion" submitLabel="Prepare email draft" groups={groups} note="You may leave contact details blank. Include a safe way for the foundation to follow up only if you want a reply." /></div>
+      </div>
+      <div className="container">
+        <PublicComplaintSubmitForm />
       </div>
     </section>
   </>;

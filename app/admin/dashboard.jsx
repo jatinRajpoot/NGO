@@ -5,7 +5,7 @@ import {
   LayoutGrid, Globe, Users, UserCog, Award, HandHeart, CalendarClock,
   MessageSquare, CalendarCheck, TrendingUp, User, Lock, LogOut,
   Loader2, Menu, X, ArrowUpRight, Bell, ChevronRight, Check,
-  FileText, Newspaper, Cake, QrCode, ScrollText, Settings, Briefcase, FolderKanban
+  FileText, Newspaper, Cake, QrCode, ScrollText, Settings, Briefcase, FolderKanban, HeartHandshake
 } from 'lucide-react';
 
 import './sections/admin-sections.css';
@@ -15,6 +15,7 @@ import WebsiteManagement from './sections/WebsiteManagement';
 import PostsActivitySection from './sections/PostsActivitySection';
 import NewsManagementSection from './sections/NewsManagementSection';
 import OperationsManagementSection from './sections/OperationsManagementSection';
+import BeneficiariesSupportSection from './sections/BeneficiariesSupportSection';
 import BirthdayWishesSection from './sections/BirthdayWishesSection';
 import WebsiteQrSection from './sections/WebsiteQrSection';
 import LetterHeadSection from './sections/LetterHeadSection';
@@ -45,6 +46,7 @@ const navItems = [
   { key: 'coordinators', label: 'Coordinators & Collections', icon: Briefcase },
   { key: 'recurring', label: 'Recurring Donations', icon: CalendarClock },
   { key: 'messages', label: 'Messages & Notifications', icon: MessageSquare },
+  { key: 'support', label: 'Beneficiaries & Grievances', icon: HeartHandshake },
   { key: 'appointments', label: 'Appointments', icon: CalendarCheck },
   { key: 'reports', label: 'Reports & Analytics', icon: TrendingUp },
   { key: 'qr', label: 'Website QR Generator', icon: QrCode },
@@ -310,6 +312,7 @@ export default function AdminDashboard() {
           {activeKey === 'coordinators' && <CoordinatorSection notify={notify} />}
           {activeKey === 'recurring' && <RecurringDonations notify={notify} />}
           {activeKey === 'messages' && <MessagesNotifications notify={notify} />}
+          {activeKey === 'support' && <BeneficiariesSupportSection notify={notify} />}
           {activeKey === 'appointments' && <AppointmentsSection notify={notify} />}
           {activeKey === 'reports' && <ReportsAnalytics notify={notify} />}
           {activeKey === 'qr' && <WebsiteQrSection notify={notify} />}
