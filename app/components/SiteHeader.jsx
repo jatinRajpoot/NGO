@@ -41,6 +41,9 @@ const navItems = [
   {
     label: 'News & updates', href: '/news', children: [
       ['News and updates', '/news'],
+      ['Activity posts', '/activity-post'],
+      ['Press & media releases', '/press-release'],
+      ['Achievements & milestones', '/achievements'],
       ['Photo gallery', '/gallery'],
       ['Upcoming events', '/events'],
     ],
