@@ -125,6 +125,11 @@ export default function MemberLoginPage() {
         </div>
 
         <div style={{ textAlign: 'center', fontSize: '13px', color: 'var(--gsdd-text-muted)', paddingTop: '14px', borderTop: '1px solid #EFECE6' }}>
+          <div style={{ marginBottom: '8px' }}>
+            <Link href="/forgot-password" style={{ color: 'var(--gsdd-blue-primary)', fontSize: '12px', fontWeight: '600' }}>
+              Forgot your Member Password? Reset via Email &amp; Mobile &rarr;
+            </Link>
+          </div>
           Not registered yet?{' '}
           <Link href="/member/register" style={{ color: 'var(--gsdd-blue-primary)', fontWeight: '700' }}>
             Register as a New Member

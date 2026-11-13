@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { verifiedCertificates } from '../certificate/certificate-data';
 import { apiClient } from '../lib/api-client';
+import QRCodeSvg from './QRCodeSvg';
 
 export default function CertificateRecipientHub() {
   const [activeTab, setActiveTab] = useState('view'); // 'view', 'email', 'qr', 'search'
@@ -505,8 +506,12 @@ export default function CertificateRecipientHub() {
 
               {/* Verified QR Code Badge */}
               <div style={{ textAlign: 'center' }}>
-                <div style={{ width: '84px', height: '84px', border: '2px solid #0F172A', background: '#FFF', display: 'grid', placeItems: 'center', margin: '0 auto 4px', padding: '4px' }}>
-                  <QrCode size={72} color="#0F172A" />
+                <div style={{ width: '84px', height: '84px', border: '1px solid #CBD5E1', background: '#FFF', display: 'grid', placeItems: 'center', margin: '0 auto 4px', padding: '2px', borderRadius: '4px' }}>
+                  <QRCodeSvg
+                    value={`https://gsddfoundation.org/verify/?code=${encodeURIComponent(currentCert.id)}`}
+                    size={76}
+                    label=""
+                  />
                 </div>
                 <span style={{ fontSize: '9px', fontWeight: '800', color: '#166534', background: '#DCFCE7', padding: '2px 6px', borderRadius: '4px' }}>
                   AUTHENTIC QR

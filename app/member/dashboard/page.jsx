@@ -12,6 +12,12 @@ import {
 import { defaultMembers } from '../member-data';
 import { organization } from '../../data/site-data';
 import QRCodeSvg from '../../components/QRCodeSvg';
+import {
+  MemberPortalProvider,
+  MemberUtilityHeader,
+  MemberBottomQuickBar,
+  MemberPortalDrawers,
+} from '../../components/MemberPortalEnhancements';
 import '../member.css';
 
 const sidebarItems = [
@@ -156,7 +162,8 @@ export default function MemberDashboardPage() {
   const initials = member.name.split(' ').map((n) => n[0]).slice(0, 2).join('');
 
   return (
-    <div className="member-dashboard-layout">
+    <MemberPortalProvider member={member} activeTab={activeTab} onNavigateTab={setActiveTab}>
+      <div className="member-dashboard-layout">
       {/* Sidebar matching handwritten sheet */}
       <aside className="member-sidebar" aria-label="Member Navigation">
         <div className="member-sidebar-header">
@@ -202,6 +209,9 @@ export default function MemberDashboardPage() {
 
       {/* Main Content Area */}
       <main className="member-content-main">
+        {/* Top Member Quick Utility Search Bar */}
+        <MemberUtilityHeader activeTab={activeTab} onNavigate={setActiveTab} />
+
         {/* Top Header Bar */}
         <div className="member-top-bar">
           <div className="member-greeting">
@@ -2025,7 +2035,10 @@ export default function MemberDashboardPage() {
             </div>
           </div>
         )}
+        <MemberBottomQuickBar activeTab={activeTab} onNavigate={setActiveTab} />
       </main>
     </div>
-  );
+    <MemberPortalDrawers />
+  </MemberPortalProvider>
+);
 }
