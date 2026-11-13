@@ -842,12 +842,16 @@
   color: #64748B;
 }
 
-/* Mobile Sidebar Drawer */
+/* Mobile Sidebar Drawer & Header Bar */
+.mobile-header-bar {
+  display: none;
+}
+
 .mobile-nav-toggle {
   display: none;
   background: #0F172A;
   color: #FFFFFF;
-  border: none;
+  border: 1px solid #334155;
   border-radius: 6px;
   padding: 8px 12px;
   font-size: 13px;
@@ -857,7 +861,37 @@
   gap: 6px;
 }
 
+.button-outline {
+  color: var(--gsdd-navy-dark, #09152F);
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+}
+
+.button-outline:hover {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+  color: var(--gsdd-navy-dark, #09152F);
+}
+
+.button-gold {
+  color: #1E293B;
+  background: #F59E0B;
+  border: 1px solid #D97706;
+}
+
+.button-gold:hover {
+  background: #D97706;
+  border-color: #B45309;
+  color: #FFFFFF;
+}
+
 @media (max-width: 900px) {
+  .donor-dashboard-layout {
+    flex-direction: column;
+  }
+  .mobile-header-bar {
+    display: flex !important;
+  }
   .mobile-nav-toggle {
     display: inline-flex;
   }
@@ -866,11 +900,17 @@
     top: 0;
     bottom: 0;
     left: 0;
+    z-index: 1050;
     transform: translateX(-100%);
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+    transition: transform 0.25s ease;
   }
   .donor-sidebar.open {
     transform: translateX(0);
+  }
+  .donor-content-main {
+    width: 100%;
+    padding: 20px 16px;
   }
   .receipt-paper-frame {
     padding: 20px 16px;

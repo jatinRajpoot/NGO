@@ -185,6 +185,11 @@
   color: var(--gm-ink);
 }
 
+.admin-gallery-collection-section {
+  width: 100%;
+  margin-top: 24px;
+}
+
 /* Feedback Banners */
 .admin-gallery-manager-alert {
   display: flex;

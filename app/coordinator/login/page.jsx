@@ -37,7 +37,7 @@ export default function CoordinatorLoginPage() {
   };
 
   return (
-    <div style={{ maxWidth: 440, margin: '64px auto', padding: '0 20px' }}>
+    <div style={{ width: 'min(440px, 100%)', margin: '48px auto', padding: '0 16px' }}>
       <div
         style={{
           padding: 28,

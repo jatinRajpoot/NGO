@@ -189,8 +189,168 @@ input:checked + .slider:before { transform: translateX(20px); }
 .message-date { font-size: 11px; color: #64748B; }
 .message-text { font-size: 13px; color: #334155; line-height: 1.6; margin: 0; }
 
+.dashboard-tab-overview,
+.dashboard-tab-profile,
+.dashboard-tab-details,
+.dashboard-tab-fees,
+.dashboard-tab-receipts,
+.dashboard-tab-idcard {
+  width: 100%;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Password Form (Feature 17) */
 .password-box { max-width: 500px; }
+
+/* Primary Action Buttons & Form Controls (Member Suite) */
+.btn-action-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--gsdd-blue-primary, #0A3D91);
+  color: #FFFFFF;
+  border: 1px solid var(--gsdd-blue-primary, #0A3D91);
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.16s ease;
+}
+
+.btn-action-primary:hover {
+  background: #072D6D;
+  border-color: #072D6D;
+  color: #FFFFFF;
+}
+
+.btn-action-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #FFFFFF;
+  color: #0F172A;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.16s ease;
+}
+
+.btn-outline:hover {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+  color: #0F172A;
+}
+
+.button-outline {
+  color: var(--gsdd-navy-dark, #09152F);
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+}
+
+.button-outline:hover {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+  color: var(--gsdd-navy-dark, #09152F);
+}
+
+.button-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--gsdd-text-muted, #64748B);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: color 0.16s ease, background-color 0.16s ease;
+}
+
+.button-text:hover {
+  color: var(--gsdd-navy-dark, #09152F);
+  background: #F1F5F9;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #FFFFFF;
+  color: #1E293B;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.quick-amount-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 680px) {
+  .member-top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .member-stats-row {
+    grid-template-columns: 1fr;
+  }
+  .membership-meta-grid {
+    grid-template-columns: 1fr;
+  }
+  .fee-status-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .card-header-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
 
 /* Print Rules */
 @media print {

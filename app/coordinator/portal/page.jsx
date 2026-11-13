@@ -153,7 +153,7 @@ export default function CoordinatorPortalPage() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 380px) minmax(0, 1fr)', gap: 20 }}>
+      <div className="coordinator-grid-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 380px) minmax(0, 1fr)', gap: 20 }}>
         <form
           onSubmit={handleSubmitDonation}
           style={{

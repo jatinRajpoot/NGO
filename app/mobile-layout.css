@@ -134,6 +134,42 @@ button, a, input, select, textarea, summary {
   }
 }
 
+/* Universal Mobile Overflow & Touch Polishing */
+html, body {
+  max-width: 100vw;
+  overflow-x: clip;
+}
+
+img, video, canvas, svg {
+  max-width: 100%;
+}
+
+.table-responsive,
+.table-responsive-wrapper,
+.donor-table-container,
+.adm-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .coordinator-grid-layout {
+    grid-template-columns: 1fr !important;
+  }
+  [role="dialog"] {
+    padding: 12px !important;
+  }
+  [role="dialog"] > div,
+  [role="dialog"] > form {
+    max-width: 100% !important;
+    max-height: calc(100svh - 24px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mobile-nav-line,
   .mobile-nav[open] > summary .mobile-nav-line:first-child,
