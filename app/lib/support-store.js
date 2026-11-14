@@ -389,10 +389,10 @@ export async function listComplaints({ status = 'all', search = '' } = {}) {
 }
 
 export async function submitComplaint(payload = {}) {
-  const complainantName = String(payload.complainantName || payload.name || '').trim().slice(0, 140);
+  const complainantName = String(payload.complainantName || payload.name || payload.fullName || '').trim().slice(0, 140);
   const email = String(payload.email || '').trim().toLowerCase().slice(0, 160);
   const subject = String(payload.subject || payload.category || '').trim().slice(0, 200);
-  const description = String(payload.description || payload.message || '').trim().slice(0, 3000);
+  const description = String(payload.description || payload.message || payload.details || '').trim().slice(0, 3000);
   if (!complainantName || !subject || !description) {
     return { ok: false, status: 400, error: 'Full name, subject/category, and complaint description are required.' };
   }

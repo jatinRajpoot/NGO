@@ -18,7 +18,16 @@ export async function POST(request) {
       return jsonNoStore({ ok: false, error: 'forbidden_origin' }, 403);
     }
     const body = await request.json().catch(() => null);
-    const identifier = typeof body?.identifier === 'string' ? body.identifier : '';
+    const identifier =
+      typeof body?.identifier === 'string'
+        ? body.identifier
+        : typeof body?.email === 'string'
+        ? body.email
+        : typeof body?.phone === 'string'
+        ? body.phone
+        : typeof body?.username === 'string'
+        ? body.username
+        : '';
     const password = typeof body?.password === 'string' ? body.password : '';
     if (!identifier.trim() || !password) {
       return jsonNoStore({ ok: false, error: 'Email/mobile and password are required.' }, 400);

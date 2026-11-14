@@ -1,4 +1,11 @@
 import os
+import sys
+from pathlib import Path
+
+REPO_ROOT = str(Path(__file__).resolve().parent.parent)
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
 from flask import Flask, jsonify
 from flask_cors import CORS
 from backend.config import Config

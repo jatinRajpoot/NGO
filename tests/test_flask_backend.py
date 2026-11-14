@@ -1,3 +1,12 @@
+import sys
+import os
+from pathlib import Path
+
+# Ensure repo root is on sys.path so backend package can be imported directly
+REPO_ROOT = str(Path(__file__).resolve().parent.parent)
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
 import unittest
 import json
 from backend.app import create_app
