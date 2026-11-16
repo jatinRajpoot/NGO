@@ -74,10 +74,15 @@ async function readMemberRecords() {
       const legacy = await legacyMemberStore.read('members-ext', () => []);
       const pending = legacy.filter(m => !m.migratedToPortal);
       if (!pending.length) return;
+      const designations = await legacyMemberStore.read('designations', () => []);
       for (const record of pending) {
         // Existing portal credentials always win over a duplicate public application.
         const current = members.find(m => m.email.toLowerCase() === record.email.toLowerCase());
-        if (!current) members.push(normalizeMember(record));
+        if (!current) {
+          const trustedOfficeEntry = record.verified === true && record.addedBy === 'Admin Office';
+          const fee = Number(designations.find(d => d.title === record.designation)?.feeRs ?? 500);
+          members.push(normalizeMember(trustedOfficeEntry ? record : { ...record, membershipFee: fee, feeAmount: fee, feeStatus: 'Pending', paymentStatus: 'Pending', legacyReceiptNo: record.receiptNo || null, receiptNo: null }));
+        }
       }
       await collectionStore.write('members', members);
       await legacyMemberStore.write('members-ext', legacy.map(m => ({ ...m, migratedToPortal: true })));

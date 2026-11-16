@@ -799,7 +799,7 @@ export async function getAdminOverviewData() {
     quickStats: {
       activeMembersLast30Days: members.filter(m => m.status === 'Active' && timestamp(m) >= now.getTime() - 30 * 86400000).length,
       approvedIds: members.filter(m => m.status === 'Active').length, pendingIds: members.filter(m => m.status !== 'Active').length,
-      expenseThisMonth: sum(expenses.filter(e => timestamp(e) >= monthStart)), monthlyBudget: projects.reduce((s, p) => s + Number(p.goalAmount || 0), 0),
+      expenseThisMonth: sum(expenses.filter(e => Date.parse(e.date || e.createdAt || '') >= monthStart)), monthlyBudget: 0,
       activeProjects: projects.filter(p => p.status === 'Active').length, completedProjects: projects.filter(p => p.status === 'Completed').length,
       pendingEnquiries: inquiries.filter(i => i.status === 'new').length, pendingComplaints: complaints.filter(c => !['Resolved', 'Rejected'].includes(c.status)).length,
       pendingReconciliations: pending.pendingDonations.length + pending.pendingFeePayments.length + pending.pendingCertificates.length,

@@ -373,9 +373,9 @@ export default function AdminOverviewSection({ onNavigate, notify }) {
               </strong>
             </div>
             <div className="overview-quick-stat-row">
-              <span>Expense This Month vs Budget ({expensePct}%)</span>
+              <span>{quickStats.monthlyBudget > 0 ? `Expense This Month vs Budget (${expensePct}%)` : 'Expenses this month (no monthly budget set)'}</span>
               <strong>
-                {formatRs(quickStats.expenseThisMonth)} / {formatRs(quickStats.monthlyBudget)}
+                {formatRs(quickStats.expenseThisMonth)}{quickStats.monthlyBudget > 0 ? ` / ${formatRs(quickStats.monthlyBudget)}` : ''}
               </strong>
             </div>
             <div className="overview-quick-stat-row">
