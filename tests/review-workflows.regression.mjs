@@ -118,6 +118,9 @@ try {
 
   const credential = await membership.issueCertificateExt({ kind: 'Member', recipientName: created.member.name, memberRegNo: created.member.regNo, program: 'Issued to actual account' });
   assert.ok((await portal.getMemberWorkspace(created.member.id)).certificates.some(c => c.id === credential.certificate.certNo));
+  const verifiedCredential = await portal.verifyDocumentCode(credential.certificate.certNo);
+  assert.equal(verifiedCredential.document.type, 'Member Certificate');
+  assert.ok(verifiedCredential.document.date);
   const track = await operations.createInternship({ title: 'Workflow internship', duration: '1 month', status: 'Active' });
   const application = await operations.applyForInternship({ internshipId: track.internship.id, name: 'Intern', email: 'intern@example.invalid', phone: '9000000000' });
   const issued = await operations.issueInternshipCertificate(application.application.id, 'Approved');

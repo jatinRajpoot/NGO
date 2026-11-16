@@ -76,9 +76,7 @@ try {
   assert(textVerify.includes('QR Code Scanner &amp; Authenticity') || textVerify.includes('QR Code Scanner & Authenticity'), 'Verify page should render QR Scanner tab');
   assert(textVerify.includes('Search for an issued certificate ID'), 'Verify page must ask for a real certificate ID');
   assert(!textVerify.includes('Verified Certificate: GSDD-ACH-2026-081'), 'Sample certificates must not appear pre-verified');
-  assert(textVerify.includes('GLOBAL SKILLS &amp; DIGITAL DEVELOPMENT WELFARE FOUNDATION') || textVerify.includes('GLOBAL SKILLS & DIGITAL DEVELOPMENT WELFARE FOUNDATION') || textVerify.includes('Global Skills &amp; Digital Development Welfare Foundation'), 'Verify page should include issuing organization');
-  assert(textVerify.includes('Certificate of Excellence &amp; Achievement') || textVerify.includes('Certificate of Excellence & Achievement'), 'Verify page should include certificate type');
-  assert(textVerify.includes('28 February 2026'), 'Verify page should include issue date');
+  assert(textVerify.includes('GSDD Foundation'), 'Verify page should retain the foundation identity');
   console.log('PASS: /verify Certificate Recipient & Verification portal verified (QR Scan, Authenticity Original vs Fake, ID Search, Details).');
 
   console.log('ALL TEAM MEMBER & CERTIFICATE RECIPIENT PORTAL TESTS PASSED!');

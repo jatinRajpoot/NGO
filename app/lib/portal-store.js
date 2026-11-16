@@ -1501,7 +1501,7 @@ export async function verifyDocumentCode(rawCode) {
       status: cert.status,
       document: {
         code: cert.certNo || cert.id,
-        type: cert.type,
+        type: cert.type || `${cert.kind || 'Foundation'} Certificate`,
         recipient: cert.recipient || cert.recipientName,
         date: cert.date || cert.issuedDate,
         purpose: cert.purpose || cert.program,

@@ -155,14 +155,14 @@ try {
       await page.getByRole('tab', { name: 'Social Links', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Unavailable', exact: true })).toBeDisabled();
 
-      await page.goto('/admin/#team');
+      await page.getByRole('button', { name: 'Team Management', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Unavailable', exact: true })).toBeDisabled();
-      await page.goto('/admin/#appointments');
+      await page.getByRole('button', { name: 'Appointments', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Unavailable', exact: true })).toBeDisabled();
-      for (const [section, endpoint] of [['membership', '/api/admin/membership-suite/members/'], ['certificates', '/api/admin/membership-suite/certificates/'], ['messages', '/api/admin/membership-suite/notices/'], ['reports', '/api/admin/overview/']]) {
+      for (const [section, endpoint] of [['Membership Management', '/api/admin/membership-suite/members/'], ['Certificate Management', '/api/admin/membership-suite/certificates/'], ['Messages & Notifications', '/api/admin/membership-suite/notices/'], ['Reports & Analytics', '/api/admin/overview/']]) {
         const [response] = await Promise.all([
           page.waitForResponse(r => new URL(r.url()).pathname === endpoint && r.request().method() === 'GET'),
-          page.goto(`/admin/#${section}`),
+          page.getByRole('button', { name: section, exact: true }).click(),
         ]);
         assert.equal(response.status(), 200, `${section} must use the durable API`);
       }
