@@ -1,6 +1,8 @@
 import uuid
 import hashlib
 import functools
+from datetime import datetime, timezone, timedelta
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Blueprint, request, jsonify
 from backend.db import query_db, execute_db
 
@@ -8,19 +10,14 @@ auth_bp = Blueprint('auth_bp', __name__)
 
 def verify_password(plain_password: str, stored_hash: str) -> bool:
     try:
-        parts = stored_hash.split(':')
-        if len(parts) != 2:
-            return False
-        salt, expected_hash = parts
-        computed = hashlib.sha512((plain_password + salt).encode()).hexdigest()
-        return computed == expected_hash
-    except Exception:
+        return check_password_hash(stored_hash, plain_password)
+    except (ValueError, TypeError):
         return False
 
+
 def hash_new_password(plain_password: str) -> str:
-    salt = uuid.uuid4().hex
-    hashed = hashlib.sha512((plain_password + salt).encode()).hexdigest()
-    return f"{salt}:{hashed}"
+    return generate_password_hash(plain_password, method='scrypt')
+
 
 def admin_required(f):
     @functools.wraps(f)
@@ -40,9 +37,19 @@ def admin_required(f):
             (session_id,),
             one=True
         )
-        if not session:
+        expiry = session.get('expires_at') if session else None
+        if isinstance(expiry, str):
+            try:
+                expiry = datetime.fromisoformat(expiry)
+            except ValueError:
+                expiry = None
+        if expiry and expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        if not session or not expiry or expiry <= datetime.now(timezone.utc):
             return jsonify({'error': 'Unauthorized: Session revoked or invalid', 'status': 401}), 401
 
+        if not auth_header.startswith('Bearer ') and request.method not in ('GET', 'HEAD', 'OPTIONS') and request.headers.get('Origin', '').rstrip('/') != request.host_url.rstrip('/'):
+            return jsonify({'error': 'Forbidden origin'}), 403
         request.admin_user = session['username']
         request.admin_session_id = session_id
         return f(*args, **kwargs)
@@ -64,8 +71,8 @@ def login():
     session_id = uuid.uuid4().hex + uuid.uuid4().hex
     token_preview = session_id[:8] + '...'
     execute_db(
-        "INSERT INTO admin_sessions (session_id, username, token_preview, revoked) VALUES (%s, %s, %s, 0)",
-        (session_id, username, token_preview)
+        "INSERT INTO admin_sessions (session_id, username, token_preview, revoked, expires_at) VALUES (%s, %s, %s, 0, %s)",
+        (session_id, username, token_preview, datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=8))
     )
 
     resp = jsonify({
@@ -79,7 +86,7 @@ def login():
             'role': admin['role']
         }
     })
-    resp.set_cookie('admin_session', session_id, httponly=True, samesite='Lax')
+    resp.set_cookie('admin_session', session_id, httponly=True, secure=request.is_secure, samesite='Lax', max_age=28800)
     return resp, 200
 
 @auth_bp.route('/auth/logout', methods=['POST'])

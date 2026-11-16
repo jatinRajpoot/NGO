@@ -29,12 +29,12 @@ export default function AutoPayDonatePage() {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        setError(data?.error || 'Could not activate AutoPay mandate.');
+        setError(data?.error || 'Could not register AutoPay request.');
         return;
       }
       setMandate(data.mandate);
     } catch {
-      setError('Network error activating AutoPay.');
+      setError('Network error registering AutoPay.');
     } finally {
       setSubmitting(false);
     }
@@ -60,7 +60,7 @@ export default function AutoPayDonatePage() {
               }}
             >
               <CheckCircle2 size={46} color="#059669" style={{ marginBottom: 10 }} />
-              <h2 style={{ margin: '0 0 8px' }}>Monthly AutoPay Mandate Activated!</h2>
+              <h2 style={{ margin: '0 0 8px' }}>Monthly AutoPay Authorization pending!</h2>
               <p style={{ color: '#475569', fontSize: 14 }}>
                 Your Mandate Reference Number is <strong>{mandate.mandateRef}</strong>.
               </p>

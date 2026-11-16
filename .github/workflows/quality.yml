@@ -55,11 +55,35 @@ jobs:
       - name: Run public smoke tests
         run: npm run test:public
 
+      - name: Run cross-feature regression tests
+        run: npm run test:review
+
+      - name: Run feature integration suites
+        run: npm run test:features
+
       - name: Install Chromium for UI regression tests
         run: npx playwright install --with-deps chromium
 
+      - name: Run admin workflow browser regressions
+        run: node tests/review-http.integration.mjs
+        env:
+          REVIEW_BROWSER_TESTS: "1"
+
       - name: Run responsive UI regression tests
         run: npm run test:ui
+
+  backend-security:
+    name: Optional backend security boundaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Test backend security without a database
+        run: |
+          python3 -m venv "$RUNNER_TEMP/backend-security"
+          "$RUNNER_TEMP/backend-security/bin/python" -m pip install -r backend/requirements.txt
+          "$RUNNER_TEMP/backend-security/bin/python" tests/test_backend_security.py
 
   container:
     name: Container build, scan, and smoke test

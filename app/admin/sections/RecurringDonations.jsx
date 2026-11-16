@@ -33,6 +33,9 @@ export default function RecurringDonations({ notify }) {
     if (res.ok) {
       await loadMandates();
       notify?.(`AutoPay mandate ${m.mandateRef} marked ${nextStatus}.`);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      notify?.(data.error || 'Mandate update failed.');
     }
   };
 
@@ -113,7 +116,7 @@ export default function RecurringDonations({ notify }) {
                             <button
                               type="button"
                               className="adm-btn adm-btn-sm adm-btn-outline"
-                              title="Process Test Debit"
+                              title="Automatic debits are unavailable" disabled
                               onClick={() => triggerCycle(m)}
                             >
                               <Play size={13} /> Charge
@@ -131,7 +134,7 @@ export default function RecurringDonations({ notify }) {
                           <button
                             type="button"
                             className="adm-btn adm-btn-sm adm-btn-outline"
-                            title="Activate Mandate"
+                            title="Activate Mandate" disabled={!m.providerAuthorization}
                             onClick={() => toggleStatus(m, 'Active')}
                           >
                             <CheckCircle2 size={13} /> Resume

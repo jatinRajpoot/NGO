@@ -173,21 +173,25 @@ async function main() {
     });
     assert.equal(okNb.status, 200);
     const nbData = await okNb.json();
-    assert.equal(nbData.donation.status, 'Success');
+    assert.equal(nbData.donation.status, 'Simulated');
+    assert.equal(nbData.donation.receiptNo, null);
 
     const campsAfter = await (await req('/api/public/campaigns/')).json();
     const updatedCamp = campsAfter.campaigns.find((c) => c.id === campaign.id);
-    assert.equal(updatedCamp.raisedAmount, 2500);
+    assert.equal(updatedCamp.raisedAmount, 0);
 
-    // 5. Public donation search includes new receipt
-    const pubDon = await (await req(`/api/public/donations/?q=${encodeURIComponent(nbData.donation.receiptNo)}`)).json();
-    assert.equal(pubDon.donations.length, 1);
+    // 5. Simulated payments must not enter paid history; real manual entries are separate.
+    const pubDon = await (await req('/api/public/donations/?q=Vivek%20Raj')).json();
+    assert.equal(pubDon.donations.length, 0);
+    const manual = await req('/api/admin/finance/donations/', { method: 'POST', cookie: adminCookie,
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ donorName: 'Verified Manual Donor', email: 'manual@example.org', amount: 2500, method: 'Cash', status: 'Success' }) });
+    assert.equal(manual.status, 201);
 
     // 6. Admin Donations CSV Export & Edit/Bulk Delete
     const csvRes = await req('/api/admin/finance/donations/?source=all&export=csv', { cookie: adminCookie });
     assert.equal(csvRes.status, 200);
     assert.match(csvRes.headers.get('content-type') || '', /text\/csv/);
-    assert.ok((await csvRes.text()).includes('Vivek Raj'));
+    assert.ok((await csvRes.text()).includes('Verified Manual Donor'));
 
     // 7. Coordinator workflow: Admin creates coordinator -> Coordinator logs in -> submits collection -> Admin approves
     const coordPass = randomBytes(10).toString('hex');

@@ -15,7 +15,9 @@
     "test:public": "node tests/public-pages.integration.mjs",
     "test:member": "node tests/member-portal.test.mjs",
     "test:donor": "node tests/donor-portal.test.mjs",
-    "test:team": "node tests/team-and-certificate-portal.test.mjs"
+    "test:team": "node tests/team-and-certificate-portal.test.mjs",
+    "test:review": "node tests/review-store.regression.mjs && node tests/review-workflows.regression.mjs && node tests/review-http.integration.mjs",
+    "test:features": "node tests/run-feature-tests.mjs"
   },
   "overrides": {
     "postcss": "8.5.32"

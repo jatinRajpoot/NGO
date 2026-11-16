@@ -59,14 +59,14 @@ export default function BirthdayWishesSection({ notify }) {
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        notify?.(json?.error || 'Could not send wish.');
+        notify?.(json?.error || 'Could not save birthday message.');
         return;
       }
       setRecords((prev) => prev.map((r) => (r.id === json.record.id ? { ...r, ...json.record } : r)));
       setWishModal(null);
-      notify?.(`Birthday wish recorded and sent to ${wishModal.name}!`);
+      notify?.(`Birthday message saved for ${wishModal.name}. No external message was sent.`);
     } catch {
-      notify?.('Network error sending birthday wish.');
+      notify?.('Network error saving birthday message.');
     } finally {
       setSending(false);
     }
@@ -177,7 +177,7 @@ export default function BirthdayWishesSection({ notify }) {
                             fontWeight: 600,
                           }}
                         >
-                          <CheckCircle2 size={14} /> Wished
+                          <CheckCircle2 size={14} /> Message saved
                         </span>
                       ) : (
                         <span style={{ fontSize: 12, color: '#94a3b8' }}>Pending</span>
@@ -214,7 +214,7 @@ export default function BirthdayWishesSection({ notify }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="admin-modal-header">
-              <h2>Send Birthday Wish — {wishModal.name}</h2>
+              <h2>Save Birthday Message — {wishModal.name}</h2>
               <button
                 type="button"
                 className="admin-icon-button"
@@ -252,7 +252,7 @@ export default function BirthdayWishesSection({ notify }) {
                   Cancel
                 </button>
                 <button type="submit" className="admin-btn-primary" disabled={sending}>
-                  {sending ? <Loader2 size={14} className="spin" /> : <Send size={14} />} Send
+                  {sending ? <Loader2 size={14} className="spin" /> : <Send size={14} />} Save
                   Greeting
                 </button>
               </div>

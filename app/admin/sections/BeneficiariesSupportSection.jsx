@@ -24,8 +24,8 @@ const BENEFICIARY_CATEGORIES = [
   'Disaster Relief',
 ];
 
-export default function BeneficiariesSupportSection({ notify }) {
-  const [section, setSection] = useState('beneficiaries'); // 'beneficiaries' | 'complaints' | 'enquiries'
+export default function BeneficiariesSupportSection({ notify, initialSection = 'beneficiaries' }) {
+  const [section, setSection] = useState(initialSection); // 'beneficiaries' | 'complaints' | 'enquiries'
   const [loading, setLoading] = useState(true);
 
   // Beneficiaries
@@ -593,7 +593,7 @@ export default function BeneficiariesSupportSection({ notify }) {
             <textarea required rows={3} placeholder="Compose reply..." value={enqReply} onChange={(e) => setEnqReply(e.target.value)} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button type="button" className="adm-btn adm-btn-outline" onClick={() => setEnqModal(null)}>Close</button>
-              <button type="submit" className="adm-btn adm-btn-primary">Send Reply</button>
+              <button type="submit" className="adm-btn adm-btn-primary">Save Reply</button>
             </div>
           </form>
         </div>

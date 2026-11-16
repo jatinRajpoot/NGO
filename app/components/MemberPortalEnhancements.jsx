@@ -192,7 +192,7 @@ export function MemberPortalProvider({ children, member: initialMember, activeTa
         setStatusMsg(data?.error || 'Gateway payment failed.');
         return;
       }
-      setStatusMsg(`Payment recorded cleanly! Ref: ${data.txRef}`);
+      setStatusMsg(data.message || 'Simulation complete. No payment was collected.');
       setNbUser('');
       setNbPass('');
     } catch {

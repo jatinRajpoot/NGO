@@ -185,6 +185,8 @@ async function main() {
     );
 
     // 5. Enquiries new filter + reply
+    const submittedEnquiry = await req('/api/inquiries/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Real Enquiry', email: 'real-enquiry@example.org', message: 'Please assist with this actual submission.' }) });
+    assert.equal(submittedEnquiry.status, 201);
     const enqNew = await (await req('/api/admin/support/enquiries/?status=new', { useAdmin: true })).json();
     assert.ok(enqNew.enquiries.length >= 1);
     const targetEnq = enqNew.enquiries[0];

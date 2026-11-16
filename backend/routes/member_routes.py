@@ -1,15 +1,19 @@
 import uuid
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from backend.db import query_db, execute_db
+from backend.routes.auth_routes import admin_required
 
 member_bp = Blueprint('member_bp', __name__)
 
 @member_bp.route('', methods=['GET'])
+@admin_required
 def list_members():
     members = query_db("SELECT * FROM members ORDER BY created_at DESC")
     return jsonify({'status': 'success', 'count': len(members), 'members': members}), 200
 
 @member_bp.route('/<member_id>', methods=['GET'])
+@admin_required
 def get_member(member_id):
     member = query_db("SELECT * FROM members WHERE id = %s", (member_id,), one=True)
     if not member:
@@ -17,6 +21,7 @@ def get_member(member_id):
     return jsonify({'status': 'success', 'member': member}), 200
 
 @member_bp.route('/register', methods=['POST'])
+@admin_required
 def register_member():
     data = request.get_json() or {}
     name = data.get('name', '').strip()
@@ -51,7 +56,7 @@ def register_member():
         """,
         (
             member_id, name, email, phone, 'Active Member', membership_type, 'Active',
-            '07 November 2026', 'Paid', 1200.00, id_card_number,
+            datetime.now(timezone.utc).date().isoformat(), 'Pending', 0.00, id_card_number,
             blood_group, district, state
         )
     )
@@ -60,6 +65,7 @@ def register_member():
     return jsonify({'status': 'success', 'message': 'Membership registered successfully', 'member': created}), 201
 
 @member_bp.route('/<member_id>/id-card', methods=['GET'])
+@admin_required
 def get_id_card(member_id):
     member = query_db("SELECT * FROM members WHERE id = %s", (member_id,), one=True)
     if not member:
@@ -82,24 +88,6 @@ def get_id_card(member_id):
     return jsonify({'status': 'success', 'id_card': card_data}), 200
 
 @member_bp.route('/<member_id>/pay-fee', methods=['POST'])
+@admin_required
 def pay_fee(member_id):
-    member = query_db("SELECT * FROM members WHERE id = %s", (member_id,), one=True)
-    if not member:
-        return jsonify({'error': 'Member not found', 'status': 404}), 404
-
-    data = request.get_json() or {}
-    amount = float(data.get('amount', 1200.00))
-    receipt_no = f"RCPT-GSDD-{uuid.uuid4().hex[:6].upper()}"
-
-    execute_db(
-        "UPDATE members SET fee_status = 'Paid', amount_paid = amount_paid + %s WHERE id = %s",
-        (amount, member_id)
-    )
-
-    return jsonify({
-        'status': 'success',
-        'message': 'Annual membership fee payment recorded',
-        'receipt_number': receipt_no,
-        'amount_paid': amount,
-        'fee_status': 'Paid'
-    }), 200
+    return jsonify({'error': 'Use the Next.js fee submission and administrator reconciliation workflow.'}), 409

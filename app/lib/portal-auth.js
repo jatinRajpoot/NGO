@@ -1,9 +1,10 @@
+import { createJsonStore } from './json-store';
 // Server-only authentication & session management for Member and Donor portals.
 // Uses node:crypto scrypt hashing, timingSafeEqual, and HMAC-SHA256 signed HttpOnly cookies
 // with server-side session revocation stored alongside portal data.
 
-import { createHash, createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { createHash, createHmac, randomBytes, timingSafeEqual, scrypt as scryptCallback } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { cookies } from 'next/headers.js';
@@ -141,46 +142,13 @@ function pruneRevoked(entries) {
   return kept.length > REVOCATION_MAX_ENTRIES ? kept.slice(-REVOCATION_MAX_ENTRIES) : kept;
 }
 
+const revocationStore = createJsonStore({ prefix: 'portal', getBucket: getGcsBucket, getDirectory: getPortalDataDir, filename: name => name });
 async function readRevokedList() {
-  const bucket = getGcsBucket();
-  if (bucket) {
-    try {
-      const [contents] = await bucket.file(`portal/${REVOCATION_FILENAME}`).download();
-      const parsed = JSON.parse(contents.toString('utf8'));
-      return pruneRevoked(parsed?.revoked);
-    } catch {
-      return [];
-    }
-  }
-  try {
-    const raw = readFileSync(path.join(getPortalDataDir(), REVOCATION_FILENAME), 'utf8');
-    return pruneRevoked(JSON.parse(raw)?.revoked);
-  } catch {
-    return [];
-  }
+  const data = await revocationStore.read(REVOCATION_FILENAME, () => ({ version: 1, revoked: [] }));
+  return pruneRevoked(data.revoked);
 }
-
 async function writeRevokedList(entries) {
-  const payload = JSON.stringify({ version: 1, revoked: entries }, null, 2);
-  const bucket = getGcsBucket();
-  if (bucket) {
-    await bucket.file(`portal/${REVOCATION_FILENAME}`).save(payload, {
-      contentType: 'application/json',
-      resumable: false,
-    });
-    return;
-  }
-  const target = path.join(getPortalDataDir(), REVOCATION_FILENAME);
-  const temp = `${target}.tmp.${randomBytes(6).toString('hex')}`;
-  try {
-    writeFileSync(temp, payload, 'utf8');
-    renameSync(temp, target);
-  } catch (err) {
-    try {
-      unlinkSync(temp);
-    } catch {}
-    throw err;
-  }
+  return revocationStore.write(REVOCATION_FILENAME, { version: 1, revoked: entries });
 }
 
 async function isNonceRevoked(nonce) {
@@ -192,7 +160,7 @@ async function isNonceRevoked(nonce) {
 async function revokeNonce(nonce, expiresAt) {
   if (!NONCE_PATTERN.test(nonce)) return false;
   memoryRevoked.add(nonce);
-  const next = revocationChain.then(async () => {
+  const next = revocationStore.run(REVOCATION_FILENAME, async () => {
     const existing = await readRevokedList();
     const merged = pruneRevoked([...existing, { nonce, expiresAt }]);
     const seen = new Set();

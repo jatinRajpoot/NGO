@@ -20,18 +20,13 @@ import BirthdayWishesSection from './sections/BirthdayWishesSection';
 import WebsiteQrSection from './sections/WebsiteQrSection';
 import LetterHeadSection from './sections/LetterHeadSection';
 import SoftwareUpdateSection from './sections/SoftwareUpdateSection';
-import MembershipManagement from './sections/MembershipManagement';
 import MembershipSuiteSection from './sections/MembershipSuiteSection';
-import TeamManagement from './sections/TeamManagement';
 import CoordinatorSection from './sections/CoordinatorSection';
-import CertificateManagement from './sections/CertificateManagement';
 import DonationManagement from './sections/DonationManagement';
 import RecurringDonations from './sections/RecurringDonations';
-import MessagesNotifications from './sections/MessagesNotifications';
-import AppointmentsSection from './sections/AppointmentsSection';
-import ReportsAnalytics from './sections/ReportsAnalytics';
 import AdminProfileSection from './sections/AdminProfileSection';
 import SecuritySection from './sections/SecuritySection';
+import AdminUnavailable from './sections/AdminUnavailable';
 
 const navItems = [
   { key: 'overview', label: 'Dashboard Overview', icon: LayoutGrid },
@@ -62,7 +57,7 @@ const itemByKey = Object.fromEntries(navItems.map((item) => [item.key, item]));
 
 export default function AdminDashboard() {
   const [activeKey, setActiveKey] = useState('website');
-  const [websiteSubTab, setWebsiteSubTab] = useState('pages');
+  const [websiteSubTab, setWebsiteSubTab] = useState('gallery');
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [toast, setToast] = useState('');
@@ -306,18 +301,18 @@ export default function AdminDashboard() {
           {activeKey === 'posts' && <PostsActivitySection notify={notify} />}
           {activeKey === 'news' && <NewsManagementSection notify={notify} />}
           {activeKey === 'operations' && <OperationsManagementSection notify={notify} />}
-          {activeKey === 'membership' && <MembershipManagement notify={notify} />}
+          {activeKey === 'membership' && <MembershipSuiteSection notify={notify} />}
           {activeKey === 'member-suite' && <MembershipSuiteSection notify={notify} />}
-          {activeKey === 'team' && <TeamManagement notify={notify} />}
-          {activeKey === 'certificates' && <CertificateManagement notify={notify} />}
+          {activeKey === 'team' && <AdminUnavailable title="Team management" message="Team account editing is currently unavailable. No changes can be submitted from this screen." />}
+          {activeKey === 'certificates' && <MembershipSuiteSection key="certificates" initialModule="certificates" notify={notify} />}
           {activeKey === 'birthday' && <BirthdayWishesSection notify={notify} />}
           {activeKey === 'donations' && <DonationManagement notify={notify} />}
           {activeKey === 'coordinators' && <CoordinatorSection notify={notify} />}
           {activeKey === 'recurring' && <RecurringDonations notify={notify} />}
-          {activeKey === 'messages' && <MessagesNotifications notify={notify} />}
+          {activeKey === 'messages' && <MembershipSuiteSection key="notices" initialModule="notices" notify={notify} />}
           {activeKey === 'support' && <BeneficiariesSupportSection notify={notify} />}
-          {activeKey === 'appointments' && <AppointmentsSection notify={notify} />}
-          {activeKey === 'reports' && <ReportsAnalytics notify={notify} />}
+          {activeKey === 'appointments' && <AdminUnavailable title="Appointments" message="Appointment letter issuance is currently unavailable. Contact the foundation office to arrange an official letter." />}
+          {activeKey === 'reports' && <AdminOverviewSection onNavigate={selectSection} notify={notify} />}
           {activeKey === 'qr' && <WebsiteQrSection notify={notify} />}
           {activeKey === 'letterhead' && <LetterHeadSection notify={notify} />}
           {activeKey === 'software' && <SoftwareUpdateSection notify={notify} />}
