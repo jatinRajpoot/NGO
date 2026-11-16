@@ -57,7 +57,7 @@ const itemByKey = Object.fromEntries(navItems.map((item) => [item.key, item]));
 
 export default function AdminDashboard() {
   const [activeKey, setActiveKey] = useState('website');
-  const [websiteSubTab, setWebsiteSubTab] = useState('pages');
+  const [websiteSubTab, setWebsiteSubTab] = useState('gallery');
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [toast, setToast] = useState('');

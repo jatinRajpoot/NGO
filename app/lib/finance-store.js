@@ -401,9 +401,9 @@ export async function listFinanceDonations({
   to = '',
   search = '',
 } = {}) {
-  const items = (await readJson('donations', buildInitialDonations)).filter(d => !d.isSandbox).map(d => ({ ...d, purpose: d.purpose || d.program,
-    requiresReconciliation: ['Pending Verification', 'Pending Settlement'].includes(d.status),
-    status: d.status === 'Verified' ? 'Success' : ['Pending Verification', 'Pending Settlement'].includes(d.status) ? 'Pending' : d.status }));
+  const items = (await readJson('donations', buildInitialDonations)).filter(d => !d.isSandbox && !d.isDemoSample && !d.isDemoRecord).map(d => ({ ...d, purpose: d.purpose || d.program,
+    requiresReconciliation: ['Pending Verification', 'Pending Settlement', 'Pending'].includes(d.status),
+    status: d.status === 'Verified' ? 'Success' : ['Pending Verification', 'Pending Settlement', 'Pending'].includes(d.status) ? 'Pending' : d.status }));
   const sSrc = String(source || 'all').toLowerCase();
   const sStat = String(status || 'all').toLowerCase();
   const q = String(search || '').trim().toLowerCase();
@@ -430,7 +430,7 @@ export async function searchPublicDonations(query = '') {
   const all = await readJson('donations', buildInitialDonations);
   const q = String(query || '').trim().toLowerCase();
   const paidOnly = all.filter((d) =>
-    !d.isSandbox && ['success', 'paid', 'completed', 'verified'].includes(String(d.status || '').toLowerCase())
+    !d.isSandbox && !d.isDemoSample && !d.isDemoRecord && ['success', 'paid', 'completed', 'verified'].includes(String(d.status || '').toLowerCase())
   );
   const filtered = q
     ? paidOnly.filter((d) =>
@@ -501,7 +501,7 @@ export async function updateFinanceDonation(id, patch = {}) {
     if (idx === -1) return { ok: false, status: 404, error: 'Donation record not found.' };
 
     const cur = list[idx];
-    if (['Pending Verification', 'Pending Settlement'].includes(cur.status) && ['Success', 'Failed'].includes(patch.status)) return reconcilePortalItem({ kind: 'donation', id, action: patch.status === 'Success' ? 'approve' : 'reject', bankRef: patch.utr || cur.utr });
+    if (patch.status === 'Failed' || (patch.status === 'Success' && cur.status !== 'Verified')) return reconcilePortalItem({ kind: 'donation', id, action: patch.status === 'Success' ? 'approve' : 'reject', bankRef: patch.utr || cur.utr });
     const next = {
       ...cur,
       donorName: typeof patch.donorName === 'string' && patch.donorName.trim()
@@ -512,7 +512,7 @@ export async function updateFinanceDonation(id, patch = {}) {
         ? patch.purpose.trim().slice(0, 120) : cur.purpose,
       method: typeof patch.method === 'string' && patch.method.trim()
         ? patch.method.trim().slice(0, 60) : cur.method,
-      status: patch.status === 'Success' ? 'Verified' : ['Pending', 'Failed'].includes(patch.status) ? patch.status : cur.status,
+      status: cur.status,
       utr: typeof patch.utr === 'string' && patch.utr.trim() ? patch.utr.trim().slice(0, 80) : cur.utr,
       pan: typeof patch.pan === 'string' ? patch.pan.trim().toUpperCase().slice(0, 20) : cur.pan,
     };
@@ -651,7 +651,11 @@ async function applyDonationToCampaign(campaignId, amount) {
 }
 
 export async function listCampaigns({ tab = 'all' } = {}) {
-  const items = await readJson('campaigns', buildInitialCampaigns);
+  const donations = await donationRecordStore.read();
+  const items = (await readJson('campaigns', buildInitialCampaigns)).map(campaign => {
+    const simulations = donations.filter(d => d.isSandbox && d.campaignId === campaign.id);
+    return { ...campaign, raisedAmount: Math.max(0, Number(campaign.raisedAmount || 0) - simulations.reduce((sum, d) => sum + Number(d.amount || 0), 0)), donorsCount: Math.max(0, Number(campaign.donorsCount || 0) - simulations.length) };
+  });
   const t = String(tab || 'all').toLowerCase();
   if (t === 'active') return items.filter((c) => c.status === 'Active');
   if (t === 'completed') return items.filter((c) => c.status === 'Completed');

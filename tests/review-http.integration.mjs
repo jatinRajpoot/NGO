@@ -133,6 +133,28 @@ try {
       const signIn = await context.request.post('/api/admin/auth/login/', { headers: { Origin: base }, data: { username: 'review-admin', password } });
       assert.equal(signIn.status(), 200);
       const page = await context.newPage();
+      await page.goto('/membership/');
+      const application = page.locator('form').filter({ has: page.getByPlaceholder('Password (at least 8 characters) *', { exact: true }) });
+      await application.getByPlaceholder('Full Name *', { exact: true }).fill('Browser Applicant');
+      await application.getByPlaceholder('Email Address *', { exact: true }).fill('browser-applicant@example.invalid');
+      await application.getByPlaceholder('Mobile Number *', { exact: true }).fill('9000000007');
+      await application.getByPlaceholder('Password (at least 8 characters) *', { exact: true }).fill('BrowserApplicantSecret123!');
+      await application.getByRole('checkbox').check();
+      await application.getByRole('button', { name: 'Review Application' }).click();
+      await expect(page.getByText('BrowserApplicantSecret123!', { exact: true })).toHaveCount(0);
+      const [submission] = await Promise.all([
+        page.waitForResponse(r => new URL(r.url()).pathname === '/api/public/members/' && r.request().method() === 'POST'),
+        page.getByRole('button', { name: 'Confirm & Submit Application', exact: true }).click(),
+      ]);
+      assert.equal(submission.status(), 201, 'The actual membership form must provide its password');
+      const browserApplicant = (await submission.json()).member;
+      assert.equal(browserApplicant.paymentStatus, 'Pending');
+      await page.goto('/admin/#website');
+      await page.getByRole('tab', { name: 'Page Content', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Unavailable', exact: true })).toBeDisabled();
+      await page.getByRole('tab', { name: 'Social Links', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Unavailable', exact: true })).toBeDisabled();
+
       await page.goto('/admin/#team');
       await expect(page.getByRole('button', { name: 'Unavailable', exact: true })).toBeDisabled();
       await page.goto('/admin/#appointments');

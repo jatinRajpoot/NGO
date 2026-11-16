@@ -752,7 +752,7 @@ export async function getAdminOverviewData() {
     listExpenses(), listProjects(), listEnquiries(), listComplaints(), readPortalRecords('fee-payments'), listPendingReconciliations(),
   ]);
   const members = allMembers.filter(m => !m.isDemoAccount && !m.isDemoRecord);
-  const donations = allDonations.filter(d => !d.isSandbox && !d.isDemoRecord && ['success', 'verified', 'paid', 'completed'].includes(String(d.status).toLowerCase()));
+  const donations = allDonations.filter(d => !d.isSandbox && !d.isDemoRecord && !d.isDemoSample && ['success', 'verified', 'paid', 'completed'].includes(String(d.status).toLowerCase()));
   const sum = rows => rows.reduce((total, row) => total + Number(row.amount || 0), 0);
   const now = new Date();
   const monthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);

@@ -24,8 +24,8 @@ const BENEFICIARY_CATEGORIES = [
   'Disaster Relief',
 ];
 
-export default function BeneficiariesSupportSection({ notify }) {
-  const [section, setSection] = useState('beneficiaries'); // 'beneficiaries' | 'complaints' | 'enquiries'
+export default function BeneficiariesSupportSection({ notify, initialSection = 'beneficiaries' }) {
+  const [section, setSection] = useState(initialSection); // 'beneficiaries' | 'complaints' | 'enquiries'
   const [loading, setLoading] = useState(true);
 
   // Beneficiaries

@@ -803,6 +803,7 @@ export async function getMemberWorkspace(memberId) {
     ...sanitizeMember(found),
     donations: memberDonations,
     feePayments: memberFees,
+    certificates: [...(found.certificates || []), ...(await readCollection('certificates', buildInitialCertificates)).filter(c => c.isVerifiedOfficial && ['Verified', 'Active'].includes(c.status) && (c.memberRegNo === (found.regNo || found.id) || c.memberId === found.id)).map(c => ({ ...c, id: c.certNo || c.id, recipient: c.recipient || c.recipientName, issueDate: c.date || c.issuedDate }))],
   };
 }
 
@@ -1491,7 +1492,7 @@ export async function verifyDocumentCode(rawCode) {
   if (cert) {
     return {
       found: true,
-      verified: Boolean(cert.isVerifiedOfficial && ['Verified', 'Active'].includes(cert.status)),
+      verified: Boolean(!cert.isDemoSample && !cert.isDemoRecord && cert.isVerifiedOfficial && ['Verified', 'Active'].includes(cert.status)),
       status: cert.status,
       document: {
         code: cert.certNo || cert.id,
@@ -1511,7 +1512,7 @@ export async function verifyDocumentCode(rawCode) {
     (d) => (d.receiptNo && d.receiptNo.toUpperCase() === code) || (d.trackingId && d.trackingId.toUpperCase() === code)
   );
   if (donation) {
-    const verified = donation.status === 'Verified' && Boolean(donation.receipt80gIssued);
+    const verified = !donation.isSandbox && !donation.isDemoSample && !donation.isDemoRecord && donation.status === 'Verified' && Boolean(donation.receipt80gIssued);
     return {
       found: true,
       verified,
@@ -1532,7 +1533,7 @@ export async function verifyDocumentCode(rawCode) {
   const members = await readCollection('members', buildInitialMembers);
   const member = members.find((m) => m.id.toUpperCase() === code);
   if (member) {
-    const verified = member.status === 'Active' && member.feeStatus === 'Paid';
+    const verified = !member.isDemoAccount && member.status === 'Active' && member.feeStatus === 'Paid';
     return {
       found: true,
       verified,
@@ -1663,6 +1664,7 @@ export async function reconcilePortalItem({ kind, id, action, adminUser = 'admin
       if (idx === -1) return { ok: false, status: 404, error: 'Donation record not found' };
 
       const current = donations[idx];
+      if (current.isSandbox || current.isDemoSample || current.isDemoRecord) return { ok: false, status: 400, error: 'Test records cannot be reconciled into real payments.' };
       if (approve) {
         if (current.status === 'Verified') {
           return { ok: true, status: 200, donation: current };

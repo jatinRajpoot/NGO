@@ -74,8 +74,8 @@ try {
   assert(textVerify.includes('Receive Certificate (Email)'), 'Verify page should render Receive Certificate tab');
   assert(textVerify.includes('Certificate ID Search &amp; Details') || textVerify.includes('Certificate ID Search & Details'), 'Verify page should render Search tab');
   assert(textVerify.includes('QR Code Scanner &amp; Authenticity') || textVerify.includes('QR Code Scanner & Authenticity'), 'Verify page should render QR Scanner tab');
-  assert(textVerify.includes('GSDD-ACH-2026-081'), 'Verify page should include default verified certificate ID');
-  assert(textVerify.includes('Kavita Kumari'), 'Verify page should include recipient name');
+  assert(textVerify.includes('Search for an issued certificate ID'), 'Verify page must ask for a real certificate ID');
+  assert(!textVerify.includes('Verified Certificate: GSDD-ACH-2026-081'), 'Sample certificates must not appear pre-verified');
   assert(textVerify.includes('GLOBAL SKILLS &amp; DIGITAL DEVELOPMENT WELFARE FOUNDATION') || textVerify.includes('GLOBAL SKILLS & DIGITAL DEVELOPMENT WELFARE FOUNDATION') || textVerify.includes('Global Skills &amp; Digital Development Welfare Foundation'), 'Verify page should include issuing organization');
   assert(textVerify.includes('Certificate of Excellence &amp; Achievement') || textVerify.includes('Certificate of Excellence & Achievement'), 'Verify page should include certificate type');
   assert(textVerify.includes('28 February 2026'), 'Verify page should include issue date');

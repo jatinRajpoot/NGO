@@ -466,6 +466,8 @@ export async function createExtendedMember(payload = {}, { isPublicApply = false
     passwordHash = `${salt}:${derived.toString('hex')}`;
   }
 
+  const selectedDesignation = isPublicApply ? (await listDesignations({ status: '1' })).find(d => d.title === (payload.designation || 'General Member')) : null;
+  if (isPublicApply && payload.designation && payload.designation !== 'General Member' && !selectedDesignation) return { ok: false, status: 400, error: 'Choose an available membership designation.' };
   return withLock('members-ext', async () => {
     const list = await readJson('members-ext', buildInitialMembersExt);
     if (list.some((m) => m.email.toLowerCase() === email)) {
@@ -492,9 +494,10 @@ export async function createExtendedMember(payload = {}, { isPublicApply = false
       address: String(payload.address || '').trim().slice(0, 260),
       designation: String(payload.designation || 'General Member').trim().slice(0, 100),
       addedBy: refBy || (isPublicApply ? 'Self Application' : 'Admin Office'),
-      membershipFee: Math.max(0, Number(payload.membershipFee ?? 500)),
-      paymentMode: String(payload.paymentMode || 'Online Payment Gateway').slice(0, 60),
-      paymentStatus: payload.paymentMode === 'Free Membership' ? 'Free' : payload.paymentStatus || (isPublicApply ? 'Pending' : 'Paid'),
+      membershipFee: isPublicApply ? Number(selectedDesignation?.feeRs ?? 500) : Math.max(0, Number(payload.membershipFee ?? 500)),
+      paymentMode: isPublicApply ? 'Awaiting Payment' : String(payload.paymentMode || 'Cash/UPI Received by Admin').slice(0, 60),
+      paymentStatus: isPublicApply ? 'Pending' : payload.paymentMode === 'Free Membership' ? 'Free' : payload.paymentStatus || 'Paid',
+      feeStatus: isPublicApply ? 'Pending' : ['Pending', 'Failed'].includes(payload.paymentStatus) ? 'Pending' : 'Paid',
       accountStatus: isPublicApply
         ? 'Pending'
         : ['Pending', 'Active', 'Blocked'].includes(payload.accountStatus)

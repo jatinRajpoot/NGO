@@ -49,14 +49,30 @@ try {
   assert.ok(await portal.authenticateMemberAccount('legacy@example.invalid', 'LegacySecret123!'));
   await membership.deleteExtendedMembers(['ext-legacy']);
   assert.ok(!(await portal.memberAccountStore.read()).some(m => m.id === 'ext-legacy'), 'Migrated deleted records must not return');
-  await writeFile(path.join(directory, 'finance', 'donations.json'), JSON.stringify([{ id: 'legacy-simulation', donorName: 'Old Simulation', email: 'old@example.invalid', amount: 9999, status: 'Success', utr: 'OLD-SANDBOX-REF' }]));
+  await writeFile(path.join(directory, 'finance', 'donations.json'), JSON.stringify([{ id: 'legacy-simulation', donorName: 'Old Simulation', email: 'old@example.invalid', amount: 9999, status: 'Success', utr: 'OLD-SANDBOX-REF', campaignId: 'legacy-campaign' }]));
   await writeFile(path.join(directory, 'finance', 'gateway-sessions.json'), JSON.stringify([{ status: 'Completed', txRef: 'OLD-SANDBOX-REF' }]));
   assert.equal((await finance.listFinanceDonations()).length, 0, 'Historical sandbox transactions with recorded sessions must be excluded');
-  const created = await membership.createExtendedMember({ name: 'Workflow Member', email: 'workflow@example.invalid', mobile: '9876543210', password: 'OriginalPass123!', address: 'Isolated address' }, { isPublicApply: true });
+  await writeFile(path.join(directory, 'finance', 'campaigns.json'), JSON.stringify([{ id: 'legacy-campaign', title: 'Prior campaign', raisedAmount: 10499, donorsCount: 2, status: 'Active' }]));
+  assert.equal((await finance.listCampaigns())[0].raisedAmount, 500, 'Remove only known simulated campaign credit, preserving the manual baseline');
+  assert.equal((await getAdminOverviewData()).kpis.activeCampaigns.totalRaised, 500);
+  assert.equal((await finance.listCampaigns())[0].raisedAmount, 500, 'Campaign correction must be idempotent');
+  await portal.donationRecordStore.run(async () => {
+    const records = await portal.donationRecordStore.read();
+    records.push({ id: 'legacy-demo', donorName: 'Demo', amount: 25000, status: 'Verified', isDemoSample: true, receiptNo: 'DEMO-RECEIPT' });
+    await portal.donationRecordStore.write(records);
+  });
+  assert.equal((await getAdminOverviewData()).kpis.totalDonations.amount, 0);
+  assert.equal((await finance.searchPublicDonations('DEMO-RECEIPT')).length, 0);
+  assert.equal((await portal.reconcilePortalItem({ kind: 'donation', id: 'legacy-demo', action: 'approve' })).ok, false);
+
+  const created = await membership.createExtendedMember({ name: 'Workflow Member', email: 'workflow@example.invalid', mobile: '9876543210', password: 'OriginalPass123!', address: 'Isolated address', paymentStatus: 'Paid', paymentMode: 'Free Membership', membershipFee: 0 }, { isPublicApply: true });
   assert.ok(created.ok);
   assert.equal(await portal.authenticateMemberAccount('workflow@example.invalid', 'OriginalPass123!'), null);
   await membership.updateExtendedMember(created.member.id, { accountStatus: 'Active' });
   assert.ok(await portal.authenticateMemberAccount('workflow@example.invalid', 'OriginalPass123!'));
+  assert.equal((await portal.getMemberWorkspace(created.member.id)).feeStatus, 'Pending');
+  assert.equal((await portal.verifyDocumentCode(created.member.id)).verified, false);
+  assert.equal(created.member.membershipFee, 500);
   await membership.updateExtendedMember(created.member.id, { accountStatus: 'Blocked' });
   assert.equal(await portal.authenticateMemberAccount('workflow@example.invalid', 'OriginalPass123!'), null);
   await membership.updateExtendedMember(created.member.id, { accountStatus: 'Active' });
@@ -82,7 +98,10 @@ try {
   const listed = (await finance.listFinanceDonations()).find(r => r.id === donation.donation.id);
   assert.ok(listed.requiresReconciliation);
   assert.ok(!(await finance.listFinanceDonations({ status: 'success' })).some(r => r.id === donation.donation.id));
+  await finance.updateFinanceDonation(listed.id, { status: 'Pending', donorName: 'Edited name' });
+  assert.equal((await finance.listFinanceDonations()).find(r => r.id === listed.id).requiresReconciliation, true);
   assert.ok((await finance.updateFinanceDonation(listed.id, { status: 'Success' })).ok);
+  assert.ok((await portal.readPortalRecords('donations')).find(r => r.id === listed.id).receiptNo);
   assert.equal((await portal.readPortalRecords('donations')).find(r => r.id === donation.donation.id).status, 'Verified');
   assert.equal((await getAdminOverviewData()).kpis.totalDonations.amount, 1234);
 
@@ -97,6 +116,8 @@ try {
   assert.deepEqual(mandate.mandate.payments, []);
   assert.equal((await finance.updateAutoPayMandateStatus(mandate.mandate.id, { triggerDebit: true })).ok, false);
 
+  const credential = await membership.issueCertificateExt({ kind: 'Member', recipientName: created.member.name, memberRegNo: created.member.regNo, program: 'Issued to actual account' });
+  assert.ok((await portal.getMemberWorkspace(created.member.id)).certificates.some(c => c.id === credential.certificate.certNo));
   const track = await operations.createInternship({ title: 'Workflow internship', duration: '1 month', status: 'Active' });
   const application = await operations.applyForInternship({ internshipId: track.internship.id, name: 'Intern', email: 'intern@example.invalid', phone: '9000000000' });
   const issued = await operations.issueInternshipCertificate(application.application.id, 'Approved');
