@@ -171,6 +171,17 @@ export default function DonationManagement({ notify }) {
     }
   };
 
+  const handleReconcile = async (donation, action) => {
+    if (!window.confirm(action === 'approve' ? 'Confirm this donation matches a received bank or cash payment?' : 'Reject this donation submission?')) return;
+    try {
+      const response = await fetch('/api/admin/reconcile/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'donation', id: donation.id, action, bankRef: donation.utr }) });
+      const data = await response.json();
+      if (!response.ok) { notify?.(data.error || 'Reconciliation failed.'); return; }
+      await loadDonations();
+      notify?.(action === 'approve' ? 'Donation verified and receipt saved.' : 'Donation rejected.');
+    } catch { notify?.('Unable to reconcile donation. Try again.'); }
+  };
+
   const handleCreateReceipt = async (e) => {
     e.preventDefault();
     const res = await fetch('/api/admin/finance/donations/', {
@@ -377,7 +388,7 @@ export default function DonationManagement({ notify }) {
                 <tbody>
                   {campDonations.map((d) => (
                     <tr key={d.id}>
-                      <td><strong>{d.receiptNo}</strong></td>
+                      <td><strong>{d.receiptNo || d.trackingId || 'Pending'}</strong></td>
                       <td>{d.donorName}</td>
                       <td>{d.purpose}</td>
                       <td>Rs. {Number(d.amount).toLocaleString('en-IN')}</td>
@@ -646,7 +657,7 @@ export default function DonationManagement({ notify }) {
                           }
                         />
                       </td>
-                      <td><strong>{d.receiptNo}</strong></td>
+                      <td><strong>{d.receiptNo || d.trackingId || 'Pending'}</strong></td>
                       <td>
                         <div><strong>{d.donorName}</strong></div>
                         <small style={{ color: '#64748b' }}>{d.email || d.phone}</small>
@@ -664,6 +675,10 @@ export default function DonationManagement({ notify }) {
                       <td>{String(d.createdAt || '').slice(0, 10)}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 5 }}>
+                          {d.requiresReconciliation && <>
+                            <button type="button" className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => handleReconcile(d, 'approve')}>Verify</button>
+                            <button type="button" className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => handleReconcile(d, 'reject')}>Reject</button>
+                          </>}
                           <button type="button" className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => setDetailModal(d)}><Eye size={13} /></button>
                           <button type="button" className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => setEditDonation({ ...d })}><Edit2 size={13} /></button>
                           <button type="button" className="adm-btn adm-btn-sm adm-btn-outline" style={{ color: '#dc2626' }} onClick={() => handleBulkDeleteDonations([d.id])}><Trash2 size={13} /></button>

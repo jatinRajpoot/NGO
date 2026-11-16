@@ -56,6 +56,7 @@ async function main() {
       env: {
         ...process.env,
         NODE_ENV: hasBuild ? 'production' : 'development',
+        GSDD_DEMO_DATA: '1',
         GALLERY_BUCKET: '',
         ADMIN_SYSTEM_DATA_DIR: testDataDir,
         PORTAL_DATA_DIR: testDataDir,
@@ -204,10 +205,10 @@ async function main() {
       assert.ok(overview.kpis[kpiKey], `Missing KPI ${kpiKey}`);
     }
     assert.equal(overview.monthlyDonations.length, 6);
-    assert.equal(overview.monthlyDonations[0].month, 'Jun');
-    assert.equal(overview.monthlyDonations[5].month, 'Nov');
-    assert.ok(overview.recentMembers.length > 0);
-    assert.ok(overview.recentActivity.length > 0);
+    assert.equal(overview.monthlyDonations[0].month, new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 5, 1)).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }));
+    assert.equal(overview.monthlyDonations[5].month, new Date().toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }));
+    assert.equal(overview.recentMembers.length, 0, 'Demo member accounts must not become operational KPIs');
+    assert.ok(Array.isArray(overview.recentActivity));
 
     // 9. Birthday Wishes
     const bdayToday = await (await api('/api/admin/birthdays/?tab=today')).json();

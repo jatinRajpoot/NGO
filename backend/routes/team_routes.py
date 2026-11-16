@@ -1,10 +1,12 @@
 import json
 from flask import Blueprint, request, jsonify
 from backend.db import query_db, execute_db
+from backend.routes.auth_routes import admin_required
 
 team_bp = Blueprint('team_bp', __name__)
 
 @team_bp.route('/members', methods=['GET'])
+@admin_required
 def list_team_members():
     members = query_db("SELECT * FROM team_members ORDER BY id ASC")
     # Parse json columns
@@ -28,6 +30,7 @@ def list_team_members():
     return jsonify({'status': 'success', 'count': len(members), 'team': members}), 200
 
 @team_bp.route('/members/<member_id>', methods=['GET'])
+@admin_required
 def get_team_member(member_id):
     m = query_db("SELECT * FROM team_members WHERE id = %s", (member_id,), one=True)
     if not m:
@@ -43,6 +46,7 @@ def get_team_member(member_id):
     return jsonify({'status': 'success', 'team_member': m}), 200
 
 @team_bp.route('/members/<member_id>/update-photo', methods=['POST'])
+@admin_required
 def update_team_photo(member_id):
     data = request.get_json() or {}
     new_photo = data.get('photo_url', '').strip()

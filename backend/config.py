@@ -5,15 +5,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    SECRET_KEY = os.getenv('SECRET_KEY', 'gsdd-foundation-flask-secret-key-2026')
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'gsdd-jwt-secret-key-928471928374')
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=8)
     
     # MySQL Database Config
     MYSQL_HOST = os.getenv('MYSQL_HOST', 'localhost')
     MYSQL_PORT = int(os.getenv('MYSQL_PORT', 3306))
     MYSQL_USER = os.getenv('MYSQL_USER', 'root')
-    MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', 'bharti')
+    MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', '')
     MYSQL_DB = os.getenv('MYSQL_DB', 'gsdd_foundation_db')
     
     # SQLite fallback path for local isolated tests if MySQL is unavailable
@@ -22,4 +22,4 @@ class Config:
     # Server configuration
     PORT = int(os.getenv('FLASK_PORT', 5000))
     DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1')
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', '*').split(',')
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')

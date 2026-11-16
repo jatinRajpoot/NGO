@@ -1,7 +1,6 @@
-import { randomBytes } from 'node:crypto';
 import { isSameOrigin } from '../../../lib/portal-auth';
 import { jsonNoStore, requireAuthenticatedMember } from '../../../lib/member-session';
-import { createPendingDonation, updateMemberProfile } from '../../../lib/portal-store';
+import { updateMemberProfile } from '../../../lib/portal-store';
 import {
   getMemberExtensionsSnapshot,
   saveMemberPhoto,
@@ -51,22 +50,7 @@ export async function POST(request) {
         error: 'PhonePe Net Banking sandbox requires username "test" and password "test".',
       }, 401);
     }
-    const txRef = `${gateway === 'phonepe' ? 'PPNB' : 'RZP'}-${randomBytes(4).toString('hex').toUpperCase()}`;
-    const res = await createPendingDonation({
-      source: 'member',
-      memberId: member.id,
-      donorName: member.name,
-      email: member.email,
-      phone: member.phone,
-      pan: body.pan || '',
-      amount: body.amount,
-      frequency: 'one-time',
-      program: body.purpose || 'Education & Digital Inclusion',
-      method: gateway === 'phonepe' ? 'PhonePe NetBanking' : 'Razorpay',
-      utr: txRef,
-    });
-    if (!res.ok) return jsonNoStore({ ok: false, error: res.error }, res.status);
-    return jsonNoStore({ ok: true, txRef, donation: res.donation }, 201);
+    return jsonNoStore({ ok: true, isSandbox: true, status: 'Simulated', message: 'Simulation complete. No payment was collected or recorded.' }, 200);
   }
 
   return jsonNoStore({ ok: false, error: 'Unknown action.' }, 400);

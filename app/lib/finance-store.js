@@ -1,8 +1,10 @@
+import { donationRecordStore, reconcilePortalItem } from './portal-store';
+import { createJsonStore, publicReference } from './json-store';
 // Server-only durable store for Donations, Receipts, Payment Gateway Sandbox Sessions,
 // Crowdfunding Campaigns, Coordinators, Coordinator Donations, Other/Item Donations, and AutoPay Mandates.
 
-import { createHash, randomBytes, randomUUID, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { createHash, randomBytes, randomUUID, timingSafeEqual, scrypt as scryptCb } from 'node:crypto';
+import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -14,14 +16,8 @@ export { CAMPAIGN_CATEGORIES, DONATION_PURPOSE_PRESETS };
 const scryptAsync = promisify(scryptCb);
 
 let cachedBucket = null;
-const locks = new Map();
-
-function withLock(key, fn) {
-  const prev = locks.get(key) || Promise.resolve();
-  const next = prev.then(fn, fn);
-  locks.set(key, next.catch(() => {}));
-  return next;
-}
+const collectionStore = createJsonStore({ prefix: 'finance', getBucket: getGcsBucket, getDirectory: getDataDir });
+const withLock = (name, operation) => name === 'donations' ? donationRecordStore.run(operation) : collectionStore.run(name, operation);
 
 function getDataDir() {
   const candidates = [
@@ -55,55 +51,16 @@ function getGcsBucket() {
   }
 }
 
-async function readJson(name, seedFn) {
-  const bucket = getGcsBucket();
-  if (bucket) {
-    const file = bucket.file(`finance/${name}.json`);
-    try {
-      const [buf] = await file.download();
-      return JSON.parse(buf.toString('utf8'));
-    } catch (err) {
-      if (err?.code === 404 || err?.status === 404 || err?.statusCode === 404) {
-        const initial = seedFn();
-        await writeJson(name, initial);
-        return initial;
-      }
-      throw err;
-    }
-  }
-
-  const filePath = path.join(getDataDir(), `${name}.json`);
-  if (!existsSync(filePath)) {
-    const initial = seedFn();
-    await writeJson(name, initial);
-    return initial;
-  }
-  return JSON.parse(readFileSync(filePath, 'utf8'));
+async function readJson(name, seed) {
+  if (name === 'donations') return donationRecordStore.read();
+  const records = await collectionStore.read(name, seed);
+  if (name !== 'autopay-mandates') return records;
+  return records.map(record => record.providerAuthorization ? record : {
+    ...record, status: record.status === 'Active' ? 'Pending Authorization' : record.status,
+    legacyUnverifiedPayments: record.legacyUnverifiedPayments || record.payments || [], payments: [], nextDebitDate: null,
+  });
 }
-
-async function writeJson(name, data) {
-  const payload = JSON.stringify(data, null, 2);
-  const bucket = getGcsBucket();
-  if (bucket) {
-    await bucket.file(`finance/${name}.json`).save(payload, {
-      contentType: 'application/json',
-      resumable: false,
-    });
-    return;
-  }
-
-  const filePath = path.join(getDataDir(), `${name}.json`);
-  const temp = `${filePath}.tmp.${randomBytes(6).toString('hex')}`;
-  try {
-    writeFileSync(temp, payload, 'utf8');
-    renameSync(temp, filePath);
-  } catch (err) {
-    try {
-      unlinkSync(temp);
-    } catch {}
-    throw err;
-  }
-}
+const writeJson = (name, records) => name === 'donations' ? donationRecordStore.write(records) : collectionStore.write(name, records);
 
 // ---------------------------------------------------------------------------
 // Seed Builders
@@ -444,16 +401,18 @@ export async function listFinanceDonations({
   to = '',
   search = '',
 } = {}) {
-  const items = await readJson('donations', buildInitialDonations);
+  const items = (await readJson('donations', buildInitialDonations)).filter(d => !d.isSandbox).map(d => ({ ...d, purpose: d.purpose || d.program,
+    requiresReconciliation: ['Pending Verification', 'Pending Settlement'].includes(d.status),
+    status: d.status === 'Verified' ? 'Success' : ['Pending Verification', 'Pending Settlement'].includes(d.status) ? 'Pending' : d.status }));
   const sSrc = String(source || 'all').toLowerCase();
   const sStat = String(status || 'all').toLowerCase();
   const q = String(search || '').trim().toLowerCase();
 
   return items
     .filter((d) => {
-      if (sSrc !== 'all' && String(d.source || '').toLowerCase() !== sSrc) return false;
+      if (sSrc !== 'all' && String(d.source || '').toLowerCase() !== sSrc && !(sSrc === 'visitor' && d.source === 'donor')) return false;
       if (sStat === 'success' || sStat === 'paid') {
-        if (!['success', 'paid', 'completed'].includes(String(d.status || '').toLowerCase())) return false;
+        if (!['success', 'paid', 'completed', 'verified'].includes(String(d.status || '').toLowerCase())) return false;
       } else if (sStat !== 'all' && String(d.status || '').toLowerCase() !== sStat) {
         return false;
       }
@@ -471,7 +430,7 @@ export async function searchPublicDonations(query = '') {
   const all = await readJson('donations', buildInitialDonations);
   const q = String(query || '').trim().toLowerCase();
   const paidOnly = all.filter((d) =>
-    ['success', 'paid', 'completed'].includes(String(d.status || '').toLowerCase())
+    !d.isSandbox && ['success', 'paid', 'completed', 'verified'].includes(String(d.status || '').toLowerCase())
   );
   const filtered = q
     ? paidOnly.filter((d) =>
@@ -502,10 +461,10 @@ export async function createFinanceDonation(payload = {}) {
   return withLock('donations', async () => {
     const list = await readJson('donations', buildInitialDonations);
     const now = new Date().toISOString();
-    const seq = String(list.length + 101).padStart(4, '0');
+
     const record = {
       id: `don-${randomUUID().slice(0, 8)}`,
-      receiptNo: `GSDD-RCP-${new Date().getFullYear()}-${seq}`,
+      receiptNo: payload.status === 'Pending' || payload.status === 'Failed' ? null : publicReference('GSDD-RCP'),
       source: ['member', 'visitor', 'receipt', 'campaign'].includes(String(payload.source || '').toLowerCase())
         ? String(payload.source).toLowerCase()
         : 'receipt',
@@ -517,18 +476,18 @@ export async function createFinanceDonation(payload = {}) {
       amount: Math.round(amount),
       purpose: String(payload.purpose || 'General Fund').trim().slice(0, 120),
       method: String(payload.method || 'Cash').trim().slice(0, 60),
-      status: ['Success', 'Pending', 'Failed'].includes(String(payload.status || ''))
-        ? payload.status
-        : 'Success',
-      referralCode: String(payload.referralCode || '').trim().slice(0, 40),
-      utr: String(payload.utr || `TXN-${randomBytes(4).toString('hex').toUpperCase()}`).trim().slice(0, 80),
+      status: ['Pending', 'Failed'].includes(payload.status) ? payload.status : 'Verified',
+      receipt80gIssued: !['Pending', 'Failed'].includes(payload.status),
+      taxDeductible: !['Pending', 'Failed'].includes(payload.status),
+      referralCode: String(payload.referralCode || '').trim().slice(0, 64),
+      utr: String(payload.utr || '').trim().slice(0, 80),
       campaignId: String(payload.campaignId || '').trim().slice(0, 60),
       createdAt: payload.createdAt || now,
     };
     list.unshift(record);
     await writeJson('donations', list);
 
-    if (record.campaignId && record.status === 'Success') {
+    if (record.campaignId && record.status === 'Verified') {
       await applyDonationToCampaign(record.campaignId, record.amount);
     }
     return { ok: true, status: 201, donation: record };
@@ -542,6 +501,7 @@ export async function updateFinanceDonation(id, patch = {}) {
     if (idx === -1) return { ok: false, status: 404, error: 'Donation record not found.' };
 
     const cur = list[idx];
+    if (['Pending Verification', 'Pending Settlement'].includes(cur.status) && ['Success', 'Failed'].includes(patch.status)) return reconcilePortalItem({ kind: 'donation', id, action: patch.status === 'Success' ? 'approve' : 'reject', bankRef: patch.utr || cur.utr });
     const next = {
       ...cur,
       donorName: typeof patch.donorName === 'string' && patch.donorName.trim()
@@ -552,7 +512,7 @@ export async function updateFinanceDonation(id, patch = {}) {
         ? patch.purpose.trim().slice(0, 120) : cur.purpose,
       method: typeof patch.method === 'string' && patch.method.trim()
         ? patch.method.trim().slice(0, 60) : cur.method,
-      status: ['Success', 'Pending', 'Failed'].includes(patch.status) ? patch.status : cur.status,
+      status: patch.status === 'Success' ? 'Verified' : ['Pending', 'Failed'].includes(patch.status) ? patch.status : cur.status,
       utr: typeof patch.utr === 'string' && patch.utr.trim() ? patch.utr.trim().slice(0, 80) : cur.utr,
       pan: typeof patch.pan === 'string' ? patch.pan.trim().toUpperCase().slice(0, 20) : cur.pan,
     };
@@ -596,8 +556,8 @@ export async function createGatewaySession(payload = {}) {
     const session = {
       sessionId: `GWSESS-${randomUUID().slice(0, 10).toUpperCase()}`,
       gateway,
-      mode: String(payload.mode || (gateway === 'phonepe' ? 'netbanking' : 'card')).slice(0, 40),
-      source: String(payload.source || 'visitor').slice(0, 40),
+      mode: String(payload.mode || (gateway === 'phonepe' ? 'netbanking' : 'card')).slice(0, 64),
+      source: String(payload.source || 'visitor').slice(0, 64),
       donorName,
       email: String(payload.email || '').trim().slice(0, 160),
       phone: String(payload.phone || '').trim().slice(0, 24),
@@ -606,7 +566,7 @@ export async function createGatewaySession(payload = {}) {
       amount: Math.round(amount),
       purpose: String(payload.purpose || 'General Fund').trim().slice(0, 120),
       campaignId: String(payload.campaignId || '').trim().slice(0, 60),
-      referralCode: String(payload.referralCode || '').trim().slice(0, 40),
+      referralCode: String(payload.referralCode || '').trim().slice(0, 64),
       frequency: String(payload.frequency || 'one-time').slice(0, 20),
       status: 'Created',
       createdAt: new Date().toISOString(),
@@ -664,35 +624,11 @@ export async function verifyGatewaySession({ sessionId, username = '', password 
     sessions[idx] = sess;
     await writeJson('gateway-sessions', sessions);
 
-    if (sess.source === 'autopay') {
-      const mandateRes = await registerAutoPayMandate({
-        donorName: sess.donorName,
-        email: sess.email,
-        phone: sess.phone,
-        amount: sess.amount,
-        purpose: sess.purpose,
-        gateway: sess.gateway === 'phonepe' ? 'PhonePe AutoPay' : 'Razorpay eMandate',
-        initialTxId: txRef,
-      });
-      return { ok: true, status: 200, kind: 'autopay', txRef, mandate: mandateRes.mandate };
-    }
+    // Simulations stay in the gateway session collection. They never issue a
+    // receipt, update a campaign or create a paid/active mandate.
+    const result = { isSandbox: true, txRef, status: 'Simulated', amount: sess.amount, donorName: sess.donorName, receiptNo: null };
+    return { ok: true, status: 200, kind: 'simulation', isSandbox: true, txRef, donation: result };
 
-    const donRes = await createFinanceDonation({
-      source: sess.campaignId ? 'campaign' : sess.source,
-      donorName: sess.donorName,
-      email: sess.email,
-      phone: sess.phone,
-      pan: sess.pan,
-      address: sess.address,
-      amount: sess.amount,
-      purpose: sess.purpose,
-      method: sess.gateway === 'phonepe' ? 'PhonePe NetBanking' : 'Razorpay',
-      status: 'Success',
-      referralCode: sess.referralCode,
-      utr: txRef,
-      campaignId: sess.campaignId,
-    });
-    return { ok: true, status: 200, kind: 'donation', txRef, donation: donRes.donation };
   });
 }
 
@@ -830,7 +766,7 @@ export async function createCoordinator(payload = {}) {
     }
     const record = {
       id: `coord-${randomUUID().slice(0, 8)}`,
-      code: String(payload.code || `COORD-${String(list.length + 1).padStart(3, '0')}`).trim().slice(0, 32),
+      code: String(payload.code || `COORD-${randomUUID().replaceAll('-', '').slice(0, 24).toUpperCase()}`).trim().slice(0, 32),
       name,
       email,
       phone,
@@ -956,10 +892,10 @@ export async function createCoordinatorDonation(payload = {}) {
     const coords = await readJson('coordinators', buildInitialCoordinators);
     const coord = coords.find((c) => c.id === coordinatorId);
     const items = await readJson('coordinator-donations', buildInitialCoordinatorDonations);
-    const seq = String(items.length + 1).padStart(3, '0');
+
     const record = {
       id: `cdon-${randomUUID().slice(0, 8)}`,
-      receiptNo: `GSDD-CRD-${new Date().getFullYear()}-${seq}`,
+      receiptNo: publicReference('GSDD-CRD'),
       coordinatorId,
       coordinatorName: coord ? coord.name : String(payload.coordinatorName || 'Coordinator'),
       donorName,
@@ -1035,11 +971,11 @@ export async function createOtherDonation(payload = {}) {
 
   return withLock('other-donations', async () => {
     const list = await readJson('other-donations', buildInitialOtherDonations);
-    const seq = String(list.length + 1).padStart(3, '0');
+
     const now = new Date().toISOString();
     const record = {
       id: `odon-${randomUUID().slice(0, 8)}`,
-      donationNo: `GSDD-ITEM-${new Date().getFullYear()}-${seq}`,
+      donationNo: publicReference('GSDD-ITEM'),
       donorName,
       email: String(payload.email || '').trim().slice(0, 160),
       category,
@@ -1094,30 +1030,22 @@ export async function registerAutoPayMandate(payload = {}) {
 
   return withLock('autopay-mandates', async () => {
     const list = await readJson('autopay-mandates', buildInitialAutoPayMandates);
-    const seq = 1001 + list.length;
+
     const now = new Date();
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).toISOString().slice(0, 10);
     const mandate = {
       id: `ap-${randomUUID().slice(0, 8)}`,
-      mandateRef: `GSDD-AP-${now.getFullYear()}-${seq}`,
+      mandateRef: publicReference('GSDD-AP'),
       donorName,
       email,
       phone: String(payload.phone || '').trim().slice(0, 24),
       amount: Math.round(amount),
       frequency: 'Monthly',
       purpose: String(payload.purpose || 'General Fund').trim().slice(0, 120),
-      gateway: String(payload.gateway || 'PhonePe AutoPay').slice(0, 40),
-      status: 'Active',
-      nextDebitDate: nextMonth,
+      gateway: String(payload.gateway || 'PhonePe AutoPay').slice(0, 64),
+      status: 'Pending Authorization',
+      nextDebitDate: null,
       createdAt: now.toISOString(),
-      payments: [
-        {
-          txId: payload.initialTxId || `AP-TX-${randomBytes(3).toString('hex').toUpperCase()}`,
-          amount: Math.round(amount),
-          paidAt: now.toISOString(),
-          status: 'Success',
-        },
-      ],
+      payments: [],
     };
     list.unshift(mandate);
     await writeJson('autopay-mandates', list);
@@ -1132,16 +1060,9 @@ export async function updateAutoPayMandateStatus(id, { status, triggerDebit = fa
     if (idx === -1) return { ok: false, status: 404, error: 'AutoPay mandate not found.' };
 
     if (triggerDebit) {
-      if (list[idx].status !== 'Active') {
-        return { ok: false, status: 400, error: 'Only Active mandates can process recurring debit.' };
-      }
-      list[idx].payments.unshift({
-        txId: `AP-TX-${randomBytes(3).toString('hex').toUpperCase()}`,
-        amount: list[idx].amount,
-        paidAt: new Date().toISOString(),
-        status: 'Success',
-      });
+      return { ok: false, status: 409, error: 'A verified payment provider is required to collect a recurring debit.' };
     } else if (['Active', 'Paused', 'Cancelled'].includes(status)) {
+      if (status === 'Active' && !list[idx].providerAuthorization) return { ok: false, status: 409, error: 'Provider authorization is required to activate this mandate.' };
       list[idx].status = status;
     } else {
       return { ok: false, status: 400, error: 'Invalid AutoPay status.' };

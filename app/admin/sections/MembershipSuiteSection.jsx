@@ -19,8 +19,8 @@ import {
 
 const CERT_DESIGNS = ['Classic Navy Emblem', 'Royal Gold Seal', 'Modern Minimal Crest'];
 
-export default function MembershipSuiteSection({ notify }) {
-  const [module, setModule] = useState('members'); // 'members' | 'designations' | 'notices' | 'certificates' | 'management'
+export default function MembershipSuiteSection({ notify, initialModule = 'members' }) {
+  const [module, setModule] = useState(initialModule); // 'members' | 'designations' | 'notices' | 'certificates' | 'management'
   const [loading, setLoading] = useState(true);
 
   // Members

@@ -79,7 +79,7 @@ export default function CertificateRecipientHub() {
     const clean = String(code || '').trim().toUpperCase();
     if (!clean) return null;
 
-    // 1. Check Flask backend when configured
+    // Resolve against the deployed Next.js verification ledger
     try {
       const data = await apiClient.getCertificate(clean);
       if (data && data.certificate) {
@@ -118,7 +118,7 @@ export default function CertificateRecipientHub() {
     return match || null;
   }
 
-  // Handle Search by Certificate ID (Flask API + Next.js registry + verified static records)
+  // Handle search by certificate ID
   async function handleSearchSubmit(e) {
     e.preventDefault();
     const clean = searchId.trim().toUpperCase();
@@ -133,7 +133,7 @@ export default function CertificateRecipientHub() {
     }
   }
 
-  // Handle Email Lookup (Integrated with Database & Fallback)
+  // Certificate inbox requires the recipient account.
   async function handleEmailLookup(e) {
     e.preventDefault();
     const clean = recipientEmail.trim().toLowerCase();
@@ -152,14 +152,9 @@ export default function CertificateRecipientHub() {
         return;
       }
     } catch {
-      // Fallback
+      setFoundEmails([]);
+      setEmailSearched(true);
     }
-
-    const matches = verifiedCertificates.filter(
-      (c) => c.email.toLowerCase().includes(clean) || c.recipient.toLowerCase().includes(clean)
-    );
-    setFoundEmails(matches);
-    setEmailSearched(true);
   }
 
   // Handle Simulated QR Scan with Verification Engine

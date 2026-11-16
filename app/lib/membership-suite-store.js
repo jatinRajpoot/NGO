@@ -1,9 +1,11 @@
+import { memberAccountStore, certificateRecordStore } from './portal-store';
+import { createJsonStore, publicReference } from './json-store';
 // Server-only durable store for Extended Membership Management, Designations,
 // Multi-select Notices, Certificates + Templates, Management Body, Member Portal Extensions,
 // and Public Directories / Forgot Password.
 
 import { randomBytes, randomUUID, scrypt as scryptCb } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -28,14 +30,8 @@ export const CERTIFICATE_DESIGNS = [
 ];
 
 let cachedBucket = null;
-const locks = new Map();
-
-function withLock(key, fn) {
-  const prev = locks.get(key) || Promise.resolve();
-  const next = prev.then(fn, fn);
-  locks.set(key, next.catch(() => {}));
-  return next;
-}
+const collectionStore = createJsonStore({ prefix: 'membership-suite', getBucket: getGcsBucket, getDirectory: getDataDir });
+const withLock = (name, operation) => name === 'members-ext' ? memberAccountStore.run(operation) : name === 'certificates-ext' ? certificateRecordStore.run(operation) : collectionStore.run(name, operation);
 
 function getDataDir() {
   const candidates = [
@@ -71,53 +67,8 @@ function getGcsBucket() {
   }
 }
 
-async function readJson(name, seedFn) {
-  const bucket = getGcsBucket();
-  if (bucket) {
-    const file = bucket.file(`membership-suite/${name}.json`);
-    try {
-      const [buf] = await file.download();
-      return JSON.parse(buf.toString('utf8'));
-    } catch (err) {
-      if (err?.code === 404 || err?.status === 404 || err?.statusCode === 404) {
-        const initial = seedFn();
-        await writeJson(name, initial);
-        return initial;
-      }
-      throw err;
-    }
-  }
-  const filePath = path.join(getDataDir(), `${name}.json`);
-  if (!existsSync(filePath)) {
-    const initial = seedFn();
-    await writeJson(name, initial);
-    return initial;
-  }
-  return JSON.parse(readFileSync(filePath, 'utf8'));
-}
-
-async function writeJson(name, data) {
-  const payload = JSON.stringify(data, null, 2);
-  const bucket = getGcsBucket();
-  if (bucket) {
-    await bucket.file(`membership-suite/${name}.json`).save(payload, {
-      contentType: 'application/json',
-      resumable: false,
-    });
-    return;
-  }
-  const filePath = path.join(getDataDir(), `${name}.json`);
-  const temp = `${filePath}.tmp.${randomBytes(6).toString('hex')}`;
-  try {
-    writeFileSync(temp, payload, 'utf8');
-    renameSync(temp, filePath);
-  } catch (err) {
-    try {
-      unlinkSync(temp);
-    } catch {}
-    throw err;
-  }
-}
+const readJson = (name, seed) => name === 'members-ext' ? memberAccountStore.read() : name === 'certificates-ext' ? certificateRecordStore.read() : collectionStore.read(name, seed);
+const writeJson = (name, data) => name === 'members-ext' ? memberAccountStore.write(data) : name === 'certificates-ext' ? certificateRecordStore.write(data) : collectionStore.write(name, data);
 
 export function toCsv(headers, rows) {
   const esc = (v) => {
@@ -434,7 +385,7 @@ function enrichMemberReferrals(items) {
 
 export async function listExtendedMembers({ tab = 'all', search = '' } = {}) {
   const raw = await readJson('members-ext', buildInitialMembersExt);
-  const items = enrichMemberReferrals(raw);
+  const items = enrichMemberReferrals(raw).map(({ passwordHash, ...safe }) => safe);
   const t = String(tab || 'all').toLowerCase();
   const q = String(search || '').trim().toLowerCase();
 
@@ -496,7 +447,7 @@ export async function createExtendedMember(payload = {}, { isPublicApply = false
   const name = String(payload.name || '').trim().slice(0, 140);
   const email = String(payload.email || '').trim().toLowerCase().slice(0, 160);
   const mobile = String(payload.mobile || payload.phone || '').trim().slice(0, 24);
-  if (!name || !email || !mobile) {
+  if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !mobile) {
     return { ok: false, status: 400, error: 'Name, email, and mobile number are required.' };
   }
 
@@ -507,8 +458,9 @@ export async function createExtendedMember(payload = {}, { isPublicApply = false
     photoSrc = saved.src;
   }
 
+  if (isPublicApply && (typeof payload.password !== 'string' || payload.password.length < 8 || payload.password.length > 1024)) return { ok: false, status: 400, error: 'Password must be 8 to 1024 characters.' };
   let passwordHash = null;
-  if (typeof payload.password === 'string' && payload.password.length >= 6) {
+  if (typeof payload.password === 'string' && payload.password.length >= 8 && payload.password.length <= 1024) {
     const salt = randomBytes(16).toString('hex');
     const derived = await scryptAsync(payload.password, salt, 64);
     passwordHash = `${salt}:${derived.toString('hex')}`;
@@ -519,9 +471,9 @@ export async function createExtendedMember(payload = {}, { isPublicApply = false
     if (list.some((m) => m.email.toLowerCase() === email)) {
       return { ok: false, status: 409, error: 'A member with this email already exists.' };
     }
-    const seq = String(32 + list.length).padStart(4, '0');
-    const regNo = `NGO-${new Date().getFullYear()}-${seq}`;
-    const refBy = String(payload.referredByCode || payload.referralCode || '').trim().toUpperCase().slice(0, 32);
+
+    const regNo = publicReference('NGO');
+    const refBy = String(payload.referredByCode || payload.referralCode || '').trim().toUpperCase().slice(0, 64);
 
     const rec = {
       id: `ext-mem-${randomUUID().slice(0, 8)}`,
@@ -554,7 +506,7 @@ export async function createExtendedMember(payload = {}, { isPublicApply = false
       referredDonationsTotal: 0,
       photoSrc,
       joinedAt: new Date().toISOString().slice(0, 10),
-      receiptNo: `GSDD-MEM-RCP-${seq}`,
+      receiptNo: isPublicApply ? null : publicReference('GSDD-MEM-RCP'),
       passwordHash,
     };
     list.unshift(rec);
@@ -586,6 +538,7 @@ export async function updateExtendedMember(id, patch = {}) {
       paymentStatus: typeof patch.paymentStatus === 'string' && patch.paymentStatus ? patch.paymentStatus : cur.paymentStatus,
       accountStatus: ['Pending', 'Active', 'Blocked'].includes(patch.accountStatus) ? patch.accountStatus : cur.accountStatus,
       verified: typeof patch.verified === 'boolean' ? patch.verified : cur.verified,
+      tokenVersion: patch.accountStatus && patch.accountStatus !== cur.accountStatus ? (cur.tokenVersion || 1) + 1 : cur.tokenVersion || 1,
     };
     await writeJson('members-ext', list);
     const { passwordHash: _pw, ...safe } = list[idx];
@@ -720,13 +673,14 @@ export async function issueCertificateExt(payload = {}) {
   return withLock('certificates-ext', async () => {
     const list = await readJson('certificates-ext', buildInitialCertificatesExt);
     const kind = payload.kind === 'Visitor' ? 'Visitor' : 'Member';
-    const seq = String(list.length + 1).padStart(3, '0');
+
     const rec = {
       id: `cert-ext-${randomUUID().slice(0, 8)}`,
-      certNo: `GSDD-${kind === 'Visitor' ? 'VIS' : 'CERT'}-${new Date().getFullYear()}-${seq}`,
+      isVerifiedOfficial: true,
+      certNo: publicReference(kind === 'Visitor' ? 'GSDD-VIS' : 'GSDD-CERT'),
       kind,
       recipientName,
-      memberRegNo: String(payload.memberRegNo || '').trim().slice(0, 40),
+      memberRegNo: String(payload.memberRegNo || '').trim().slice(0, 64),
       program,
       design: CERTIFICATE_DESIGNS.includes(payload.design) ? payload.design : CERTIFICATE_DESIGNS[0],
       issuedBy: String(payload.issuedBy || 'Foundation Administrator').trim().slice(0, 120),
@@ -820,30 +774,4 @@ export async function getMemberExtensionsSnapshot(member) {
     inactiveReferrals: referrals.filter((r) => r.accountStatus !== 'Active'),
     notices,
   };
-}
-
-export async function resetMemberPasswordByEmailAndPhone({ email, phone, newPassword }) {
-  const cleanEmail = String(email || '').trim().toLowerCase();
-  const cleanPhone = String(phone || '').replace(/\D/g, '').slice(-10);
-  const cleanPw = String(newPassword || '');
-  if (!cleanEmail || cleanPhone.length < 4 || cleanPw.length < 6) {
-    return { ok: false, status: 400, error: 'Valid email, registered mobile number, and 6+ char password required.' };
-  }
-
-  return withLock('members-ext', async () => {
-    const list = await readJson('members-ext', buildInitialMembersExt);
-    const idx = list.findIndex(
-      (m) =>
-        m.email.toLowerCase() === cleanEmail &&
-        String(m.mobile || '').replace(/\D/g, '').endsWith(cleanPhone)
-    );
-    if (idx === -1) {
-      return { ok: false, status: 400, error: 'Verification failed: check email and registered mobile number.' };
-    }
-    const salt = randomBytes(16).toString('hex');
-    const derived = await scryptAsync(cleanPw, salt, 64);
-    list[idx].passwordHash = `${salt}:${derived.toString('hex')}`;
-    await writeJson('members-ext', list);
-    return { ok: true, status: 200 };
-  });
 }

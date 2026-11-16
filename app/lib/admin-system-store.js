@@ -1,27 +1,20 @@
+import { createJsonStore } from './json-store';
 // Server-only durable store for Admin Overview metrics, Birthday Wishes,
 // Letter Heads, Extended Admin Profile + Photo, and Software Update settings.
 
-import { createHash, randomBytes, randomUUID, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual, scrypt as scryptCb } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { cookies } from 'next/headers.js';
 import { Storage } from '@google-cloud/storage';
-import { listPendingReconciliations } from './portal-store';
-import {
-  initialCertificates,
-  initialDonations,
-  initialEnquiries,
-  initialMembers,
-  initialRecurringDonors,
-} from '../admin/sections/data/mock-admin-data';
-import {
-  PANEL_UNLOCK_COOKIE,
-  PANEL_UNLOCK_TTL_SECONDS,
-  signPanelUnlockToken,
-  verifyPanelUnlockToken,
-} from './panel-token';
+import { listPendingReconciliations, memberAccountStore, readPortalRecords } from './portal-store';
+import { listFinanceDonations, listCampaigns } from './finance-store';
+import { listBeneficiaries, listComplaints, listEnquiries } from './support-store';
+import { listEvents, listInternshipApps, listExpenses, listProjects } from './operations-store';
+
+import { PANEL_UNLOCK_COOKIE, PANEL_UNLOCK_TTL_SECONDS, signPanelUnlockToken, verifyPanelUnlockToken } from './panel-token';
 
 const scryptAsync = promisify(scryptCb);
 
@@ -49,14 +42,8 @@ const PHOTO_MIME_BY_EXT = {
 const SAFE_PHOTO_NAME = /^[A-Za-z0-9_-]+\.(jpg|jpeg|png|gif|webp)$/i;
 
 let cachedBucket = null;
-const locks = new Map();
-
-function withLock(key, fn) {
-  const prev = locks.get(key) || Promise.resolve();
-  const next = prev.then(fn, fn);
-  locks.set(key, next.catch(() => {}));
-  return next;
-}
+const collectionStore = createJsonStore({ prefix: 'admin-system', getBucket: getGcsBucket, getDirectory: getDataDir });
+const withLock = collectionStore.run;
 
 function getDataDir() {
   const candidates = [
@@ -92,55 +79,8 @@ function getGcsBucket() {
   }
 }
 
-async function readJson(name, seedFn) {
-  const bucket = getGcsBucket();
-  if (bucket) {
-    const file = bucket.file(`admin-system/${name}.json`);
-    try {
-      const [buf] = await file.download();
-      return JSON.parse(buf.toString('utf8'));
-    } catch (err) {
-      if (err?.code === 404 || err?.status === 404 || err?.statusCode === 404) {
-        const initial = seedFn();
-        await writeJson(name, initial);
-        return initial;
-      }
-      throw err;
-    }
-  }
-
-  const filePath = path.join(getDataDir(), `${name}.json`);
-  if (!existsSync(filePath)) {
-    const initial = seedFn();
-    await writeJson(name, initial);
-    return initial;
-  }
-  return JSON.parse(readFileSync(filePath, 'utf8'));
-}
-
-async function writeJson(name, data) {
-  const payload = JSON.stringify(data, null, 2);
-  const bucket = getGcsBucket();
-  if (bucket) {
-    await bucket.file(`admin-system/${name}.json`).save(payload, {
-      contentType: 'application/json',
-      resumable: false,
-    });
-    return;
-  }
-
-  const filePath = path.join(getDataDir(), `${name}.json`);
-  const temp = `${filePath}.tmp.${randomBytes(6).toString('hex')}`;
-  try {
-    writeFileSync(temp, payload, 'utf8');
-    renameSync(temp, filePath);
-  } catch (err) {
-    try {
-      unlinkSync(temp);
-    } catch {}
-    throw err;
-  }
-}
+const readJson = collectionStore.read;
+const writeJson = collectionStore.write;
 
 function getSigningSecret() {
   const fromEnv = typeof process.env.ADMIN_SESSION_SECRET === 'string'
@@ -806,145 +746,63 @@ export async function resetWebsiteSystemData({ confirmationText, targets = [] })
 // Overview Analytics & Live Feeds Aggregator
 // ---------------------------------------------------------------------------
 
-function readOptionalPortalJson(filename) {
-  const dirs = [
-    process.env.PORTAL_DATA_DIR,
-    path.join(process.cwd(), '.data', 'portal'),
-  ].filter(Boolean);
-  for (const dir of dirs) {
-    try {
-      const p = path.join(dir, `${filename}.json`);
-      if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf8'));
-    } catch {}
-  }
-  return null;
-}
-
-const BASELINE_CAMPAIGNS = [
-  { id: 'cmp-1', title: 'Rural Digital Literacy Kits 2026', raised: 125000, status: 'Active' },
-  { id: 'cmp-2', title: 'Women Self-Help Tailoring Center', raised: 84000, status: 'Active' },
-  { id: 'cmp-3', title: 'Mobile Maternal & Nutrition Drive', raised: 62000, status: 'Completed' },
-];
-
-const BASELINE_EVENTS = [
-  { id: 'evt-1', title: 'Computer Awareness & Youth Workshop — Raniganj', date: '2026-04-15', location: 'Raniganj, Araria', status: 'Upcoming' },
-  { id: 'evt-2', title: 'Preventive Health & Hygiene Orientation', date: '2026-04-28', location: 'Araria Block', status: 'Upcoming' },
-];
-
 export async function getAdminOverviewData() {
-  let pendingReconcile = { donations: [], fees: [], subscriptions: [], totalPending: 0 };
-  try {
-    pendingReconcile = await listPendingReconciliations();
-  } catch {}
-
-  const storedDonations = readOptionalPortalJson('donations');
-  const storedMembers = readOptionalPortalJson('members');
-  const storedInquiries = readOptionalPortalJson('inquiries');
-
-  const donations = Array.isArray(storedDonations) && storedDonations.length > 0
-    ? storedDonations
-    : initialDonations;
-  const members = Array.isArray(storedMembers) && storedMembers.length > 0
-    ? storedMembers
-    : initialMembers;
-  const inquiries = Array.isArray(storedInquiries) && storedInquiries.length > 0
-    ? storedInquiries
-    : initialEnquiries;
-
-  const isSuccessStatus = (s) => ['completed', 'paid', 'success', 'verified'].includes(String(s || '').toLowerCase());
-
-  const paidDonations = donations.filter((d) => isSuccessStatus(d.status));
-  const totalDonationAmount = paidDonations.reduce((sum, d) => sum + Number(d.amount || 0), 0);
-
-  const memberDonations = paidDonations.filter((d) => d.source === 'member' || d.type === 'Member');
-  const visitorDonations = paidDonations.filter((d) => d.source === 'visitor' || d.type === 'Visitor');
-  const crowdfundingRaised = BASELINE_CAMPAIGNS.reduce((sum, c) => sum + Number(c.raised || 0), 0);
-  const membershipFeeTotal = members.reduce((sum, m) => sum + Number(m.feeAmount || m.feePaid || 500), 0);
-
-  const onlineAmt = paidDonations
-    .filter((d) => !String(d.mode || d.method || '').toLowerCase().includes('cash'))
-    .reduce((sum, d) => sum + Number(d.amount || 0), 0);
-  const cashAmt = Math.max(0, totalDonationAmount - onlineAmt);
-  const totalSplit = onlineAmt + cashAmt || 1;
-
-  const activeCampaigns = BASELINE_CAMPAIGNS.filter((c) => c.status === 'Active');
-  const upcomingEvents = BASELINE_EVENTS.filter((e) => e.status === 'Upcoming');
-  const openInquiries = inquiries.filter((i) => !String(i.status || '').toLowerCase().includes('resolved'));
-
-  const monthlySeries = [
-    { month: 'Jun', online: 34500, cash: 12000, total: 46500 },
-    { month: 'Jul', online: 41200, cash: 14500, total: 55700 },
-    { month: 'Aug', online: 38900, cash: 11200, total: 50100 },
-    { month: 'Sep', online: 52400, cash: 16800, total: 69200 },
-    { month: 'Oct', online: 61500, cash: 19400, total: 80900 },
-    { month: 'Nov', online: Math.max(48000, onlineAmt), cash: Math.max(15000, cashAmt), total: Math.max(63000, totalDonationAmount) },
-  ];
-
-  const recentMembers = members.slice(0, 6).map((m, i) => ({
-    id: m.id || `mem-${i + 1}`,
-    name: m.name || m.fullName || 'Foundation Member',
-    district: m.district || 'Araria, Bihar',
-    status: m.status || 'Active',
-    joinedAt: m.joinedAt || m.createdAt || '2026-03-01',
-  }));
-
+  const [allMembers, allDonations, campaigns, events, beneficiaries, interns, expenses, projects, inquiries, complaints, fees, pending] = await Promise.all([
+    memberAccountStore.read(), listFinanceDonations(), listCampaigns(), listEvents(), listBeneficiaries(), listInternshipApps(),
+    listExpenses(), listProjects(), listEnquiries(), listComplaints(), readPortalRecords('fee-payments'), listPendingReconciliations(),
+  ]);
+  const members = allMembers.filter(m => !m.isDemoAccount && !m.isDemoRecord);
+  const donations = allDonations.filter(d => !d.isSandbox && !d.isDemoRecord && ['success', 'verified', 'paid', 'completed'].includes(String(d.status).toLowerCase()));
+  const sum = rows => rows.reduce((total, row) => total + Number(row.amount || 0), 0);
+  const now = new Date();
+  const monthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  const timestamp = row => Date.parse(row.createdAt || row.joinedAt || row.joinDate || row.date || '');
+  const isCash = row => String(row.method || row.mode || '').toLowerCase().includes('cash');
+  const monthlyDonations = Array.from({ length: 6 }, (_, index) => {
+    const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5 + index, 1);
+    const end = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 4 + index, 1);
+    const rows = donations.filter(d => timestamp(d) >= start && timestamp(d) < end);
+    const cash = sum(rows.filter(isCash));
+    const total = sum(rows);
+    return { month: new Date(start).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }), online: total - cash, cash, total };
+  });
+  const total = sum(donations);
+  const cash = sum(donations.filter(isCash));
+  const online = total - cash;
+  const activeCampaigns = campaigns.filter(c => c.status === 'Active');
+  const raised = campaigns.reduce((total, c) => total + Number(c.raisedAmount || 0), 0);
+  const upcoming = events.filter(e => ['Upcoming', 'Active'].includes(e.status) && Date.parse(e.date || e.startDate) >= now.getTime());
+  const memberDonations = donations.filter(d => d.source === 'member');
+  const visitorDonations = donations.filter(d => ['visitor', 'donor'].includes(d.source));
+  const previousMonth = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1);
+  const joinedThisMonth = members.filter(m => timestamp(m) >= monthStart).length;
+  const joinedPreviously = members.filter(m => timestamp(m) >= previousMonth && timestamp(m) < monthStart).length;
+  const recentMembers = [...members].sort((a, b) => timestamp(b) - timestamp(a)).slice(0, 6).map(m => ({ id: m.id, name: m.name, district: m.district || '', status: m.accountStatus || m.status, joinedAt: m.joinedAt || m.joinDate || m.createdAt }));
   const recentActivity = [
-    ...paidDonations.slice(0, 3).map((d, idx) => ({
-      id: `act-don-${d.id || idx}`,
-      kind: 'donation',
-      title: `Donation of Rs. ${Number(d.amount || 0).toLocaleString('en-IN')} received`,
-      subtitle: `${d.donorName || d.donor || 'Supporter'} • ${d.mode || d.method || 'Online'}`,
-      timestamp: d.date || d.createdAt || new Date().toISOString(),
-    })),
-    ...recentMembers.slice(0, 2).map((m, idx) => ({
-      id: `act-mem-${m.id || idx}`,
-      kind: 'member',
-      title: `Member enrolled: ${m.name}`,
-      subtitle: `${m.district} • ${m.status}`,
-      timestamp: m.joinedAt,
-    })),
-    ...upcomingEvents.slice(0, 2).map((ev, idx) => ({
-      id: `act-evt-${ev.id || idx}`,
-      kind: 'event',
-      title: `Upcoming Event: ${ev.title}`,
-      subtitle: `${ev.date || 'Scheduled'} • ${ev.location || 'Araria, Bihar'}`,
-      timestamp: ev.date || new Date().toISOString(),
-    })),
-  ];
-
+    ...donations.map(d => ({ id: `don-${d.id}`, kind: 'donation', title: `Donation of Rs. ${Number(d.amount).toLocaleString('en-IN')} received`, subtitle: d.donorName, timestamp: d.createdAt || d.date })),
+    ...recentMembers.map(m => ({ id: `mem-${m.id}`, kind: 'member', title: `Member enrolled: ${m.name}`, subtitle: m.district, timestamp: m.joinedAt })),
+  ].sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)).slice(0, 7);
   return {
     kpis: {
-      totalMembers: { count: members.length, monthlyGrowth: '+14%' },
-      totalDonations: { amount: totalDonationAmount, count: paidDonations.length, monthlyTotal: Math.round(totalDonationAmount * 0.38) },
-      activeCampaigns: { count: activeCampaigns.length, totalRaised: crowdfundingRaised },
-      upcomingEvents: { count: upcomingEvents.length },
-      beneficiaries: { count: 148, activeCount: 112 },
-      activeInterns: { count: 18, certificatesIssued: initialCertificates.length },
-      totalMembershipFee: { amount: membershipFeeTotal },
-      totalMemberDonation: { amount: memberDonations.reduce((s, d) => s + Number(d.amount || 0), 0), count: memberDonations.length },
-      totalVisitorDonation: { amount: visitorDonations.reduce((s, d) => s + Number(d.amount || 0), 0), count: visitorDonations.length },
-      totalCrowdfundingDonation: { amount: crowdfundingRaised },
+      totalMembers: { count: members.length, monthlyGrowth: joinedPreviously ? `${Math.round((joinedThisMonth - joinedPreviously) / joinedPreviously * 100)}%` : 'No prior month' },
+      totalDonations: { amount: total, count: donations.length, monthlyTotal: sum(donations.filter(d => timestamp(d) >= monthStart)) },
+      activeCampaigns: { count: activeCampaigns.length, totalRaised: raised }, upcomingEvents: { count: upcoming.length },
+      beneficiaries: { count: beneficiaries.length, activeCount: beneficiaries.filter(b => b.status === 'Active').length },
+      activeInterns: { count: interns.filter(i => i.status === 'Approved').length, certificatesIssued: interns.filter(i => i.status === 'Approved' && i.certificateId).length },
+      totalMembershipFee: { amount: sum(fees.filter(f => f.status === 'Verified')) },
+      totalMemberDonation: { amount: sum(memberDonations), count: memberDonations.length },
+      totalVisitorDonation: { amount: sum(visitorDonations), count: visitorDonations.length },
+      totalCrowdfundingDonation: { amount: sum(donations.filter(d => d.source === 'campaign' || d.campaignId)) },
     },
-    monthlyDonations: monthlySeries,
-    paymentBreakdown: {
-      onlineAmount: onlineAmt,
-      cashAmount: cashAmt,
-      onlinePercent: Math.round((onlineAmt / totalSplit) * 100),
-      cashPercent: 100 - Math.round((onlineAmt / totalSplit) * 100),
-    },
+    monthlyDonations,
+    paymentBreakdown: { onlineAmount: online, cashAmount: cash, onlinePercent: total ? Math.round(online / total * 100) : 0, cashPercent: total ? 100 - Math.round(online / total * 100) : 0 },
     quickStats: {
-      activeMembersLast30Days: Math.max(1, members.filter((m) => m.status === 'Active').length),
-      approvedIds: members.filter((m) => m.status === 'Active').length,
-      pendingIds: members.filter((m) => m.status !== 'Active').length,
-      expenseThisMonth: 38450,
-      monthlyBudget: 75000,
-      activeProjects: 4,
-      completedProjects: 2,
-      pendingEnquiries: openInquiries.length,
-      pendingComplaints: 3,
-      pendingReconciliations: pendingReconcile.totalPending || initialRecurringDonors.length,
-    },
-    recentMembers,
-    recentActivity,
+      activeMembersLast30Days: members.filter(m => m.status === 'Active' && timestamp(m) >= now.getTime() - 30 * 86400000).length,
+      approvedIds: members.filter(m => m.status === 'Active').length, pendingIds: members.filter(m => m.status !== 'Active').length,
+      expenseThisMonth: sum(expenses.filter(e => timestamp(e) >= monthStart)), monthlyBudget: projects.reduce((s, p) => s + Number(p.goalAmount || 0), 0),
+      activeProjects: projects.filter(p => p.status === 'Active').length, completedProjects: projects.filter(p => p.status === 'Completed').length,
+      pendingEnquiries: inquiries.filter(i => i.status === 'new').length, pendingComplaints: complaints.filter(c => !['Resolved', 'Rejected'].includes(c.status)).length,
+      pendingReconciliations: pending.pendingDonations.length + pending.pendingFeePayments.length + pending.pendingCertificates.length,
+    }, recentMembers, recentActivity,
   };
 }
