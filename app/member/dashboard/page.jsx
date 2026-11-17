@@ -690,7 +690,7 @@ export default function MemberDashboardPage() {
                 )}
               </div>
 
-              {member.feeStatus !== 'Paid' ? (
+              {!member.receiptNo ? (
                 <div style={{ padding: '20px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', color: '#92400E' }} role="status">
                   <strong style={{ display: 'block', marginBottom: '6px' }}>
                     Official Receipt Not Issued (Status: {member.feeStatus})
@@ -716,7 +716,7 @@ export default function MemberDashboardPage() {
                     <div style={{ textAlign: 'right' }}>
                       <span className="receipt-title-badge">MEMBERSHIP RECEIPT</span>
                       <div style={{ fontSize: '12px', fontWeight: '700', marginTop: '4px' }}>
-                        {member.feePayments?.find((p) => p.status === 'Verified')?.receiptNo || `GSDD-M-REC-2026-${member.id.slice(-3)}`}
+                        {member.receiptNo}
                       </div>
                     </div>
                   </div>
@@ -750,7 +750,7 @@ export default function MemberDashboardPage() {
                     </div>
                     <div className="r-row-item">
                       <span className="r-lbl">Receipt Date:</span>
-                      <span className="r-val">{member.joinDate}</span>
+                      <span className="r-val">{member.feeReceiptDate?.slice(0, 10)}</span>
                     </div>
                   </div>
 

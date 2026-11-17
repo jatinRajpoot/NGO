@@ -1,10 +1,9 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { cookieOptions, isSameOrigin, requireAdminSession } from './admin-auth';
+import { isSameOrigin, requireAdminSession } from './admin-auth';
+import { COORDINATOR_COOKIE_NAME, createPortalSessionToken, getPortalSessionFromRequest, isHttpsRequest, portalCookieOptions, PORTAL_SESSION_MAX_AGE } from './portal-auth';
 import { getCoordinatorById } from './finance-store';
 
-export const COORDINATOR_COOKIE = 'gsdd_coordinator_session';
-
+export const COORDINATOR_COOKIE = COORDINATOR_COOKIE_NAME;
 export const NO_STORE = {
   'Cache-Control': 'no-store, max-age=0',
   Pragma: 'no-cache',
@@ -37,44 +36,15 @@ export async function requireAdminApi(request, { checkOrigin = false } = {}) {
   return null;
 }
 
-function getCoordSecret() {
-  const s = process.env.ADMIN_SESSION_SECRET || '';
-  return s.trim().length >= 16 ? s.trim() : null;
-}
-
-export function signCoordinatorSession(coordId) {
-  const secret = getCoordSecret();
-  if (!secret) return null;
-  const exp = Math.floor(Date.now() / 1000) + 28800;
-  const payload = `c1.${exp}.${coordId}`;
-  const sig = createHmac('sha256', `coord:${secret}`).update(payload).digest('base64url');
-  return `${payload}.${sig}`;
-}
-
 export async function getAuthenticatedCoordinator(request) {
-  const secret = getCoordSecret();
-  if (!secret) return null;
-  const raw = request.headers.get('cookie') || '';
-  const m = raw.match(new RegExp(`(?:^|;\\s*)${COORDINATOR_COOKIE}=([^;]+)`));
-  const token = m ? decodeURIComponent(m[1]) : '';
-  const parts = token.split('.');
-  if (parts.length !== 4 || parts[0] !== 'c1') return null;
-
-  const exp = Number(parts[1]);
-  if (!Number.isFinite(exp) || exp <= Math.floor(Date.now() / 1000)) return null;
-
-  const payload = `${parts[0]}.${parts[1]}.${parts[2]}`;
-  const expectedSig = createHmac('sha256', `coord:${secret}`).update(payload).digest('base64url');
-  const a = Buffer.from(parts[3]);
-  const b = Buffer.from(expectedSig);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-
-  return getCoordinatorById(parts[2]);
+  const session = await getPortalSessionFromRequest(request, 'coordinator');
+  if (!session) return null;
+  const coordinator = await getCoordinatorById(session.subjectId);
+  if (coordinator?.status !== 'Active' || (coordinator.tokenVersion || 1) !== session.tokenVersion) return null;
+  return coordinator;
 }
 
-export function setCoordinatorCookie(response, request, coordId) {
-  const token = signCoordinatorSession(coordId);
-  if (!token) return false;
-  response.cookies.set(COORDINATOR_COOKIE, token, cookieOptions(request));
-  return true;
+export function setCoordinatorCookie(response, request, coordinator) {
+  const token = createPortalSessionToken('coordinator', coordinator.id, coordinator.tokenVersion || 1);
+  response.cookies.set(COORDINATOR_COOKIE, token, { ...portalCookieOptions(isHttpsRequest(request)), maxAge: PORTAL_SESSION_MAX_AGE });
 }

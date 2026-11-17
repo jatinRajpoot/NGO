@@ -9,7 +9,7 @@ export async function GET(request) {
   const url = new URL(request.url);
   const q = url.searchParams.get('query') || url.searchParams.get('ticket') || '';
   if (!q.trim()) {
-    return jsonResponse({ ok: false, error: 'Provide Ticket Number or Email to check complaint status.' }, 400);
+    return jsonResponse({ ok: false, error: 'Provide your ticket number to check complaint status.' }, 400);
   }
   const results = await lookupComplaintStatus(q);
   return jsonResponse({ ok: true, complaints: results }, 200);

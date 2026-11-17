@@ -65,7 +65,7 @@ export default function VisitorCertificatePortal() {
           ...prev,
           id: data.document.code || prev.id,
           status: data.document.status,
-          isVerifiedOfficial: data.document.isVerifiedOfficial,
+          isVerifiedOfficial: Boolean(data.verified),
           authority: data.document.authority,
           type: data.document.type,
         }));
@@ -77,7 +77,7 @@ export default function VisitorCertificatePortal() {
     }
   }
 
-  const isOfficial = Boolean(certRecord?.isVerifiedOfficial && certRecord?.status === 'Verified');
+  const isOfficial = Boolean(certRecord?.isVerifiedOfficial && ['Verified', 'Active'].includes(certRecord.status));
   const verifyUrl = certRecord ? `https://gsddfoundation.org/verify/?code=${encodeURIComponent(certRecord.id)}` : '';
 
   return (

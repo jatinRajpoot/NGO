@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { chromium, expect } from '@playwright/test';
 import { encodeQrMatrix } from '../app/lib/qr-encode.js';
 
 console.log('--- 1. Testing QR Code Encoders Across All Modules ---');
@@ -34,10 +40,20 @@ for (const payload of qrTestCases) {
 console.log(`PASS: All ${qrTestCases.length} QR payloads encoded successfully with genuine ISO-18004 matrices.`);
 
 console.log('--- 2. Testing Member Dashboard Search Bar Placement ---');
-const port = 3012;
-const server = spawn('node', ['./node_modules/next/dist/bin/next', 'start', '-p', String(port)], {
+const listener = createServer();
+await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
+const port = listener.address().port;
+await new Promise(resolve => listener.close(resolve));
+const base = 'http://127.0.0.1:' + port;
+const directory = await mkdtemp(path.join(tmpdir(), 'gsdd-verify-qr-'));
+const reference = 'GSDD-VIS-2026-QR-FIXTURE';
+await writeFile(path.join(directory, 'certificates.json'), JSON.stringify([{
+  id: reference, recipient: 'QR Browser Fixture', type: 'Visitor Certificate',
+  status: 'Verified', isVerifiedOfficial: true, date: '2026-01-01',
+}]));
+const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '-p', String(port)], {
   stdio: 'inherit',
-  env: { ...process.env, PORT: String(port) },
+  env: { ...process.env, GALLERY_BUCKET: '', PORTAL_DATA_DIR: directory },
 });
 
 async function waitForServer(url, timeout = 30000) {
@@ -54,8 +70,8 @@ async function waitForServer(url, timeout = 30000) {
 }
 
 try {
-  await waitForServer(`http://localhost:${port}/member/dashboard`);
-  const res = await fetch(`http://localhost:${port}/member/dashboard`);
+  await waitForServer(base + '/member/dashboard/');
+  const res = await fetch(base + '/member/dashboard/');
   assert.equal(res.status, 200, 'Member dashboard must return status 200');
   const html = await res.text();
 
@@ -82,20 +98,26 @@ try {
   console.log('PASS: Member Bottom Quick-Access bar correctly positioned.');
 
   // 4. Verify QR codes rendered across routes
-  const resCert = await fetch(`http://localhost:${port}/visitor-certificate`);
+  const resCert = await fetch(base + '/visitor-certificate/');
   assert.equal(resCert.status, 200);
   const certHtml = await resCert.text();
   assert(certHtml.includes('Visitor Certificate'), 'Visitor certificate route working');
   console.log('PASS: Visitor Certificate route verified.');
 
-  const resVerify = await fetch(`http://localhost:${port}/verify`);
-  assert.equal(resVerify.status, 200);
-  const verifyHtml = await resVerify.text();
-  assert(verifyHtml.includes('Certificate Verification') || verifyHtml.includes('verification-section'), 'Verification portal working');
-  assert(verifyHtml.includes('AUTHENTIC QR'), 'Certificate authentic QR badge present');
-  console.log('PASS: Certificate verification portal with authentic QR verified.');
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.goto(base + '/verify/?code=' + encodeURIComponent(reference));
+    await expect(page.getByText('AUTHENTIC QR', { exact: true })).toBeVisible();
+    await expect(page.getByText('QR Browser Fixture', { exact: true }).first()).toBeVisible();
+  } finally {
+    await browser.close();
+  }
 
   console.log('\nALL MEMBER SEARCH BAR & QR VERIFICATION TESTS PASSED SUCCESSFULLY!');
 } finally {
+  const exited = server.exitCode === null ? once(server, 'exit') : Promise.resolve();
   server.kill('SIGTERM');
+  await exited;
+  await rm(directory, { recursive: true, force: true });
 }

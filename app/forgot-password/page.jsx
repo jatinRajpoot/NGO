@@ -108,6 +108,9 @@ export default function ForgotPasswordPage() {
                 <button type="submit" disabled={busy} className="button button-blue" style={{ justifyContent: 'center' }}>
                   {busy ? <Loader2 size={15} className="spin" /> : <KeyRound size={15} />} Update Password
                 </button>
+                <button type="button" className="button button-outline-blue" disabled={busy} onClick={handleRequest}>
+                  Request another code
+                </button>
               </form>
             )}
           </div>

@@ -409,14 +409,10 @@ export async function lookupComplaintStatus(query) {
   if (!q) return [];
   const list = await readJson('complaints', buildInitialComplaints);
   return list
-    .filter((c) => c.ticketNo.toLowerCase() === q || (c.email && c.email.toLowerCase() === q))
+    .filter((c) => c.ticketNo.toLowerCase() === q)
     .map((c) => ({
       ticketNo: c.ticketNo,
-      complainantName: c.complainantName,
-      category: c.category,
-      subject: c.subject,
       status: c.status,
-      adminRemark: c.adminRemark,
       createdAt: String(c.createdAt || '').slice(0, 10),
       updatedAt: String(c.updatedAt || '').slice(0, 10),
     }));

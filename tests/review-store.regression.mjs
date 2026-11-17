@@ -49,3 +49,55 @@ const third = await a.submitComplaint({ name: 'C', subject: 'Third', description
 assert.notEqual(second.complaint.ticketNo, third.complaint.ticketNo, 'Deleting an older record must never reuse an existing ticket');
 assert.equal((await a.lookupComplaintStatus(second.complaint.ticketNo)).length, 1);
 console.log('PASS: concurrent accepted submissions survive and public identifiers are not reused.');
+
+
+// Keep the previously committed asset available when Cloud Storage rejects a metadata write.
+const { Storage } = await import('@google-cloud/storage');
+const files = new Map();
+const blockedWrites = new Set();
+let nextGeneration = 100;
+const missing = () => Object.assign(new Error('Fixture object missing'), { code: 404 });
+Storage.prototype.bucket = function () {
+  return { file(key, options = {}) {
+    return {
+      async getMetadata() {
+        const file = files.get(key);
+        if (!file) throw missing();
+        return [{ generation: String(file.generation) }];
+      },
+      async download() {
+        const file = files.get(key);
+        if (!file || (options.generation && Number(options.generation) !== file.generation)) throw missing();
+        return [Buffer.from(file.payload)];
+      },
+      async save(payload, options = {}) {
+        if (blockedWrites.has(key)) throw Object.assign(new Error('Fixture write unavailable'), { code: 503 });
+        const expected = options.preconditionOpts?.ifGenerationMatch;
+        if (expected !== undefined && Number(expected) !== (files.get(key)?.generation || 0)) {
+          throw Object.assign(new Error('Fixture generation conflict'), { code: 412 });
+        }
+        files.set(key, { payload, generation: nextGeneration++ });
+      },
+      async delete() { files.delete(key); },
+    };
+  } };
+};
+process.env.NODE_ENV = 'production';
+const posts = await import('../app/lib/posts-store.js');
+const system = await import('../app/lib/admin-system-store.js');
+const image = {
+  buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9AAAAABJRU5ErkJggg==', 'base64'),
+  filename: 'fixture.png', contentType: 'image/png',
+};
+const draft = { title: 'Fixture', type: 'activity', descriptionHtml: '<p>Fixture description</p>' };
+const { post } = await posts.createPost({ ...draft, imageFiles: [image] });
+blockedWrites.add('posts/posts.json');
+await assert.rejects(posts.updatePost(post.id, { ...draft, deletedImageIds: [post.images[0].id] }), { code: 503 });
+assert.ok(await posts.readPostImage(post.images[0].filename));
+assert.equal((await posts.listPosts())[0].images[0].filename, post.images[0].filename);
+const { profile } = await system.saveAdminPhoto(image);
+blockedWrites.add('admin-system/admin-profile.json');
+await assert.rejects(system.removeAdminPhoto(), { code: 503 });
+assert.ok(await system.readAdminPhoto(profile.photoFilename));
+assert.equal((await system.getExtendedAdminProfile()).photoFilename, profile.photoFilename);
+console.log('PASS: failed metadata writes preserve committed post images and administrator photos.');

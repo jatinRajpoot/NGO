@@ -22,8 +22,6 @@ export async function POST(request) {
   }
 
   const res = NextResponse.json({ ok: true, coordinator: coord }, { status: 200, headers: NO_STORE });
-  if (!setCoordinatorCookie(res, request, coord.id)) {
-    return jsonResponse({ ok: false, error: 'Signing secret is not configured.' }, 503);
-  }
+  setCoordinatorCookie(res, request, coord);
   return res;
 }

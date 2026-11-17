@@ -8,7 +8,7 @@ import {
 import { organization } from '../data/site-data';
 import QRCodeSvg from './QRCodeSvg';
 
-export default function OnlineDonationModal({ amount, frequency, purpose, donorName, donorEmail, onClose }) {
+export default function OnlineDonationModal({ amount, frequency, purpose, donorName, donorEmail, campaignId, onClose }) {
   const [activePaymentMethod, setActivePaymentMethod] = useState('upi');
   const [nameInput, setNameInput] = useState(donorName || '');
   const [emailInput, setEmailInput] = useState(donorEmail || '');
@@ -53,6 +53,7 @@ export default function OnlineDonationModal({ amount, frequency, purpose, donorN
           amount: numAmount,
           frequency: frequency === 'Monthly' ? 'monthly' : 'one-time',
           purpose,
+          campaignId,
           method: activePaymentMethod === 'upi' ? 'UPI' : 'Bank Transfer (NEFT/IMPS)',
           utr: cleanUtr,
         }),
@@ -78,7 +79,7 @@ export default function OnlineDonationModal({ amount, frequency, purpose, donorN
       const res = await fetch(`/api/donations/?trackingId=${encodeURIComponent(submission.trackingId)}`);
       const data = await res.json();
       if (res.ok && data.ok && data.donation) {
-        setSubmission(data.donation);
+        setSubmission(current => ({ ...current, ...data.donation }));
       } else {
         setErrorMsg(data?.error || 'Unable to refresh verification status.');
       }

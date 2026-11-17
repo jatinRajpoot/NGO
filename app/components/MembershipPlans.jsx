@@ -96,6 +96,7 @@ export default function MembershipPlans() {
   const [fatherSpouse, setFatherSpouse] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [dob, setDob] = useState('');
   const [gender, setGender] = useState('Male');
   const [bloodGroup, setBloodGroup] = useState('O+');
@@ -124,6 +125,7 @@ export default function MembershipPlans() {
           fatherSpouse: fatherSpouse.trim(),
           phone: phone.trim(),
           email: email.trim(),
+          password,
           tier: selectedTier,
           designation: desiredDesignation,
           address: `${address}, ${district}, ${state} - ${pincode}`,
@@ -136,6 +138,7 @@ export default function MembershipPlans() {
         setErrorMsg(data?.error || 'Could not submit membership application.');
         return;
       }
+      setPassword('');
       setApplicationResult(data.application);
     } catch {
       setErrorMsg('Network error submitting application. Please try again.');
@@ -325,6 +328,11 @@ export default function MembershipPlans() {
                     <option value="AB+">AB+</option>
                     <option value="AB-">AB-</option>
                   </select>
+                </label>
+
+                <label>
+                  <span>Member portal password *</span>
+                  <input type="password" required minLength={8} maxLength={1024} autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} />
                 </label>
 
                 <label className="span-two">

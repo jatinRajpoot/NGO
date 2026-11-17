@@ -1,4 +1,4 @@
-import { memberAccountStore, certificateRecordStore } from './portal-store';
+import { applyMembershipFeeStatuses, memberAccountStore, certificateRecordStore } from './portal-store';
 import { createJsonStore, publicReference } from './json-store';
 // Server-only durable store for Extended Membership Management, Designations,
 // Multi-select Notices, Certificates + Templates, Management Body, Member Portal Extensions,
@@ -385,7 +385,7 @@ function enrichMemberReferrals(items) {
 
 export async function listExtendedMembers({ tab = 'all', search = '' } = {}) {
   const raw = await readJson('members-ext', buildInitialMembersExt);
-  const items = enrichMemberReferrals(raw).map(({ passwordHash, ...safe }) => safe);
+  const items = enrichMemberReferrals(await applyMembershipFeeStatuses(raw)).map(({ passwordHash, ...safe }) => ({ ...safe, hasPassword: Boolean(passwordHash) }));
   const t = String(tab || 'all').toLowerCase();
   const q = String(search || '').trim().toLowerCase();
 
@@ -443,7 +443,7 @@ export async function getPublicGeneralMembers({ q = '', verify = '' } = {}) {
     }));
 }
 
-export async function createExtendedMember(payload = {}, { isPublicApply = false, photoFile = null } = {}) {
+export async function createExtendedMember(payload = {}, { isPublicApply = false, photoFile = null, requireApproval = true } = {}) {
   const name = String(payload.name || '').trim().slice(0, 140);
   const email = String(payload.email || '').trim().toLowerCase().slice(0, 160);
   const mobile = String(payload.mobile || payload.phone || '').trim().slice(0, 24);
@@ -499,7 +499,7 @@ export async function createExtendedMember(payload = {}, { isPublicApply = false
       paymentStatus: isPublicApply ? 'Pending' : payload.paymentMode === 'Free Membership' ? 'Free' : payload.paymentStatus || 'Paid',
       feeStatus: isPublicApply ? 'Pending' : ['Pending', 'Failed'].includes(payload.paymentStatus) ? 'Pending' : 'Paid',
       accountStatus: isPublicApply
-        ? 'Pending'
+        ? (requireApproval ? 'Pending' : 'Active')
         : ['Pending', 'Active', 'Blocked'].includes(payload.accountStatus)
         ? payload.accountStatus
         : 'Active',
@@ -525,9 +525,19 @@ export async function updateExtendedMember(id, patch = {}) {
     const idx = list.findIndex((m) => m.id === id || m.regNo === id);
     if (idx === -1) return { ok: false, status: 404, error: 'Member not found.' };
     const cur = list[idx];
+    let passwordHash = cur.passwordHash;
+    if (patch.initialPassword !== undefined && !cur.passwordHash) {
+      if (typeof patch.initialPassword !== 'string' || patch.initialPassword.length < 12 || patch.initialPassword.length > 1024) {
+        return { ok: false, status: 400, error: 'An initial password must be 12 to 1024 characters.' };
+      }
+      const salt = randomBytes(16).toString('hex');
+      const derived = await scryptAsync(patch.initialPassword, salt, 64);
+      passwordHash = salt + ':' + derived.toString('hex');
+    }
 
     list[idx] = {
       ...cur,
+      passwordHash,
       name: typeof patch.name === 'string' && patch.name.trim() ? patch.name.trim().slice(0, 140) : cur.name,
       gender: typeof patch.gender === 'string' ? patch.gender.slice(0, 24) : cur.gender,
       maritalStatus: typeof patch.maritalStatus === 'string' ? patch.maritalStatus.slice(0, 24) : cur.maritalStatus,
@@ -544,7 +554,8 @@ export async function updateExtendedMember(id, patch = {}) {
       tokenVersion: patch.accountStatus && patch.accountStatus !== cur.accountStatus ? (cur.tokenVersion || 1) + 1 : cur.tokenVersion || 1,
     };
     await writeJson('members-ext', list);
-    const { passwordHash: _pw, ...safe } = list[idx];
+    const [updated] = await applyMembershipFeeStatuses([list[idx]]);
+    const { passwordHash: _pw, ...safe } = updated;
     return { ok: true, status: 200, member: safe };
   });
 }
@@ -767,9 +778,11 @@ export async function deleteManagementBody(ids = []) {
 export async function getMemberExtensionsSnapshot(member) {
   const regNo = String(member?.regNo || member?.membershipId || member?.id || '').toUpperCase();
   const extList = await listExtendedMembers();
-  const referrals = extList.filter(
-    (m) => String(m.referredByCode || '').toUpperCase() === regNo
-  );
+  const referrals = extList
+    .filter(m => String(m.referredByCode || '').toUpperCase() === regNo)
+    .map(({ id, regNo, name, designation, accountStatus, joinedAt }) => ({
+      id, regNo, name, designation, accountStatus, joinedAt,
+    }));
   const notices = await listNotices({ memberId: member?.id || null });
   return {
     referrals,

@@ -936,7 +936,7 @@ export function MemberPortalDrawers() {
               </div>
             )}
 
-            {activeDrawer === 'receipt' && (
+            {activeDrawer === 'receipt' && (member?.receiptNo ? (
               <div>
                 <div style={{ padding: 16, border: '1px solid #cbd5e1', borderRadius: 10, marginBottom: 14 }}>
                   <h4 style={{ margin: '0 0 8px' }}>OFFICIAL MEMBERSHIP FEE RECEIPT</h4>
@@ -947,6 +947,7 @@ export function MemberPortalDrawers() {
                     <div>
                       <strong>Registration No:</strong> {regNo}
                     </div>
+                    <div><strong>Receipt number:</strong> {member.receiptNo}</div>
                     <div>
                       <strong>Status:</strong> {member?.status || 'Active'}
                     </div>
@@ -956,7 +957,7 @@ export function MemberPortalDrawers() {
                   <Printer size={15} /> Download / Print Receipt PDF
                 </button>
               </div>
-            )}
+            ) : <p>No verified membership fee receipt has been issued.</p>)}
 
             {activeDrawer === 'photo' && (
               <div>
