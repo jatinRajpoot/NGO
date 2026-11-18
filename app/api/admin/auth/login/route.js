@@ -29,11 +29,10 @@ import {
   ADMIN_COOKIE_NAME,
   SESSION_MAX_AGE,
   cookieOptions,
-  createSession,
+  authenticateAdmin,
   isAdminConfigured,
   isHttpsRequest,
   isSameOrigin,
-  verifyCredentials,
 } from '../../../../lib/admin-auth';
 
 export const runtime = 'nodejs';
@@ -261,7 +260,7 @@ function recordFailure(key, now) {
 export async function POST(request) {
   try {
     if (!isSameOrigin(request)) return failure(403, 'forbidden_origin');
-    if (!isAdminConfigured()) return failure(503, 'not_configured');
+    if (!(await isAdminConfigured())) return failure(503, 'not_configured');
 
     const now = Date.now();
     const key = clientKey(request);
@@ -284,27 +283,21 @@ export async function POST(request) {
     }
 
     activeVerifications += 1;
-    let valid = false;
+    let token = null;
     try {
-      valid = await verifyCredentials(credentials.username, credentials.password);
+      token = await authenticateAdmin(credentials.username, credentials.password);
     } catch {
-      valid = false;
+      token = null;
     } finally {
       activeVerifications = Math.max(0, activeVerifications - 1);
     }
 
-    if (!valid) {
+    if (!token) {
       recordFailure(key, Date.now());
       return failure(401, 'invalid_credentials');
     }
 
     failedAttempts.delete(key);
-
-    // Mint after the credential check so an unconfigured deployment can never
-    // produce a cookie. createSession() returning null means config vanished
-    // between checks (or is otherwise unusable), so fail closed.
-    const token = createSession();
-    if (!token) return failure(503, 'not_configured');
 
     const isHttps = isHttpsRequest(request);
     const baseCookieOpts = cookieOptions(isHttps);

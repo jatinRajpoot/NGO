@@ -1,3 +1,4 @@
+import { listCampaigns } from '../../lib/finance-store';
 import { NextResponse } from 'next/server';
 import { isSameOrigin } from '../../lib/portal-auth';
 import { createPendingDonation, lookupDonationStatus } from '../../lib/portal-store';
@@ -36,15 +37,21 @@ export async function POST(request) {
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ ok: false, error: 'invalid_json' }, { status: 400, headers: NO_STORE });
     }
+    const campaignId = typeof body.campaignId === 'string' ? body.campaignId.trim() : '';
+    const campaign = campaignId && (await listCampaigns({ tab: 'active' })).find(row => row.id === campaignId);
+    if (campaignId && !campaign) {
+      return NextResponse.json({ ok: false, error: 'This campaign is not accepting donations.' }, { status: 400, headers: NO_STORE });
+    }
     const res = await createPendingDonation({
-      source: 'visitor',
+      source: campaign ? 'campaign' : 'visitor',
+      campaignId: campaign?.id,
       donorName: body.donorName,
       email: body.email,
       phone: body.phone,
       pan: body.pan,
       amount: body.amount,
       frequency: body.frequency,
-      purpose: body.purpose,
+      purpose: campaign ? campaign.title : body.purpose,
       method: body.method,
       utr: body.utr,
       cashNote: body.cashNote,

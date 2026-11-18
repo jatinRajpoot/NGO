@@ -8,7 +8,7 @@ import PageHero from '../components/PageHero';
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState('email'); // 'email' | 'verify' | 'done'
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [token, setToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
       const res = await fetch('/api/public/forgot-password/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ step: 'confirm', email, phone, newPassword }),
+        body: JSON.stringify({ step: 'confirm', token, newPassword }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
       <PageHero
         eyebrow="Account Recovery"
         title="Forgot password recovery."
-        description="Verify your account email and registered mobile number to reset your Member Portal password."
+        description="Request a code at your account email address to reset your Member Portal password."
       />
       <section className="section-pad">
         <div className="container" style={{ maxWidth: 480 }}>
@@ -103,10 +103,13 @@ export default function ForgotPasswordPage() {
             ) : (
               <form onSubmit={handleReset} style={{ display: 'grid', gap: 12 }}>
                 {infoMsg && <p style={{ fontSize: 13, color: '#1e3a8a', margin: 0 }}>{infoMsg}</p>}
-                <input required placeholder="Registered Mobile Number *" value={phone} onChange={(e) => setPhone(e.target.value)} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-                <input required type="password" minLength={6} placeholder="New Password (min 6 chars) *" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                <input required placeholder="Reset code from your email *" autoComplete="one-time-code" value={token} onChange={(e) => setToken(e.target.value)} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                <input required type="password" minLength={8} placeholder="New Password (min 8 chars) *" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
                 <button type="submit" disabled={busy} className="button button-blue" style={{ justifyContent: 'center' }}>
                   {busy ? <Loader2 size={15} className="spin" /> : <KeyRound size={15} />} Update Password
+                </button>
+                <button type="button" className="button button-outline-blue" disabled={busy} onClick={handleRequest}>
+                  Request another code
                 </button>
               </form>
             )}

@@ -16,6 +16,7 @@ export default function ExtendedMembershipForm() {
   const [form, setForm] = useState({
     name: '',
     email: '',
+    password: '',
     mobile: '',
     gender: 'Male',
     maritalStatus: 'Single',
@@ -58,6 +59,7 @@ export default function ExtendedMembershipForm() {
         return;
       }
       setCreated(data.member);
+      setForm(previous => ({ ...previous, password: '' }));
       setStep('done');
     } catch {
       setError('Network error submitting membership.');
@@ -74,7 +76,7 @@ export default function ExtendedMembershipForm() {
         <p style={{ margin: '0 0 10px', fontSize: 13 }}>
           Registration No: <strong>{created.regNo}</strong> • Designation: {created.designation} • Status: {created.accountStatus}
         </p>
-        <Link href="/member/login" className="button button-blue">Proceed to Member Login <ArrowRight size={15} /></Link>
+        <Link href="/member/login" className="button button-blue">{created.accountStatus === 'Active' ? 'Sign in to your member account' : 'Sign in after administrator approval'} <ArrowRight size={15} /></Link>
       </div>
     );
   }
@@ -108,6 +110,7 @@ export default function ExtendedMembershipForm() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 10 }}>
             <input required placeholder="Full Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             <input required type="email" placeholder="Email Address *" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+            <input required type="password" autoComplete="new-password" minLength={8} maxLength={1024} placeholder="Password (at least 8 characters) *" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             <input required placeholder="Mobile Number *" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             <input placeholder="Referral Code (Optional)" value={form.referralCode} onChange={(e) => setForm({ ...form, referralCode: e.target.value.toUpperCase() })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}><option>Male</option><option>Female</option><option>Other</option></select>

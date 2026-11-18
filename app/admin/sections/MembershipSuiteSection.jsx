@@ -14,13 +14,83 @@ import {
   CheckCircle2,
   Ban,
   Loader2,
+  KeyRound,
   X,
 } from 'lucide-react';
 
 const CERT_DESIGNS = ['Classic Navy Emblem', 'Royal Gold Seal', 'Modern Minimal Crest'];
 
-export default function MembershipSuiteSection({ notify }) {
-  const [module, setModule] = useState('members'); // 'members' | 'designations' | 'notices' | 'certificates' | 'management'
+function ReconciliationQueue({ kind, notify, onSaved }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const isFee = kind === 'fee_payment';
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api/admin/reconcile/', { cache: 'no-store', signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('Unable to load pending records.');
+        const data = await response.json();
+        setRows(isFee ? data.pendingFeePayments : data.pendingCertificates);
+      })
+      .catch(err => { if (!controller.signal.aborted) setError(err.message); });
+    return () => controller.abort();
+  }, [isFee]);
+
+  async function review(row, action) {
+    if (isFee && action === 'approve' && !window.confirm('Confirm this reference matches a received membership payment.')) return;
+    setError('');
+    setSaving(true);
+    try {
+      const response = await fetch('/api/admin/reconcile/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, action, id: row.id, bankRef: isFee ? row.utr : undefined }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || 'Unable to save review.');
+      setRows(current => current.filter(item => item.id !== row.id));
+      notify?.(action === 'approve' ? (isFee ? 'Membership fee verified.' : 'Visitor certificate issued.') : 'Request rejected.');
+      await onSaved?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section>
+      <h2>{isFee ? 'Pending membership fee payments' : 'Pending visitor certificate requests'}</h2>
+      {error && <p role="alert">{error}</p>}
+      {!rows && !error && <p role="status">Loading pending records…</p>}
+      {rows?.length === 0 && <p>No pending records.</p>}
+      {!!rows?.length && (
+        <div className="adm-table-wrap">
+          <table className="adm-table">
+            <thead><tr><th>Submitted by</th><th>{isFee ? 'Payment reference and amount' : 'Visit and purpose'}</th><th>Actions</th></tr></thead>
+            <tbody>
+              {rows.map(row => (
+                <tr key={row.id}>
+                  <td>{isFee ? row.memberName : row.recipient}</td>
+                  <td>{isFee ? row.utr + ' · ₹' + row.amount : row.date + ' · ' + row.purpose}</td>
+                  <td>
+                    <button type="button" className="adm-btn adm-btn-sm adm-btn-primary" disabled={saving} onClick={() => review(row, 'approve')}>{isFee ? 'Verify payment' : 'Issue certificate'}</button>{' '}
+                    <button type="button" className="adm-btn adm-btn-sm adm-btn-outline" disabled={saving} onClick={() => review(row, 'reject')}>Reject</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default function MembershipSuiteSection({ notify, initialModule = 'members' }) {
+  const [module, setModule] = useState(initialModule); // 'members' | 'designations' | 'notices' | 'certificates' | 'management'
   const [loading, setLoading] = useState(true);
 
   // Members
@@ -29,6 +99,8 @@ export default function MembershipSuiteSection({ notify }) {
   const [members, setMembers] = useState([]);
   const [memSelected, setMemSelected] = useState([]);
   const [memModal, setMemModal] = useState(false);
+  const [passwordMember, setPasswordMember] = useState(null);
+  const [initialPassword, setInitialPassword] = useState('');
   const [memForm, setMemForm] = useState({
     name: '',
     email: '',
@@ -114,7 +186,7 @@ export default function MembershipSuiteSection({ notify }) {
         }
         if (mJson.ok) setMembers(mJson.members || []);
       } else if (module === 'certificates') {
-        const res = await fetch('/api/admin/membership-suite/certificates/', { cache: 'no-store' });
+        const res = await fetch('/api/admin/membership-suite/certificates/?status=active', { cache: 'no-store' });
         const j = await res.json();
         if (j.ok) {
           setCertificates(j.certificates || []);
@@ -179,6 +251,7 @@ export default function MembershipSuiteSection({ notify }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
         {[
           { id: 'members', label: 'Members Directory', icon: Users },
+          { id: 'fees', label: 'Fee Payments', icon: CheckCircle2 },
           { id: 'designations', label: 'Designations', icon: BadgeCheck },
           { id: 'notices', label: 'Member Notices', icon: Bell },
           { id: 'certificates', label: 'Member & Visitor Certificates', icon: Award },
@@ -199,6 +272,8 @@ export default function MembershipSuiteSection({ notify }) {
       </div>
 
       <div className="adm-card" style={{ padding: 20 }}>
+        {module === 'fees' && <ReconciliationQueue kind="fee_payment" notify={notify} />}
+
         {/* MEMBERS */}
         {module === 'members' && (
           <>
@@ -293,8 +368,13 @@ export default function MembershipSuiteSection({ notify }) {
                         <td>
                           <div style={{ display: 'flex', gap: 4 }}>
                             {m.accountStatus !== 'Active' && (
-                              <button type="button" className="adm-btn adm-btn-sm adm-btn-outline" style={{ color: '#059669' }} title="Verify & Activate" onClick={() => jsonReq('/api/admin/membership-suite/members/', 'PATCH', { id: m.id, accountStatus: 'Active', verified: true, paymentStatus: 'Paid' }, `${m.name} activated!`)}>
+                              <button type="button" className="adm-btn adm-btn-sm adm-btn-outline" style={{ color: '#059669' }} title="Verify & Activate" onClick={() => jsonReq('/api/admin/membership-suite/members/', 'PATCH', { id: m.id, accountStatus: 'Active', verified: true }, `${m.name} activated!`)}>
                                 <CheckCircle2 size={13} />
+                              </button>
+                            )}
+                            {!m.hasPassword && (
+                              <button type="button" className="adm-btn adm-btn-sm adm-btn-outline" aria-label={'Set initial password for ' + m.name} onClick={() => { setInitialPassword(''); setPasswordMember(m); }}>
+                                <KeyRound size={13} />
                               </button>
                             )}
                             <button type="button" className="adm-btn adm-btn-sm adm-btn-outline" title={m.accountStatus === 'Blocked' ? 'Unblock' : 'Block'} onClick={() => jsonReq('/api/admin/membership-suite/members/', 'PATCH', { id: m.id, accountStatus: m.accountStatus === 'Blocked' ? 'Active' : 'Blocked' }, 'Member status updated.')}>
@@ -432,15 +512,16 @@ export default function MembershipSuiteSection({ notify }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button type="button" className={`adm-btn adm-btn-sm ${certTab === 'active' ? 'adm-btn-primary' : 'adm-btn-outline'}`} onClick={() => setCertTab('active')}>Active Certificates ({certificates.length})</button>
+                <button type="button" className={'adm-btn adm-btn-sm ' + (certTab === 'requests' ? 'adm-btn-primary' : 'adm-btn-outline')} onClick={() => setCertTab('requests')}>Visitor Requests</button>
                 <button type="button" className={`adm-btn adm-btn-sm ${certTab === 'issue' ? 'adm-btn-primary' : 'adm-btn-outline'}`} onClick={() => setCertTab('issue')}>Issue Certificate</button>
               </div>
-              {certSelected.length > 0 && (
+              {certTab === 'active' && certSelected.length > 0 && (
                 <button type="button" className="adm-btn adm-btn-sm" style={{ background: '#dc2626', color: '#fff' }} onClick={() => jsonReq('/api/admin/membership-suite/certificates/', 'DELETE', { ids: certSelected }, 'Certificates deleted.')}>
                   <Trash2 size={13} /> Delete Selected
                 </button>
               )}
             </div>
-            {certTab === 'issue' ? (
+            {certTab === 'requests' ? <ReconciliationQueue kind="certificate" notify={notify} onSaved={loadCurrent} /> : certTab === 'issue' ? (
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
@@ -529,6 +610,26 @@ export default function MembershipSuiteSection({ notify }) {
       </div>
 
       {/* Add Member Modal */}
+      {passwordMember && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'grid', placeItems: 'center', background: 'rgba(15,23,42,0.55)', padding: 16 }}>
+          <form style={{ width: 'min(480px, 100%)', background: '#fff', borderRadius: 12, padding: 20, display: 'grid', gap: 10 }} role="dialog" aria-modal="true" aria-labelledby="initial-member-password" onSubmit={async event => {
+            event.preventDefault();
+            if (await jsonReq('/api/admin/membership-suite/members/', 'PATCH', { id: passwordMember.id, initialPassword }, 'Initial password saved.')) {
+              setInitialPassword('');
+              setPasswordMember(null);
+            }
+          }}>
+            <h2 id="initial-member-password">Set initial password for {passwordMember.name}</h2>
+            <label>
+              Initial password
+              <input required type="password" autoComplete="new-password" minLength={12} maxLength={1024} value={initialPassword} onChange={event => setInitialPassword(event.target.value)} />
+            </label>
+            <button type="submit" className="adm-btn adm-btn-primary">Save initial password</button>{' '}
+            <button type="button" className="adm-btn adm-btn-outline" onClick={() => { setInitialPassword(''); setPasswordMember(null); }}>Cancel</button>
+          </form>
+        </div>
+      )}
+
       {memModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.55)', padding: 16 }} onClick={() => setMemModal(false)}>
           <form

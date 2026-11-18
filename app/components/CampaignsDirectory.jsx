@@ -2,13 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import { HeartHandshake, Target, Users, Calendar } from 'lucide-react';
-import GatewayCheckoutModal from './GatewayCheckoutModal';
+import OnlineDonationModal from './OnlineDonationModal';
 import './public-finance.css';
 
 export default function CampaignsDirectory({ initialCampaigns = [] }) {
-  const [campaigns, setCampaigns] = useState(
-    Array.isArray(initialCampaigns) ? initialCampaigns : []
-  );
+  const campaigns = initialCampaigns;
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedCampaign, setSelectedCampaign] = useState(null);
@@ -25,14 +23,6 @@ export default function CampaignsDirectory({ initialCampaigns = [] }) {
       return true;
     });
   }, [campaigns, categoryFilter, statusFilter]);
-
-  const refreshCampaigns = async () => {
-    try {
-      const res = await fetch('/api/public/campaigns/', { cache: 'no-store' });
-      const data = await res.json();
-      if (res.ok && data.ok) setCampaigns(data.campaigns || []);
-    } catch {}
-  };
 
   return (
     <div>
@@ -136,29 +126,36 @@ export default function CampaignsDirectory({ initialCampaigns = [] }) {
                   </span>
                 </div>
 
-                <div className="post-card-actions">
-                  <button
-                    type="button"
-                    className="button button-blue"
-                    style={{ width: '100%', justifyContent: 'center' }}
-                    onClick={() => setSelectedCampaign(c)}
-                  >
-                    <HeartHandshake size={16} /> Donate to This Cause
-                  </button>
-                </div>
+                {c.status === 'Active' && (
+                  <form className="post-card-actions" onSubmit={event => {
+                    event.preventDefault();
+                    const amount = Number(new FormData(event.currentTarget).get('amount'));
+                    setSelectedCampaign({ id: c.id, amount, title: c.title });
+                  }}>
+                    <label>
+                      Amount (₹)
+                      <input name="amount" type="number" min={100} max={10000000} defaultValue={1000} required />
+                    </label>
+                    <button type="submit" className="button button-blue">
+                      <HeartHandshake size={16} /> Donate to This Cause
+                    </button>
+                  </form>
+                )}
               </div>
             </article>
           );
         })}
       </div>
 
-      <GatewayCheckoutModal
-        isOpen={Boolean(selectedCampaign)}
-        campaign={selectedCampaign}
-        initialAmount={1000}
-        onClose={() => setSelectedCampaign(null)}
-        onCompleted={refreshCampaigns}
-      />
+      {selectedCampaign && (
+        <OnlineDonationModal
+          amount={selectedCampaign.amount}
+          frequency="One-time"
+          purpose={selectedCampaign.title}
+          campaignId={selectedCampaign.id}
+          onClose={() => setSelectedCampaign(null)}
+        />
+      )}
     </div>
   );
 }

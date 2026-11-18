@@ -1,19 +1,14 @@
+import { createJsonStore, publicReference } from './json-store';
 // Server-only durable store for Operations modules:
 // Videos, Events & Applicants, Internships & Apps & Certificates, Expenses & Attachments,
 // Jobs & Career Applications, and Projects & Expense Tracking.
 
 import { randomBytes, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Storage } from '@google-cloud/storage';
-import {
-  EVENT_TYPES,
-  EXPENSE_CATEGORIES,
-  EXPENSE_PAYMENT_MODES,
-  INTERNSHIP_TYPES,
-  PROJECT_CATEGORIES,
-} from './operations-constants';
+import { EVENT_TYPES, EXPENSE_CATEGORIES, EXPENSE_PAYMENT_MODES, INTERNSHIP_TYPES, PROJECT_CATEGORIES } from './operations-constants';
 
 export {
   EVENT_TYPES,
@@ -33,14 +28,8 @@ const MIME_BY_EXT = {
 };
 
 let cachedBucket = null;
-const locks = new Map();
-
-function withLock(key, fn) {
-  const prev = locks.get(key) || Promise.resolve();
-  const next = prev.then(fn, fn);
-  locks.set(key, next.catch(() => {}));
-  return next;
-}
+const collectionStore = createJsonStore({ prefix: 'operations', getBucket: getGcsBucket, getDirectory: getDataDir });
+const withLock = collectionStore.run;
 
 function getDataDir() {
   const candidates = [
@@ -76,55 +65,8 @@ function getGcsBucket() {
   }
 }
 
-async function readJson(name, seedFn) {
-  const bucket = getGcsBucket();
-  if (bucket) {
-    const file = bucket.file(`operations/${name}.json`);
-    try {
-      const [buf] = await file.download();
-      return JSON.parse(buf.toString('utf8'));
-    } catch (err) {
-      if (err?.code === 404 || err?.status === 404 || err?.statusCode === 404) {
-        const initial = seedFn();
-        await writeJson(name, initial);
-        return initial;
-      }
-      throw err;
-    }
-  }
-
-  const filePath = path.join(getDataDir(), `${name}.json`);
-  if (!existsSync(filePath)) {
-    const initial = seedFn();
-    await writeJson(name, initial);
-    return initial;
-  }
-  return JSON.parse(readFileSync(filePath, 'utf8'));
-}
-
-async function writeJson(name, data) {
-  const payload = JSON.stringify(data, null, 2);
-  const bucket = getGcsBucket();
-  if (bucket) {
-    await bucket.file(`operations/${name}.json`).save(payload, {
-      contentType: 'application/json',
-      resumable: false,
-    });
-    return;
-  }
-
-  const filePath = path.join(getDataDir(), `${name}.json`);
-  const temp = `${filePath}.tmp.${randomBytes(6).toString('hex')}`;
-  try {
-    writeFileSync(temp, payload, 'utf8');
-    renameSync(temp, filePath);
-  } catch (err) {
-    try {
-      unlinkSync(temp);
-    } catch {}
-    throw err;
-  }
-}
+const readJson = collectionStore.read;
+const writeJson = collectionStore.write;
 
 function normalizeVideoEmbedUrl(rawUrl) {
   const clean = String(rawUrl || '').trim();
@@ -576,6 +518,8 @@ export async function listEventApplicants() {
   return readJson('event-applicants', buildInitialEventApplicants);
 }
 
+const eventCalendar = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Kolkata' });
+
 export async function registerEventApplicant(payload = {}) {
   const eventId = String(payload.eventId || '').trim();
   const name = String(payload.name || '').trim().slice(0, 120);
@@ -590,6 +534,16 @@ export async function registerEventApplicant(payload = {}) {
 
   return withLock('event-applicants', async () => {
     const apps = await readJson('event-applicants', buildInitialEventApplicants);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(evt.date) || evt.date < eventCalendar.format(new Date())) {
+      return { ok: false, status: 409, error: 'Registration for this event has closed.' };
+    }
+    const attendees = apps.filter(app => app.eventId === eventId && app.status === 'Confirmed');
+    if (attendees.some(app => app.email?.toLowerCase() === email)) {
+      return { ok: false, status: 409, error: 'This email is already registered for the event.' };
+    }
+    if (evt.capacity > 0 && attendees.length >= evt.capacity) {
+      return { ok: false, status: 409, error: 'This event is full.' };
+    }
     const rec = {
       id: `evapp-${randomUUID().slice(0, 8)}`,
       eventId: evt.id,
@@ -679,7 +633,7 @@ export async function applyForInternship(payload = {}) {
     return { ok: false, status: 400, error: 'Internship track, full name, email, and mobile are required.' };
   }
   const internships = await readJson('internships', buildInitialInternships);
-  const track = internships.find((i) => i.id === internshipId);
+  const track = internships.find(i => i.id === internshipId && ['Active', 'Ongoing'].includes(i.status));
   if (!track) return { ok: false, status: 404, error: 'Internship not found.' };
 
   return withLock('internship-apps', async () => {
@@ -711,8 +665,8 @@ export async function issueInternshipCertificate(appId, status = 'Approved') {
     if (idx === -1) return { ok: false, status: 404, error: 'Application not found.' };
     apps[idx].status = status;
     if (status === 'Approved' && !apps[idx].certificateId) {
-      const seq = String(apps.filter((a) => a.certificateId).length + 1).padStart(3, '0');
-      apps[idx].certificateId = `GSDD-INT-${new Date().getFullYear()}-${seq}`;
+
+      apps[idx].certificateId = publicReference('GSDD-INT');
       apps[idx].issuedAt = new Date().toISOString().slice(0, 10);
     }
     await writeJson('internship-apps', apps);
@@ -725,9 +679,10 @@ export async function verifyInternshipCertificate(code) {
   if (!clean) return { found: false };
   const apps = await readJson('internship-apps', buildInitialInternshipApps);
   const match = apps.find((a) => a.certificateId && a.certificateId.toUpperCase() === clean);
-  if (!match) return { found: false };
+  if (!match || match.status !== 'Approved') return { found: false, verified: false };
   return {
     found: true,
+    verified: true,
     certificate: {
       certificateId: match.certificateId,
       internName: match.applicantName,

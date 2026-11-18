@@ -13,13 +13,14 @@ import QRCodeSvg from './QRCodeSvg';
 export default function CertificateRecipientHub() {
   const [activeTab, setActiveTab] = useState('view'); // 'view', 'email', 'qr', 'search'
   const [searchId, setSearchId] = useState('');
-  const [currentCert, setCurrentCert] = useState(verifiedCertificates[0]);
-  const [verificationResult, setVerificationResult] = useState({ checked: true, isValid: true, cert: verifiedCertificates[0] });
+  const [currentCert, setCurrentCert] = useState(null);
+  const [verificationResult, setVerificationResult] = useState({ checked: false, isValid: false, cert: null });
 
   // Email Receive State
   const [recipientEmail, setRecipientEmail] = useState('');
-  const [foundEmails, setFoundEmails] = useState([verifiedCertificates[0]]);
+  const [foundEmails, setFoundEmails] = useState([]);
   const [emailSearched, setEmailSearched] = useState(false);
+  const [emailLookupError, setEmailLookupError] = useState('');
 
   // QR Scanner State
   const [scannerActive, setScannerActive] = useState(false);
@@ -79,7 +80,7 @@ export default function CertificateRecipientHub() {
     const clean = String(code || '').trim().toUpperCase();
     if (!clean) return null;
 
-    // 1. Check Flask backend when configured
+    // Resolve against the deployed Next.js verification ledger
     try {
       const data = await apiClient.getCertificate(clean);
       if (data && data.certificate) {
@@ -112,13 +113,10 @@ export default function CertificateRecipientHub() {
       // Fallback to static registry
     }
 
-    const match = verifiedCertificates.find(
-      (c) => c.id.toUpperCase() === clean || c.verificationCode?.toUpperCase() === clean
-    );
-    return match || null;
+    return null;
   }
 
-  // Handle Search by Certificate ID (Flask API + Next.js registry + verified static records)
+  // Handle search by certificate ID
   async function handleSearchSubmit(e) {
     e.preventDefault();
     const clean = searchId.trim().toUpperCase();
@@ -133,9 +131,10 @@ export default function CertificateRecipientHub() {
     }
   }
 
-  // Handle Email Lookup (Integrated with Database & Fallback)
+  // Certificate inbox requires the recipient account.
   async function handleEmailLookup(e) {
     e.preventDefault();
+    setEmailLookupError('');
     const clean = recipientEmail.trim().toLowerCase();
     if (!clean) return;
 
@@ -145,20 +144,17 @@ export default function CertificateRecipientHub() {
         const mapped = data.certificates.map((c) => ({
           ...normalizeCertRecord(c),
           emailSubject: c.email_subject || `Official Certificate Issued: ${c.type} (#${c.id})`,
-          emailDelivered: c.email_delivered || 'Delivered to verified recipient',
+          email: clean,
+          emailDelivered: c.deliveryStatus === 'delivered' ? 'Provider accepted' : 'Not sent',
         }));
         setFoundEmails(mapped);
         setEmailSearched(true);
         return;
       }
     } catch {
-      // Fallback
+      setEmailLookupError('Sign in to your member account to view its issued certificates.');
     }
-
-    const matches = verifiedCertificates.filter(
-      (c) => c.email.toLowerCase().includes(clean) || c.recipient.toLowerCase().includes(clean)
-    );
-    setFoundEmails(matches);
+    setFoundEmails([]);
     setEmailSearched(true);
   }
 
@@ -401,6 +397,7 @@ export default function CertificateRecipientHub() {
         </button>
       </div>
 
+      {activeTab === 'view' && !currentCert && <p>Search for an issued certificate ID to view and print its verified details.</p>}
       {/* TAB 1: VIEW, DOWNLOAD & PRINT CERTIFICATE */}
       {activeTab === 'view' && currentCert && (
         <div>
@@ -542,7 +539,7 @@ export default function CertificateRecipientHub() {
               Receive Your Certificate via Email
             </h3>
             <p style={{ margin: 0, fontSize: '13px', color: '#64748B' }}>
-              Recipients can check official certificate dispatch notices delivered to their registered email address.
+              Sign in to your member account, then enter your account email to view its issued certificates.
             </p>
           </div>
 
@@ -550,7 +547,7 @@ export default function CertificateRecipientHub() {
             <input
               type="text"
               required
-              placeholder="Enter your email or full name (e.g. kavita.kumari@example.com)"
+              placeholder="Enter your account email"
               value={recipientEmail}
               onChange={(e) => setRecipientEmail(e.target.value)}
               style={{ flex: '1 1 200px', minWidth: 0, padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px' }}
@@ -563,29 +560,7 @@ export default function CertificateRecipientHub() {
             </button>
           </form>
 
-          {/* Quick Demo Recipient Buttons */}
-          <div style={{ marginBottom: '20px' }}>
-            <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#64748B', display: 'block', marginBottom: '8px' }}>
-              ⚡ Sample Recipient Mailboxes:
-            </span>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {verifiedCertificates.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => {
-                    setRecipientEmail(c.email);
-                    setFoundEmails([c]);
-                    setEmailSearched(true);
-                  }}
-                  style={{ padding: '6px 12px', background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', textAlign: 'left' }}
-                >
-                  <strong>{c.recipient}</strong> ({c.email})
-                </button>
-              ))}
-            </div>
-          </div>
-
+          {emailLookupError && <p role="status">{emailLookupError}</p>}
           {/* Email Inbox Cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {foundEmails.map((cert) => (
@@ -604,7 +579,7 @@ export default function CertificateRecipientHub() {
                     <Mail size={16} color="#2563EB" />
                     <strong style={{ fontSize: '15px', color: '#0F172A' }}>{cert.emailSubject}</strong>
                   </div>
-                  <span style={{ fontSize: '12px', color: '#64748B' }}>Delivered: {cert.emailDelivered}</span>
+                  <span style={{ fontSize: '12px', color: '#64748B' }}>Email delivery: {cert.emailDelivered}</span>
                 </div>
 
                 <div style={{ fontSize: '12px', color: '#475569', marginBottom: '12px' }}>

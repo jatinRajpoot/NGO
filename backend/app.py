@@ -25,23 +25,24 @@ def create_app(test_config=None):
     # Health check & status endpoint
     @app.route('/api/health', methods=['GET'])
     def health_check():
-        db_status = 'disconnected'
         try:
             conn = get_connection()
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1;")
-                cur.fetchone()
-            conn.close()
-            db_status = 'connected'
-        except Exception as e:
-            db_status = f'error: {str(e)}'
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1;")
+                    cur.fetchone()
+            finally:
+                conn.close()
+        except Exception:
+            app.logger.exception("Database health check failed")
+            return jsonify({'status': 'unhealthy', 'database_connection': 'unavailable'}), 503
 
         return jsonify({
             'status': 'healthy',
             'service': 'GSDD Foundation Flask Backend',
             'version': '1.0.0',
             'database': 'MySQL (gsdd_foundation_db)',
-            'database_connection': db_status
+            'database_connection': 'connected'
         }), 200
 
     # Auto-initialize database tables if needed

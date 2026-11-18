@@ -1,19 +1,23 @@
 import json
+import os
 import hashlib
 from backend.db import get_connection, init_db
 
-def hash_password(password: str, salt: str = "b97ab09e40b44098ca5db232c9973a08") -> str:
-    """Hashes password with SHA-512 compatible with existing admin auth format salt:hash."""
-    hashed = hashlib.sha512((password + salt).encode()).hexdigest()
-    return f"{salt}:{hashed}"
+def hash_password(password: str) -> str:
+    from werkzeug.security import generate_password_hash
+    return generate_password_hash(password, method='scrypt')
+
 
 def seed_database():
+    password = os.getenv('ADMIN_INITIAL_PASSWORD', '')
+    if len(password) < 12:
+        raise ValueError('Set ADMIN_INITIAL_PASSWORD to at least 12 characters before seeding')
     init_db()
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             # 1. Seed Admin User
-            admin_pwd = hash_password("admin123")
+            admin_pwd = hash_password(password)
             cur.execute("""
                 INSERT INTO admin_users (username, password_hash, full_name, email, role)
                 VALUES (%s, %s, %s, %s, %s)

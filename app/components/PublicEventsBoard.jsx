@@ -99,7 +99,7 @@ export default function PublicEventsBoard({ initialEvents = [] }) {
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><MapPin size={14} /> {evt.venue}</span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Users size={14} /> Capacity: {evt.capacity} • Fee: Rs. {evt.fee}</span>
             </div>
-            {evt.status === 'Active' && (
+            {evt.status === 'Active' && evt.date >= new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Kolkata' }).format(new Date()) && (
               <button type="button" className="button button-blue" style={{ marginTop: 'auto', justifyContent: 'center' }} onClick={() => { setErrorMsg(''); setSelectedEvent(evt); }}>
                 Register for Event
               </button>

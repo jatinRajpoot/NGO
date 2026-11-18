@@ -10,7 +10,6 @@ import {
   UploadCloud, ArrowRight, Printer, Download, Eye
 } from 'lucide-react';
 import { defaultTeamMembers } from '../team-data';
-import { apiClient } from '../../lib/api-client';
 
 const sidebarTabs = [
   { id: 'profile', label: 'View Profile', icon: User },

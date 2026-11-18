@@ -178,6 +178,7 @@ export default function GatewayCheckoutModal({
         </div>
 
         <div style={{ padding: 20 }}>
+          <p role="note" style={{ color: '#92400e', fontWeight: 700 }}>Test checkout only. No money is collected and no donation receipt is issued.</p>
           {err && (
             <div
               role="alert"
@@ -447,9 +448,9 @@ export default function GatewayCheckoutModal({
           {step === 'receipt' && receipt && (
             <div style={{ textAlign: 'center', padding: '12px 6px' }}>
               <CheckCircle2 size={44} color="#059669" style={{ marginBottom: 10 }} />
-              <h3 style={{ margin: '0 0 6px' }}>Payment Verified Successfully!</h3>
+              <h3 style={{ margin: '0 0 6px' }}>Simulation complete</h3>
               <p style={{ margin: '0 0 16px', fontSize: 13, color: '#475569' }}>
-                Thank you for supporting Global Skills &amp; Digital Development Foundation.
+                No money was collected and no donation or mandate was created.
               </p>
               <div
                 style={{
@@ -465,7 +466,7 @@ export default function GatewayCheckoutModal({
                 }}
               >
                 <div>
-                  <strong>Receipt No:</strong> {receipt.receiptNo || receipt.mandateRef || 'Issued'}
+                  <strong>Receipt No:</strong> {'Not issued — test only'}
                 </div>
                 <div>
                   <strong>Transaction Ref:</strong> {receipt.utr || receipt.txRef}
@@ -476,7 +477,7 @@ export default function GatewayCheckoutModal({
                   </div>
                 )}
                 <div>
-                  <strong>Status:</strong> <span style={{ color: '#059669', fontWeight: 700 }}>{receipt.status || 'Success'}</span>
+                  <strong>Status:</strong> <span style={{ color: '#059669', fontWeight: 700 }}>{receipt.status || 'Simulated'}</span>
                 </div>
               </div>
               <button type="button" className="button button-blue" onClick={resetAndClose}>

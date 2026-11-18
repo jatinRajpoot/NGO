@@ -19,15 +19,14 @@ export default function DonateGatewaySection() {
       }}
     >
       <strong style={{ display: 'block', fontSize: 15, color: '#09152f', marginBottom: 6 }}>
-        Instant Online Payment Gateway (PhonePe / Razorpay)
+        Test Payment Checkout (PhonePe / Razorpay)
       </strong>
       <p style={{ margin: '0 0 14px', fontSize: 13, color: '#475569' }}>
-        Contribute via PhonePe Net Banking Sandbox (username <code>test</code>, password{' '}
-        <code>test</code>) or Razorpay Test Checkout with instant receipt generation.
+        Try a test payment. The checkout collects no money and issues no donation receipt.
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
         <button type="button" className="button button-blue" onClick={() => setOpen(true)}>
-          <CreditCard size={16} /> Pay Online (PhonePe / Razorpay)
+          <CreditCard size={16} /> Open Test Checkout
         </button>
         <Link href="/autopay-donate" className="button button-outline">
           <CalendarClock size={16} /> Monthly Auto-Pay

@@ -1,7 +1,8 @@
+import { createJsonStore } from './json-store';
 // Server-only session, scrypt credential verification, and profile persistence for Team Portal.
 
-import { createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { createHmac, randomBytes, timingSafeEqual, scrypt as scryptCallback } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { cookies } from 'next/headers.js';
@@ -21,13 +22,7 @@ const SECRET_FILENAME = 'team-session-secret.key';
 let cachedSecret = null;
 let cachedGcsClient = null;
 const memoryRevoked = new Set();
-let teamLock = Promise.resolve();
-
-function withTeamLock(fn) {
-  const next = teamLock.then(fn, fn);
-  teamLock = next.catch(() => {});
-  return next;
-}
+const teamStore = createJsonStore({ prefix: 'team', getBucket: getGcsBucket, getDirectory: getTeamDataDir, filename: name => name, examples: true });
 
 function getTeamDataDir() {
   const candidates = [
@@ -120,53 +115,8 @@ export async function verifyTeamPassword(password, storedHash) {
   return timingSafeEqual(derived, expected);
 }
 
-async function readJsonFile(filename, createDefaultFn) {
-  const bucket = getGcsBucket();
-  if (bucket) {
-    const file = bucket.file(`team/${filename}`);
-    try {
-      const [contents] = await file.download();
-      return JSON.parse(contents.toString('utf8'));
-    } catch (err) {
-      if (err?.code === 404 || err?.status === 404 || err?.statusCode === 404) {
-        const initial = await createDefaultFn();
-        await writeJsonFile(filename, initial);
-        return initial;
-      }
-      throw err;
-    }
-  }
-  const target = path.join(getTeamDataDir(), filename);
-  if (!existsSync(target)) {
-    const initial = await createDefaultFn();
-    await writeJsonFile(filename, initial);
-    return initial;
-  }
-  return JSON.parse(readFileSync(target, 'utf8'));
-}
-
-async function writeJsonFile(filename, data) {
-  const payload = JSON.stringify(data, null, 2);
-  const bucket = getGcsBucket();
-  if (bucket) {
-    await bucket.file(`team/${filename}`).save(payload, {
-      contentType: 'application/json',
-      resumable: false,
-    });
-    return;
-  }
-  const target = path.join(getTeamDataDir(), filename);
-  const temp = `${target}.tmp.${randomBytes(6).toString('hex')}`;
-  try {
-    writeFileSync(temp, payload, 'utf8');
-    renameSync(temp, target);
-  } catch (err) {
-    try {
-      unlinkSync(temp);
-    } catch {}
-    throw err;
-  }
-}
+const readJsonFile = teamStore.read;
+const writeJsonFile = teamStore.write;
 
 export async function getTeamAccounts() {
   return readJsonFile(ACCOUNTS_FILENAME, () =>
@@ -297,7 +247,7 @@ export async function revokeTeamSession(request) {
   const session = await verifyTeamSessionToken(token);
   if (!session) return false;
   memoryRevoked.add(session.nonce);
-  await withTeamLock(async () => {
+  await teamStore.run(REVOCATION_FILENAME, async () => {
     const data = await readJsonFile(REVOCATION_FILENAME, () => ({ revoked: [] }));
     const now = Math.floor(Date.now() / 1000);
     const active = (Array.isArray(data?.revoked) ? data.revoked : []).filter(
@@ -310,7 +260,7 @@ export async function revokeTeamSession(request) {
 }
 
 export async function updateTeamMemberRecord(memberId, updaterFn) {
-  return withTeamLock(async () => {
+  return teamStore.run(ACCOUNTS_FILENAME, async () => {
     const accounts = await getTeamAccounts();
     const index = accounts.findIndex((m) => m.id === memberId);
     if (index === -1) return null;

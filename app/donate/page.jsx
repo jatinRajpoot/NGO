@@ -40,7 +40,7 @@ export default function DonatePage() {
       </div>
     </section>
     <section className="section-pad donation-steps-section">
-      <div className="container"><div className="section-heading section-heading-centered"><p className="eyebrow"><span /> How to contribute</p><h2>Three clear steps.</h2><p>Donation support is currently coordinated directly with the foundation.</p></div><div className="donation-steps-grid">{steps.map(([number, title, text]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{text}</p></article>)}</div><p className="payment-status-note">This website does not collect donor PAN or process UPI, cards, or net banking. No bank account details or payment gateway credentials were included in the supplied brief.</p><div className="section-action"><Link className="text-link" href="/transparency">Review the statutory directory <ArrowRight size={16} aria-hidden="true" /></Link></div></div>
+      <div className="container"><div className="section-heading section-heading-centered"><p className="eyebrow"><span /> How to contribute</p><h2>Three clear steps.</h2><p>Donation support is currently coordinated directly with the foundation.</p></div><div className="donation-steps-grid">{steps.map(([number, title, text]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{text}</p></article>)}</div><p className="payment-status-note">If you submit a transfer reference on this website, you can provide a PAN for receipt processing. Online test checkout collects no money.</p><div className="section-action"><Link className="text-link" href="/transparency">Review the statutory directory <ArrowRight size={16} aria-hidden="true" /></Link></div></div>
     </section>
   </>;
 }

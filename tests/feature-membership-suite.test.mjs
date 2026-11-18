@@ -118,6 +118,7 @@ async function main() {
     applyFd.append('name', 'Anjali Kumari');
     applyFd.append('email', 'anjali.apply@example.org');
     applyFd.append('mobile', '9835099001');
+    applyFd.append('password', 'ApplicantSecret123!');
     applyFd.append('gender', 'Female');
     applyFd.append('aadhaarNumber', '123456789012');
     applyFd.append('referralCode', 'NGO-2026-0032');
@@ -215,7 +216,23 @@ async function main() {
       }),
     });
     assert.equal(memRegRes.status, 201);
-    memberCookie = grabCookie(memRegRes);
+    assert.equal(grabCookie(memRegRes), '');
+    const { member: pendingMember } = await memRegRes.json();
+    assert.equal(pendingMember.status, 'Pending');
+    const approval = await req('/api/admin/membership-suite/members/', {
+      method: 'PATCH',
+      cookie: adminCookie,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: pendingMember.id, accountStatus: 'Active' }),
+    });
+    assert.equal(approval.status, 200);
+    const signIn = await req('/api/member/login/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'member.ext@example.org', password: 'StrongPassword123!' }),
+    });
+    assert.equal(signIn.status, 200);
+    memberCookie = grabCookie(signIn);
 
     const extGet = await req('/api/member/extensions/', { cookie: memberCookie });
     assert.equal(extGet.status, 200);
@@ -235,7 +252,8 @@ async function main() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'gateway_donate', gateway: 'phonepe', username: 'test', password: 'test', amount: 500 }),
     });
-    assert.equal(okMemberNb.status, 201);
+    assert.equal(okMemberNb.status, 200);
+    assert.equal((await okMemberNb.json()).isSandbox, true);
 
     // 8. Forgot password verify & reset flow
     const fpBad = await req('/api/public/forgot-password/', {
@@ -250,7 +268,7 @@ async function main() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ step: 'confirm', email: 'anjali.apply@example.org', phone: '9835099001', newPassword: 'NewPassword99!' }),
     });
-    assert.equal(fpGood.status, 200);
+    assert.equal(fpGood.status, 400, 'Phone-only reset must fail without an emailed single-use token');
 
     // 9. Public pages return 200 cleanly
     for (const [route, marker] of [

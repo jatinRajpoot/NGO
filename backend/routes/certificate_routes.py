@@ -7,6 +7,7 @@ from backend.routes.auth_routes import admin_required
 cert_bp = Blueprint('cert_bp', __name__)
 
 @cert_bp.route('', methods=['GET'])
+@admin_required
 def list_certificates():
     search = request.args.get('search', '').strip()
     email = request.args.get('email', '').strip()
@@ -63,7 +64,7 @@ def verify_certificate():
         one=True
     )
 
-    if cert:
+    if cert and cert.get('is_original') and cert.get('status') in ('Authentic & Verified', 'Verified'):
         return jsonify({
             'status': 'success',
             'is_authentic': True,

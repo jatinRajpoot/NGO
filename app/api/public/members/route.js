@@ -1,3 +1,4 @@
+import { getSoftwareSettings } from '../../../lib/admin-system-store';
 import { isSameOrigin } from '../../../lib/admin-auth';
 import { jsonResponse } from '../../../lib/membership-suite-api';
 import {
@@ -60,7 +61,11 @@ export async function POST(request) {
     fields = body;
   }
 
-  const res = await createExtendedMember(fields, { isPublicApply: true, photoFile });
+  const access = await getSoftwareSettings('access-settings') || {};
+  if (access.allowPublicRegistration === false) {
+    return jsonResponse({ ok: false, error: 'Online membership registration is currently closed.' }, 403);
+  }
+  const res = await createExtendedMember(fields, { isPublicApply: true, photoFile, requireApproval: access.requireAdminApproval !== false });
   if (!res.ok) return jsonResponse({ ok: false, error: res.error }, res.status);
   return jsonResponse({ ok: true, member: res.member }, 201);
 }

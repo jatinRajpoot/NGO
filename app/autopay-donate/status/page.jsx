@@ -38,7 +38,7 @@ export default function AutoPayStatusPage() {
       <PageHero
         eyebrow="Mandate Verification"
         title="Auto-Pay status tracking."
-        description="Enter your Mandate Reference (e.g. GSDD-AP-2026-1001), email address, or registered mobile number to inspect recurring payment history."
+        description="Enter your mandate reference to check its authorization status."
       />
       <section className="section-pad">
         <div className="container" style={{ maxWidth: 760 }}>
@@ -50,7 +50,7 @@ export default function AutoPayStatusPage() {
               required
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Enter Mandate Ref, Email, or Mobile..."
+              placeholder="Enter your mandate reference"
               style={{ flex: '1 1 260px', padding: '12px 14px', borderRadius: 10, border: '1px solid #cbd5e1' }}
             />
             <button type="submit" disabled={loading} className="button button-blue">
@@ -85,7 +85,6 @@ export default function AutoPayStatusPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
                 <div>
                   <strong style={{ fontSize: 17 }}>{m.mandateRef}</strong>
-                  <div style={{ fontSize: 13, color: '#475569' }}>{m.donorName} • {m.purpose}</div>
                 </div>
                 <span
                   style={{
@@ -100,29 +99,7 @@ export default function AutoPayStatusPage() {
                   {m.status}
                 </span>
               </div>
-              <div style={{ fontSize: 13, color: '#334155', marginBottom: 12 }}>
-                Monthly Contribution: <strong>Rs. {Number(m.amount).toLocaleString('en-IN')}</strong> • Gateway: {m.gateway} • Next Debit: {m.nextDebitDate}
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Debit History ({m.payments.length})</div>
-              <div style={{ display: 'grid', gap: 6 }}>
-                {m.payments.map((p) => (
-                  <div
-                    key={p.txId}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      padding: '8px 12px',
-                      background: '#f8fafc',
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                  >
-                    <span>{p.txId}</span>
-                    <span>Rs. {Number(p.amount).toLocaleString('en-IN')} • {String(p.paidAt).slice(0, 10)}</span>
-                    <strong style={{ color: '#059669' }}>{p.status}</strong>
-                  </div>
-                ))}
-              </div>
+              {m.nextDebitDate && <p>Next debit: {m.nextDebitDate}</p>}
             </div>
           ))}
         </div>

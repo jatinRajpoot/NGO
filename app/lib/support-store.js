@@ -1,8 +1,10 @@
+import { enquiryRecordStore } from './portal-store';
+import { createJsonStore, publicReference } from './json-store';
 // Server-only durable store for Beneficiaries (+ Benefits Provided & Direct Requests),
 // Complaints (+ Admin Remarks & Status Tracking), and Enquiries Management.
 
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Storage } from '@google-cloud/storage';
@@ -19,14 +21,8 @@ export const BENEFICIARY_CATEGORIES = [
 export const COMPLAINT_STATUSES = ['Pending', 'Active', 'Rejected', 'Resolved'];
 
 let cachedBucket = null;
-const locks = new Map();
-
-function withLock(key, fn) {
-  const prev = locks.get(key) || Promise.resolve();
-  const next = prev.then(fn, fn);
-  locks.set(key, next.catch(() => {}));
-  return next;
-}
+const collectionStore = createJsonStore({ prefix: 'support', getBucket: getGcsBucket, getDirectory: getDataDir });
+const withLock = (name, operation) => name === 'enquiries' ? enquiryRecordStore.run(operation) : collectionStore.run(name, operation);
 
 function getDataDir() {
   const candidates = [
@@ -60,50 +56,8 @@ function getGcsBucket() {
   }
 }
 
-async function readJson(name, seedFn) {
-  const bucket = getGcsBucket();
-  if (bucket) {
-    const file = bucket.file(`support/${name}.json`);
-    try {
-      const [buf] = await file.download();
-      return JSON.parse(buf.toString('utf8'));
-    } catch (err) {
-      if (err?.code === 404 || err?.status === 404 || err?.statusCode === 404) {
-        const initial = seedFn();
-        await writeJson(name, initial);
-        return initial;
-      }
-      throw err;
-    }
-  }
-  const filePath = path.join(getDataDir(), `${name}.json`);
-  if (!existsSync(filePath)) {
-    const initial = seedFn();
-    await writeJson(name, initial);
-    return initial;
-  }
-  return JSON.parse(readFileSync(filePath, 'utf8'));
-}
-
-async function writeJson(name, data) {
-  const payload = JSON.stringify(data, null, 2);
-  const bucket = getGcsBucket();
-  if (bucket) {
-    await bucket.file(`support/${name}.json`).save(payload, { contentType: 'application/json', resumable: false });
-    return;
-  }
-  const filePath = path.join(getDataDir(), `${name}.json`);
-  const temp = `${filePath}.tmp.${Math.random().toString(16).slice(2, 8)}`;
-  try {
-    writeFileSync(temp, payload, 'utf8');
-    renameSync(temp, filePath);
-  } catch (err) {
-    try {
-      unlinkSync(temp);
-    } catch {}
-    throw err;
-  }
-}
+const readJson = (name, seed) => name === 'enquiries' ? enquiryRecordStore.read() : collectionStore.read(name, seed);
+const writeJson = (name, records) => name === 'enquiries' ? enquiryRecordStore.write(records) : collectionStore.write(name, records);
 
 export function toCsv(headers, rows) {
   const esc = (v) => {
@@ -288,11 +242,11 @@ export async function createBeneficiary(payload = {}, { isDirectPublicRequest = 
 
   return withLock('beneficiaries', async () => {
     const list = await readJson('beneficiaries', buildInitialBeneficiaries);
-    const seq = String(101 + list.length).padStart(3, '0');
+
     const now = new Date().toISOString();
     const record = {
       id: `ben-${randomUUID().slice(0, 8)}`,
-      trackingCode: `GSDD-BEN-${new Date().getFullYear()}-${seq}`,
+      trackingCode: publicReference('GSDD-BEN'),
       name,
       age: Number(payload.age || 0) || '',
       gender: String(payload.gender || '').trim().slice(0, 24),
@@ -399,11 +353,11 @@ export async function submitComplaint(payload = {}) {
 
   return withLock('complaints', async () => {
     const list = await readJson('complaints', buildInitialComplaints);
-    const seq = String(list.length + 1).padStart(3, '0');
+
     const now = new Date().toISOString();
     const record = {
       id: `cmp-${randomUUID().slice(0, 8)}`,
-      ticketNo: `GSDD-CMP-${new Date().getFullYear()}-${seq}`,
+      ticketNo: publicReference('GSDD-CMP'),
       complainantName,
       email,
       phone: String(payload.phone || '').trim().slice(0, 24),
@@ -455,14 +409,10 @@ export async function lookupComplaintStatus(query) {
   if (!q) return [];
   const list = await readJson('complaints', buildInitialComplaints);
   return list
-    .filter((c) => c.ticketNo.toLowerCase() === q || (c.email && c.email.toLowerCase() === q))
+    .filter((c) => c.ticketNo.toLowerCase() === q)
     .map((c) => ({
       ticketNo: c.ticketNo,
-      complainantName: c.complainantName,
-      category: c.category,
-      subject: c.subject,
       status: c.status,
-      adminRemark: c.adminRemark,
       createdAt: String(c.createdAt || '').slice(0, 10),
       updatedAt: String(c.updatedAt || '').slice(0, 10),
     }));

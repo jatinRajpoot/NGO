@@ -172,7 +172,9 @@ async function main() {
 
     const statusLookup = await (await req(`/api/public/complaints/?query=${encodeURIComponent(createdCmp.ticketNo)}`)).json();
     assert.equal(statusLookup.complaints[0].status, 'Resolved');
-    assert.match(statusLookup.complaints[0].adminRemark, /reissued/);
+    assert.equal(statusLookup.complaints[0].adminRemark, undefined);
+    assert.equal(statusLookup.complaints[0].subject, undefined);
+    assert.equal(statusLookup.complaints[0].complainantName, undefined);
 
     assert.equal(
       (await req('/api/admin/support/complaints/', {
@@ -185,6 +187,8 @@ async function main() {
     );
 
     // 5. Enquiries new filter + reply
+    const submittedEnquiry = await req('/api/inquiries/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Real Enquiry', email: 'real-enquiry@example.org', message: 'Please assist with this actual submission.' }) });
+    assert.equal(submittedEnquiry.status, 201);
     const enqNew = await (await req('/api/admin/support/enquiries/?status=new', { useAdmin: true })).json();
     assert.ok(enqNew.enquiries.length >= 1);
     const targetEnq = enqNew.enquiries[0];

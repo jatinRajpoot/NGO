@@ -1,21 +1,3 @@
-// POST /api/admin/auth/logout
-//
-// Revokes the presented session server-side, then clears the admin session
-// cookie. The token's nonce is added to the revocation list maintained by
-// `app/lib/admin-auth.js`, so replaying a copy of the cookie after logout fails
-// verification instead of staying usable until expiry.
-//
-// Revocation is scoped to the cookies on this request: other devices signed in
-// with the same credentials keep their sessions. Store failures never fail the
-// request — the cookie is still cleared and the session then falls back to
-// expiring normally (see the fallback note in admin-auth.js).
-//
-// Responses:
-//   200 { ok: true }        cookie cleared (idempotent)
-//   403 { ok: false }       missing or mismatched Origin header
-//
-// Runs on the Node.js runtime to match `app/lib/admin-auth.js`.
-
 import { NextResponse } from 'next/server';
 import {
   ADMIN_COOKIE_NAME,
@@ -50,10 +32,9 @@ export async function POST(request) {
       return failure(403, 'forbidden_origin');
     }
 
-    // Revoke before clearing. `revokeAdminSession` never throws, so a store
-    // outage degrades to the previous behaviour (token valid until expiry)
-    // instead of blocking the response the browser needs to drop the cookie.
-    await revokeAdminSession(request);
+    if (!(await revokeAdminSession(request))) {
+      return failure(503, 'session_revocation_unavailable');
+    }
 
     // Same name, path, and security attributes as the login cookie, with an
     // immediate expiry so browsers drop it. The empty value is a fallback for

@@ -51,7 +51,8 @@
 //     those requests.
 
 import { createHash, createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { createJsonStore } from './json-store.js';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { cookies } from 'next/headers.js';
@@ -76,10 +77,6 @@ const SCRYPT_KEY_LENGTH = 64;
 const SCRYPT_OPTIONS = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 const EXPIRY_CLOCK_SKEW = 300; // seconds of tolerance for a token minted "in the future"
 const MAX_SESSION_COOKIE_CANDIDATES = 8; // bound work when duplicate cookies arrive
-const REVOCATION_FILENAME = 'admin-revoked-sessions.json';
-const REVOCATION_GCS_OBJECT = 'admin/revoked-sessions.json';
-const REVOCATION_MAX_ENTRIES = 1024; // bounds the file size
-const REVOCATION_GCS_TIMEOUT_MS = 2000; // a slow bucket must not hang logout
 
 const SALT_PATTERN = /^[0-9a-f]+$/i;
 const HASH_PATTERN = /^[0-9a-f]{128}$/i;
@@ -132,16 +129,8 @@ function parsePasswordHash(value) {
   return { salt, hash: hash.toLowerCase() };
 }
 
-// Scrypt hash for standard initial credentials (Admin@123)
-const DEFAULT_INITIAL_HASH = Object.freeze(
-  parsePasswordHash('b97ab09e40b44098ca5db232c9973a08:f5b6667fffa6c76be01dd56c76d4a2309655ecac066b8f9a95e3f16774cff06aa941bd758b469e647100caee84e21e63c6b48b7740e3401c42ccb8286fcd368b')
-);
-
-let inMemoryPasswordHash = null;
-let lastCredsMtime = 0;
+let cloudPasswordHash = null;
 let gcsClient = null;
-let lastGcsSyncTime = 0;
-const GCS_SYNC_INTERVAL_MS = 30000;
 
 function getGcsBucket() {
   const bucketName = process.env.GALLERY_BUCKET;
@@ -156,54 +145,18 @@ function getGcsBucket() {
   }
 }
 
-async function saveCredentialsToGcs(passwordHash) {
-  const bucket = getGcsBucket();
-  if (!bucket) return;
-  try {
-    const file = bucket.file('admin/credentials.json');
-    await file.save(
-      JSON.stringify({ passwordHash, updatedAt: new Date().toISOString() }, null, 2),
-      { contentType: 'application/json', resumable: false }
-    );
-    lastGcsSyncTime = Date.now();
-  } catch (err) {
-    console.error('Warning: Failed to persist admin credentials to GCS:', err.message);
-  }
-}
+const adminStore = createJsonStore({
+  prefix: 'admin',
+  getBucket: getGcsBucket,
+  getDirectory: getCredentialsDir,
+  filename: name => getGcsBucket() ? name : 'admin-' + name,
+});
 
 async function syncCredentialsFromGcs() {
-  const bucket = getGcsBucket();
-  if (!bucket) return;
-  const now = Date.now();
-  if (now - lastGcsSyncTime < GCS_SYNC_INTERVAL_MS) return;
-  lastGcsSyncTime = now;
-  try {
-    const file = bucket.file('admin/credentials.json');
-    const [exists] = await file.exists();
-    if (!exists) return;
-    const [contents] = await file.download();
-    const data = JSON.parse(contents.toString('utf8'));
-    if (typeof data.passwordHash === 'string') {
-      const parsed = parsePasswordHash(data.passwordHash);
-      if (parsed) {
-        inMemoryPasswordHash = parsed;
-        try {
-          const dir = getCredentialsDir();
-          const credsPath = path.join(dir, 'admin-credentials.json');
-          writeFileSync(
-            credsPath,
-            JSON.stringify(data, null, 2),
-            'utf8'
-          );
-          try {
-            lastCredsMtime = statSync(credsPath).mtimeMs;
-          } catch {}
-        } catch {}
-      }
-    }
-  } catch {
-    // Non-fatal; fall back to local/in-memory
-  }
+  if (!getGcsBucket()) return;
+  const record = await adminStore.read('credentials.json', () => ({}));
+  cloudPasswordHash = parsePasswordHash(record.passwordHash);
+  if (record.passwordHash && !cloudPasswordHash) throw new Error('Invalid stored administrator credentials');
 }
 
 function getCredentialsDir() {
@@ -235,217 +188,51 @@ function getCredentialsDir() {
 }
 
 function getStoredPasswordHash() {
+  if (getGcsBucket()) return cloudPasswordHash;
   try {
-    const credsPath = path.join(getCredentialsDir(), 'admin-credentials.json');
-    if (existsSync(credsPath)) {
-      const stat = statSync(credsPath);
-      if (inMemoryPasswordHash && stat.mtimeMs === lastCredsMtime) {
-        return inMemoryPasswordHash;
-      }
-      const data = JSON.parse(readFileSync(credsPath, 'utf8'));
-      if (typeof data.passwordHash === 'string') {
-        const parsed = parsePasswordHash(data.passwordHash);
-        if (parsed) {
-          inMemoryPasswordHash = parsed;
-          lastCredsMtime = stat.mtimeMs;
-          return parsed;
-        }
-      }
-    }
-  } catch {}
-  return inMemoryPasswordHash;
+    const stored = readFileSync(path.join(getCredentialsDir(), 'admin-credentials.json'), 'utf8');
+    return parsePasswordHash(JSON.parse(stored).passwordHash);
+  } catch {
+    return null;
+  }
 }
 
-// -----------------------------------------------------------------------------
-// Session revocation list
-//
-// One file, `{ revoked: [{ nonce, expiresAt }] }`, holding the nonces of
-// sessions that logged out before their expiry. Both backends are best-effort:
-//
-//   Read failure => treat the token as valid (fail open). The alternative is to
-//     fail closed, which would sign the administrator out of everything whenever
-//     GCS is briefly unavailable; token expiry and credential rotation still
-//     bound the exposure. This is the documented fallback.
-//   Write failure => the logout response still reports success (the browser
-//     cookie is cleared regardless) but the token is not revoked. Logged loudly
-//     so it is visible; the session then lives until expiry as before.
-//   Single-instance memory remains the last resort: a nonce revoked on this
-//     instance keeps rejecting here even if the durable write failed.
-//
-// Concurrent logouts are rare (one administrator), so a plain read-modify-write
-// serialized within this process is used rather than the gallery's CAS
-// machinery. A logout racing a logout on another instance can drop one entry;
-// both tokens still expire, and the instance that handled each revoke keeps
-// rejecting its nonce in memory.
-//
-// The list is read on every successful verification rather than cached: an
-// admin-only endpoint sees a handful of requests, and caching would let a
-// replayed token keep working until the cache turned over.
-// -----------------------------------------------------------------------------
-
-const revokedNonces = new Set();
-let revocationChain = Promise.resolve();
-
-function withRevocationLock(operation) {
-  const next = revocationChain.then(operation, operation);
-  revocationChain = next.catch(() => {});
-  return next;
-}
+const revokedNonces = new Map();
 
 function pruneRevoked(entries) {
   const now = Math.floor(Date.now() / 1000);
-  const kept = entries.filter(
-    (entry) => entry && typeof entry.nonce === 'string' && Number.isSafeInteger(entry.expiresAt) && entry.expiresAt > now
-  );
-  return kept.length > REVOCATION_MAX_ENTRIES ? kept.slice(-REVOCATION_MAX_ENTRIES) : kept;
+  return entries.filter(entry => entry && typeof entry.nonce === 'string' &&
+    Number.isSafeInteger(entry.expiresAt) && entry.expiresAt > now);
 }
 
-function parseRevocationEntries(data) {
-  if (!data || typeof data !== 'object' || !Array.isArray(data.revoked)) return [];
+async function readRevocationEntries() {
+  const data = await adminStore.read('revoked-sessions.json', () => ({ version: 1, revoked: [] }));
+  if (!Array.isArray(data?.revoked)) throw new Error('Invalid session revocation list');
   return pruneRevoked(data.revoked);
 }
 
-/**
- * Await `promise` for at most `ms`, resolving to null on timeout.
- * The losing promise gets a rejection handler attached so a late failure is
- * never reported as an unhandled rejection (fatal on current Node).
- */
-async function withTimeout(promise, ms) {
-  const settled = Promise.resolve(promise);
-  settled.catch(() => {});
-  let timer;
-  try {
-    return await Promise.race([
-      settled,
-      new Promise((resolve) => {
-        timer = setTimeout(() => resolve(null), ms);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
-function isNotFound(err) {
-  return Boolean(err) && (err.code === 404 || err.code === '404' || err.status === 404 || err.statusCode === 404);
-}
-
-function getRevocationPath() {
-  return path.join(getCredentialsDir(), REVOCATION_FILENAME);
-}
-
-/**
- * Read the revocation list, or null when the configured backend could not be
- * read within its budget. Callers must treat null as "unknown", never as
- * "nothing revoked".
- */
-async function readRevocationEntries() {
-  const bucket = getGcsBucket();
-  if (bucket) {
-    try {
-      const file = bucket.file(REVOCATION_GCS_OBJECT);
-      const [contents] = (await withTimeout(file.download(), REVOCATION_GCS_TIMEOUT_MS)) || [];
-      if (!contents) return null;
-      return parseRevocationEntries(JSON.parse(contents.toString('utf8')));
-    } catch (err) {
-      if (isNotFound(err)) return [];
-      throw err;
-    }
-  }
-  try {
-    return parseRevocationEntries(JSON.parse(readFileSync(getRevocationPath(), 'utf8')));
-  } catch (err) {
-    if (err && err.code === 'ENOENT') return [];
-    throw err;
-  }
-}
-
-async function writeRevocationEntries(entries) {
-  const payload = JSON.stringify({ version: 1, revoked: entries }, null, 2);
-  const bucket = getGcsBucket();
-  if (bucket) {
-    const saved = await withTimeout(
-      bucket.file(REVOCATION_GCS_OBJECT).save(payload, {
-        contentType: 'application/json',
-        resumable: false,
-      }),
-      REVOCATION_GCS_TIMEOUT_MS
-    );
-    if (saved === null) throw new Error('Timed out saving session revocation list');
-    return;
-  }
-  const targetPath = getRevocationPath();
-  const tempPath = `${targetPath}.tmp.${randomBytes(6).toString('hex')}`;
-  try {
-    writeFileSync(tempPath, payload, 'utf8');
-    renameSync(tempPath, targetPath);
-  } catch (err) {
-    try {
-      unlinkSync(tempPath);
-    } catch {}
-    throw err;
-  }
-}
-
-/**
- * Whether a nonce appears in the revocation list.
- * Resolves false when the list cannot be read (see the fallback note above).
- */
 async function isRevoked(nonce) {
-  if (revokedNonces.has(nonce)) return true;
-  try {
-    const entries = await readRevocationEntries();
-    if (!entries) return false;
-    return entries.some((entry) => entry.nonce === nonce);
-  } catch (err) {
-    console.error('Warning: admin session revocation list unreadable; treating session as valid:', err?.message);
-    return false;
-  }
+  if ((revokedNonces.get(nonce) || 0) > Math.floor(Date.now() / 1000)) return true;
+  return (await readRevocationEntries()).some(entry => entry.nonce === nonce);
 }
 
-/**
- * Revoke one session by nonce. Idempotent; never throws.
- *
- * @param {string} nonce
- * @param {number} expiresAt Unix seconds from the token being revoked.
- * @returns {Promise<boolean>} true when the revocation is durably recorded.
- */
 async function revokeNonce(nonce, expiresAt) {
-  if (typeof nonce !== 'string' || !NONCE_PATTERN.test(nonce)) return false;
-  const expiry = Number.isSafeInteger(expiresAt) ? expiresAt : Math.floor(Date.now() / 1000) + SESSION_MAX_AGE;
-  revokedNonces.add(nonce);
-  try {
-    return await withRevocationLock(async () => {
-      const existing = await readRevocationEntries();
-      // Never overwrite a list we could not read: doing so would silently
-      // un-revoke sessions recorded there. The new nonce is still rejected by
-      // this instance from memory, and the failure is logged.
-      if (!existing) throw new Error('Session revocation list could not be read');
-      const entries = pruneRevoked([...existing, { nonce, expiresAt: expiry }]);
-      // De-duplicate so a repeated logout cannot grow the file.
-      const unique = [];
-      const seen = new Set();
-      for (const entry of entries) {
-        if (seen.has(entry.nonce)) continue;
-        seen.add(entry.nonce);
-        unique.push(entry);
-      }
-      await writeRevocationEntries(unique);
-      return true;
-    });
-  } catch (err) {
-    console.error('Warning: failed to persist admin session revocation:', err?.message);
-    // The in-memory set still covers this instance, which is all a single
-    // Cloud Run instance needs; a peer instance would still accept the token.
-    return false;
-  }
+  const now = Math.floor(Date.now() / 1000);
+  for (const [known, expiry] of revokedNonces) if (expiry <= now) revokedNonces.delete(known);
+  revokedNonces.set(nonce, expiresAt);
+  await adminStore.run('revoked-sessions.json', async () => {
+    const existing = await readRevocationEntries();
+    if (existing.some(entry => entry.nonce === nonce)) return;
+    await adminStore.write('revoked-sessions.json', { version: 1, revoked: [...existing, { nonce, expiresAt }] });
+  });
+  return true;
 }
 
 function readConfig() {
   const username = readEnvString('ADMIN_USERNAME') || 'admin';
   const secret = readEnvString('ADMIN_SESSION_SECRET');
   const customPassword = getStoredPasswordHash();
-  const password = customPassword || parsePasswordHash(readEnvString('ADMIN_PASSWORD_HASH')) || DEFAULT_INITIAL_HASH;
+  const password = customPassword || parsePasswordHash(readEnvString('ADMIN_PASSWORD_HASH'));
   if (typeof username !== 'string' || username.length > MAX_USERNAME_LENGTH) return null;
   if (!PRINTABLE_PATTERN.test(username)) return null;
   if (typeof secret !== 'string' || isWeakSecret(secret)) return null;
@@ -497,8 +284,13 @@ function isHttpUrl(url) {
   return url.protocol === 'http:' || url.protocol === 'https:';
 }
 
-export function isAdminConfigured() {
-  return readConfig() !== null;
+export async function isAdminConfigured() {
+  try {
+    await syncCredentialsFromGcs();
+    return readConfig() !== null;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -511,9 +303,7 @@ export function isAdminConfigured() {
  * @param {unknown} password
  * @returns {Promise<boolean>}
  */
-export async function verifyCredentials(username, password) {
-  await syncCredentialsFromGcs();
-  const config = readConfig();
+async function credentialsMatch(config, username, password) {
   if (!config) return false;
   if (typeof username !== 'string' || typeof password !== 'string') return false;
   if (username.length === 0 || username.length > MAX_USERNAME_LENGTH) return false;
@@ -535,14 +325,23 @@ export async function verifyCredentials(username, password) {
   }
 }
 
+export async function verifyCredentials(username, password) {
+  return (await isAdminConfigured()) && credentialsMatch(readConfig(), username, password);
+}
+
+export async function authenticateAdmin(username, password) {
+  if (!(await isAdminConfigured())) return null;
+  const config = readConfig();
+  return await credentialsMatch(config, username, password) ? createSession(config) : null;
+}
+
 /**
  * Mint a signed session token, or null if the deployment is not configured.
  * The token embeds its own expiry; no state is stored server-side.
  *
  * @returns {string | null}
  */
-export function createSession() {
-  const config = readConfig();
+export function createSession(config = readConfig()) {
   if (!config) return null;
   const expiresAt = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE;
   const fingerprint = credentialFingerprint(config);
@@ -619,22 +418,18 @@ export async function verifySession(token) {
  * credentials is recorded, so an attacker cannot use logout to poison the
  * revocation list. Unreadable or unparsable tokens are ignored.
  *
- * Never throws and never reports failure upward: logout must always be able to
- * clear the browser cookie, and a store outage must not brick it. A store
- * outage still revokes the token on this instance, but the return value is
- * false because other instances would keep accepting it.
- *
  * @param {unknown} token
- * @returns {Promise<boolean>} true when the revocation is durably recorded
+ * @returns {Promise<boolean | null>} true when durably revoked, false on storage failure, and null for invalid sessions
  */
 export async function revokeSession(token) {
-  const config = readConfig();
-  if (!config) return false;
   try {
+    await syncCredentialsFromGcs();
+    const config = readConfig();
+    if (!config) return null;
     const parsed = parseSessionToken(token, config);
-    if (!parsed) return false;
-    if (parsed.expiresAt <= Math.floor(Date.now() / 1000)) return false;
-    if (!safeEqualStrings(parsed.fingerprint, credentialFingerprint(config))) return false;
+    if (!parsed) return null;
+    if (parsed.expiresAt <= Math.floor(Date.now() / 1000)) return null;
+    if (!safeEqualStrings(parsed.fingerprint, credentialFingerprint(config))) return null;
     return await revokeNonce(parsed.nonce, parsed.expiresAt);
   } catch {
     return false;
@@ -650,7 +445,7 @@ export async function revokeSession(token) {
  * Never throws.
  *
  * @param {Request & { cookies?: { get(name: string): { value?: string } | undefined } }} [request]
- * @returns {Promise<boolean>} true when at least one live token was revoked
+ * @returns {Promise<boolean>} true if all presented live tokens were revoked
  */
 export async function revokeAdminSession(request) {
   const candidates = [];
@@ -677,12 +472,10 @@ export async function revokeAdminSession(request) {
     // Fall through: revoking nothing is the documented logout fallback.
   }
 
-  let revoked = false;
-  const limit = Math.min(candidates.length, MAX_SESSION_COOKIE_CANDIDATES);
-  for (let index = 0; index < limit; index += 1) {
-    if (await revokeSession(candidates[index])) revoked = true;
+  for (const token of [...new Set(candidates)].slice(0, MAX_SESSION_COOKIE_CANDIDATES)) {
+    if ((await revokeSession(token)) === false) return false;
   }
-  return revoked;
+  return true;
 }
 
 /**
@@ -885,57 +678,32 @@ export function getAdminProfile() {
  * @returns {Promise<{ ok: boolean, error?: string }>}
  */
 export async function updateAdminPassword(oldPassword, newPassword) {
-  await syncCredentialsFromGcs();
-  const config = readConfig();
-  if (!config) {
-    return { ok: false, error: 'not_configured' };
-  }
-
   if (typeof oldPassword !== 'string' || oldPassword.length === 0 || oldPassword.length > MAX_PASSWORD_LENGTH) {
     return { ok: false, error: 'invalid_current_password' };
   }
-
-  const isOldValid = await verifyCredentials(config.username, oldPassword);
-  if (!isOldValid) {
-    return { ok: false, error: 'invalid_current_password' };
-  }
-
   if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > MAX_PASSWORD_LENGTH) {
     return { ok: false, error: 'invalid_new_password' };
   }
-
-  if (oldPassword === newPassword) {
-    return { ok: false, error: 'same_as_current' };
-  }
+  if (oldPassword === newPassword) return { ok: false, error: 'same_as_current' };
 
   try {
-    const salt = randomBytes(16).toString('hex');
-    const derived = await deriveKey(newPassword, salt);
-    const hashHex = derived.toString('hex').toLowerCase();
-    const hashString = `${salt}:${hashHex}`;
-
-    // Persist to local data directory
-    const dir = getCredentialsDir();
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
-    const credsPath = path.join(dir, 'admin-credentials.json');
-    writeFileSync(
-      credsPath,
-      JSON.stringify({ passwordHash: hashString, updatedAt: new Date().toISOString() }, null, 2),
-      'utf8'
-    );
-
-    // Update in-memory hash immediately so following checks use new credential
-    inMemoryPasswordHash = { salt, hash: hashHex };
-    try {
-      lastCredsMtime = statSync(credsPath).mtimeMs;
-    } catch {}
-
-    // Persist to Google Cloud Storage if bucket is configured
-    await saveCredentialsToGcs(hashString);
-
-    return { ok: true };
+    return await adminStore.run('credentials.json', async () => {
+      const stored = await adminStore.read('credentials.json', () => ({}));
+      const current = parsePasswordHash(stored.passwordHash ?? readEnvString('ADMIN_PASSWORD_HASH'));
+      if (!current) return { ok: false, error: 'not_configured' };
+      const supplied = await deriveKey(oldPassword, current.salt);
+      if (!safeEqualBuffers(supplied, Buffer.from(current.hash, 'hex'))) {
+        return { ok: false, error: 'invalid_current_password' };
+      }
+      const salt = randomBytes(16).toString('hex');
+      const hash = (await deriveKey(newPassword, salt)).toString('hex');
+      await adminStore.write('credentials.json', {
+        passwordHash: salt + ':' + hash,
+        updatedAt: new Date().toISOString(),
+      });
+      cloudPasswordHash = { salt, hash };
+      return { ok: true };
+    });
   } catch (err) {
     console.error('Failed to update admin password', err);
     return { ok: false, error: 'update_failed' };

@@ -9,19 +9,14 @@ export async function GET(request) {
   const url = new URL(request.url);
   const query = url.searchParams.get('query') || url.searchParams.get('ref') || '';
   if (!query.trim()) {
-    return jsonResponse({ ok: false, error: 'Provide Mandate Ref, Email, or Mobile to check AutoPay status.' }, 400);
+    return jsonResponse({ ok: false, error: 'Provide your mandate reference to check AutoPay status.' }, 400);
   }
-  const matches = await listAutoPayMandates({ query });
+  const reference = query.trim().toLowerCase();
+  const matches = (await listAutoPayMandates({ query: reference })).filter(m => m.mandateRef.toLowerCase() === reference);
   const sanitized = matches.map((m) => ({
     mandateRef: m.mandateRef,
-    donorName: m.donorName,
-    amount: m.amount,
-    frequency: m.frequency,
-    purpose: m.purpose,
-    gateway: m.gateway,
     status: m.status,
     nextDebitDate: m.nextDebitDate,
-    payments: m.payments || [],
   }));
   return jsonResponse({ ok: true, mandates: sanitized }, 200);
 }

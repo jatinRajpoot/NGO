@@ -50,7 +50,7 @@ export default function VerifyInternshipCertificatePage() {
             </button>
           </form>
 
-          {result && result.found && result.certificate && (
+          {result && result.found && result.certificate?.status === 'Approved' && (
             <div style={{ padding: 24, background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#065f46', fontWeight: 800, marginBottom: 12 }}>
                 <CheckCircle2 size={20} /> Authentic Foundation Internship Certificate
@@ -65,7 +65,7 @@ export default function VerifyInternshipCertificatePage() {
             </div>
           )}
 
-          {result && !result.found && (
+          {result && (!result.found || result.certificate?.status !== 'Approved') && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 18, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, color: '#991b1b' }}>
               <AlertCircle size={18} /> No matching internship certificate found for ID &quot;{certId}&quot;.
             </div>

@@ -1,9 +1,10 @@
+import { createJsonStore, publicReference } from './json-store';
 // Server-only durable portal store for Visitor, Member, and Donor workflows.
 // Persists JSON collections to GCS when GALLERY_BUCKET is configured, or atomically
 // to PORTAL_DATA_DIR / ADMIN_DATA_DIR / .data/portal locally.
 
 import { randomBytes, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Storage } from '@google-cloud/storage';
@@ -12,14 +13,9 @@ import { hashPassword, verifyPassword } from './portal-auth';
 import { dispatchNotification } from './notifier';
 
 let cachedGcsClient = null;
-const collectionLocks = new Map();
-
-function withLock(name, fn) {
-  const prev = collectionLocks.get(name) || Promise.resolve();
-  const next = prev.then(fn, fn);
-  collectionLocks.set(name, next.catch(() => {}));
-  return next;
-}
+const collectionStore = createJsonStore({ prefix: 'portal', getBucket: getGcsBucket, getDirectory: getDataDir });
+const withLock = collectionStore.run;
+const legacyApplicationStore = createJsonStore({ prefix: 'portal', getBucket: getGcsBucket, getDirectory: getDataDir });
 
 function getDataDir() {
   const candidates = [
@@ -51,57 +47,172 @@ function getGcsBucket() {
   }
 }
 
-async function readCollection(name, createInitialFn) {
-  const bucket = getGcsBucket();
-  if (bucket) {
-    const file = bucket.file(`portal/${name}.json`);
-    try {
-      const [contents] = await file.download();
-      return JSON.parse(contents.toString('utf8'));
-    } catch (err) {
-      if (err?.code === 404 || err?.status === 404 || err?.statusCode === 404) {
-        const initial = await createInitialFn();
-        await writeCollection(name, initial);
-        return initial;
+const legacyMemberStore = createJsonStore({
+  prefix: 'membership-suite', getBucket: getGcsBucket,
+  getDirectory: () => {
+    const base = process.env.MEMBERSHIP_DATA_DIR || process.env.PORTAL_DATA_DIR || process.env.ADMIN_DATA_DIR;
+    const dir = base ? (base.endsWith('membership-suite') ? base : path.join(base, 'membership-suite')) : path.join(process.cwd(), '.data', 'membership-suite');
+    mkdirSync(dir, { recursive: true });
+    return dir;
+  },
+});
+
+function normalizeMember(record) {
+  const status = record.accountStatus || record.status || 'Active';
+  return {
+    fatherSpouse: '', address: '', bio: '', avatar: '', activities: [], certificates: [], messages: [], notifications: {},
+    feeAmount: record.membershipFee ?? 1200, feeType: 'Annual', feeStatus: ['Paid', 'Free'].includes(record.paymentStatus) ? 'Paid' : 'Pending',
+    category: 'General Member', designation: 'General Member', ...record,
+    phone: record.phone || record.mobile || '', regNo: record.regNo || record.id,
+    joinDate: record.joinDate || record.joinedAt, status, accountStatus: status, tokenVersion: record.tokenVersion || 1,
+  };
+}
+
+const membershipPlans = {
+  'life-member': { category: 'Life Member', fee: 11000 },
+  'executive-member': { category: 'Executive Member', fee: 1200 },
+  'core-member': { category: 'Core Member', fee: 1200 },
+  'volunteer-member': { category: 'Active Volunteer', fee: 500 },
+};
+
+function membershipApplicationAccount(record, accountStatus = 'Pending') {
+  const plan = membershipPlans[record.tier] || membershipPlans['executive-member'];
+  return normalizeMember({
+    ...record,
+    id: record.appId,
+    regNo: record.appId,
+    category: plan.category,
+    feeAmount: plan.fee,
+    feeType: record.tier === 'life-member' ? 'Life' : 'Annual',
+    feeStatus: 'Pending',
+    paymentStatus: 'Pending',
+    accountStatus,
+    addedBy: 'Membership Plan Application',
+    joinedAt: String(record.createdAt || '').slice(0, 10),
+    verified: false,
+  });
+}
+
+async function readMemberRecords() {
+  return collectionStore.run('members', async () => {
+    await legacyMemberStore.run('members-ext', async () => {
+      const members = await collectionStore.read('members', buildInitialMembers);
+      const legacy = await legacyMemberStore.read('members-ext', () => []);
+      const pending = legacy.filter(m => !m.migratedToPortal);
+      if (!pending.length) return;
+      const designations = await legacyMemberStore.read('designations', () => []);
+      for (const record of pending) {
+        // Existing portal credentials always win over a duplicate public application.
+        const current = members.find(m => m.email.toLowerCase() === record.email.toLowerCase());
+        if (!current) {
+          const trustedOfficeEntry = record.verified === true && record.addedBy === 'Admin Office';
+          const fee = Number(designations.find(d => d.title === record.designation)?.feeRs ?? 500);
+          members.push(normalizeMember(trustedOfficeEntry ? record : { ...record, membershipFee: fee, feeAmount: fee, feeStatus: 'Pending', paymentStatus: 'Pending', legacyReceiptNo: record.receiptNo || null, receiptNo: null }));
+        }
       }
-      throw err;
-    }
-  }
-
-  const filePath = path.join(getDataDir(), `${name}.json`);
-  if (!existsSync(filePath)) {
-    const initial = await createInitialFn();
-    await writeCollection(name, initial);
-    return initial;
-  }
-  const raw = readFileSync(filePath, 'utf8');
-  return JSON.parse(raw);
-}
-
-async function writeCollection(name, data) {
-  const payload = JSON.stringify(data, null, 2);
-  const bucket = getGcsBucket();
-  if (bucket) {
-    await bucket.file(`portal/${name}.json`).save(payload, {
-      contentType: 'application/json',
-      resumable: false,
+      await collectionStore.write('members', members);
+      await legacyMemberStore.write('members-ext', legacy.map(m => ({ ...m, migratedToPortal: true })));
     });
-    return;
-  }
-
-  const dir = getDataDir();
-  const target = path.join(dir, `${name}.json`);
-  const temp = `${target}.tmp.${randomBytes(6).toString('hex')}`;
-  try {
-    writeFileSync(temp, payload, 'utf8');
-    renameSync(temp, target);
-  } catch (err) {
-    try {
-      unlinkSync(temp);
-    } catch {}
-    throw err;
-  }
+    await legacyApplicationStore.run('membership-applications', async () => {
+      const legacy = await legacyApplicationStore.read('membership-applications');
+      const pending = legacy.filter(row => row.appId && row.email && !row.migratedToPortal);
+      if (!pending.length) return;
+      const members = await collectionStore.read('members', buildInitialMembers);
+      for (const row of pending) {
+        if (!members.some(member => member.email.toLowerCase() === row.email.toLowerCase())) {
+          members.push(membershipApplicationAccount(row));
+        }
+        row.migratedToPortal = true;
+      }
+      await collectionStore.write('members', members);
+      await legacyApplicationStore.write('membership-applications', legacy);
+    });
+    return collectionStore.read('members', buildInitialMembers);
+  });
 }
+
+function legacyDomainStore(prefix, envName) {
+  return createJsonStore({ prefix, getBucket: getGcsBucket, getDirectory: () => {
+    const base = process.env[envName] || process.env.PORTAL_DATA_DIR || process.env.ADMIN_DATA_DIR;
+    const dir = base ? (base.endsWith(prefix) ? base : path.join(base, prefix)) : path.join(process.cwd(), '.data', prefix);
+    mkdirSync(dir, { recursive: true });
+    return dir;
+  } });
+}
+const legacyFinanceStore = legacyDomainStore('finance', 'FINANCE_DATA_DIR');
+const legacySupportStore = legacyDomainStore('support', 'SUPPORT_DATA_DIR');
+
+async function readMergedCollection(name, seed, legacy, legacyName) {
+  return collectionStore.run(name, async () => {
+    await legacy.run(legacyName, async () => {
+      const current = await collectionStore.read(name, seed);
+      let old = await legacy.read(legacyName, () => []);
+      if (name === 'donations') {
+        const sessions = await legacy.read('gateway-sessions', () => []);
+        const simulated = new Set(sessions.filter(session => session.status === 'Completed' && session.txRef).map(session => session.txRef));
+        old = old.map(row => simulated.has(row.utr) ? { ...row, isSandbox: true } : row);
+      }
+      const pending = old.filter(r => !r.migratedToPortal);
+      if (!pending.length) return;
+      for (const row of pending) {
+        if (current.some(r => (r.id || r.ticketId) === row.id)) continue;
+        if (name === 'certificates' && row.isVerifiedOfficial === undefined) {
+          const isDemoSample = row.isDemoSample || ['cert-ext-1', 'cert-ext-2'].includes(row.id);
+          current.push({ ...row, isDemoSample, isVerifiedOfficial: row.status === 'Active' && !isDemoSample });
+        } else {
+          current.push(row);
+        }
+      }
+      await collectionStore.write(name, current);
+      await legacy.write(legacyName, old.map(r => ({ ...r, migratedToPortal: true })));
+    });
+    return collectionStore.read(name, seed);
+  });
+}
+
+async function readCollection(name, seed) {
+  if (name === 'members') return readMemberRecords();
+  if (name === 'donations') return readMergedCollection(name, seed, legacyFinanceStore, 'donations');
+  if (name === 'inquiries') return readMergedCollection(name, seed, legacySupportStore, 'enquiries');
+  if (name === 'certificates') return readMergedCollection(name, seed, legacyMemberStore, 'certificates-ext');
+  return collectionStore.read(name, seed);
+}
+
+export const donationRecordStore = {
+  run: operation => collectionStore.run('donations', operation),
+  read: () => readCollection('donations', buildInitialDonations),
+  write: records => collectionStore.write('donations', records),
+};
+export const certificateRecordStore = {
+  run: operation => collectionStore.run('certificates', operation),
+  read: async () => (await readCollection('certificates', buildInitialCertificates)).map(r => ({ ...r,
+    certNo: r.certNo || r.id, recipientName: r.recipientName || r.recipient,
+    issuedDate: r.issuedDate || r.date, kind: r.kind || (String(r.type).includes('Visitor') ? 'Visitor' : 'Member'),
+    status: r.status === 'Verified' ? 'Active' : r.status,
+  })),
+  write: records => collectionStore.write('certificates', records),
+};
+export const enquiryRecordStore = {
+  run: operation => collectionStore.run('inquiries', operation),
+  read: async () => (await readCollection('inquiries', () => [])).map(r => ({
+    ...r, id: r.id || r.ticketId, subject: r.subject || r.topic,
+    status: r.status === 'Open' ? 'new' : r.status,
+  })),
+  write: records => collectionStore.write('inquiries', records),
+};
+
+export const memberAccountStore = {
+  run: operation => collectionStore.run('members', operation),
+  read: async () => (await readMemberRecords()).map(m => ({
+    ...normalizeMember(m), mobile: m.phone || m.mobile || '', joinedAt: m.joinedAt || m.joinDate,
+    membershipFee: m.membershipFee ?? m.feeAmount ?? 0,
+    paymentStatus: m.paymentStatus || (m.feeStatus === 'Paid' ? 'Paid' : 'Pending'),
+  })),
+  write: members => collectionStore.write('members', members.map(normalizeMember)),
+};
+export const portalRecordStore = collectionStore;
+export const readPortalRecords = (name) => readCollection(name, () => []);
+const writeCollection = collectionStore.write;
 
 function todayIso() {
   return new Date().toISOString().split('T')[0];
@@ -620,7 +731,7 @@ async function buildInitialCertificates() {
 // Member Operations
 // ---------------------------------------------------------------------------
 
-export async function registerMemberAccount(input) {
+export async function registerMemberAccount(input, { requireApproval = true } = {}) {
   const name = String(input?.name || '').trim();
   const fatherSpouse = String(input?.fatherSpouse || '').trim();
   const email = String(input?.email || '').trim().toLowerCase();
@@ -670,7 +781,7 @@ export async function registerMemberAccount(input) {
       feeType,
       feeAmount,
       feeStatus: 'Pending',
-      status: 'Active',
+      status: requireApproval ? 'Pending' : 'Active',
       joinDate: todayIso(),
       validTill: category === 'Life Member' ? 'Lifetime' : '2027-01-15',
       bloodGroup,
@@ -724,8 +835,30 @@ export async function authenticateMemberAccount(identifier, password) {
   });
 
   const valid = await verifyPassword(password, found ? found.passwordHash : '');
-  if (!found || !valid) return null;
+  if (!found || !valid || !['Active'].includes(found.accountStatus || found.status)) return null;
   return sanitizeMember(found);
+}
+
+export async function applyMembershipFeeStatuses(members, feePayments) {
+  const payments = feePayments || await readCollection('fee-payments', () => []);
+  const paymentsByMember = new Map();
+  for (const payment of payments) {
+    const rows = paymentsByMember.get(payment.memberId) || [];
+    rows.push(payment);
+    paymentsByMember.set(payment.memberId, rows);
+  }
+  return members.map(member => {
+    const rows = paymentsByMember.get(member.id) || [];
+    const verified = rows.find(payment => payment.status === 'Verified');
+    const staffPaid = member.addedBy === 'Admin Office' && member.verified &&
+      ['Paid', 'Free'].includes(member.paymentStatus);
+    const feeStatus = verified || staffPaid ? 'Paid'
+      : rows.some(payment => payment.status === 'Pending Verification') ? 'Pending Verification'
+      : rows.length ? 'Pending' : member.feeStatus || 'Pending';
+    const paymentStatus = staffPaid && member.paymentStatus === 'Free' ? 'Free' : feeStatus;
+    const receiptNo = verified?.receiptNo || (staffPaid && paymentStatus !== 'Free' ? member.receiptNo : null);
+    return { ...member, feeStatus, paymentStatus, receiptNo, feeReceiptDate: verified?.verifiedAt || member.joinDate };
+  });
 }
 
 export async function getMemberWorkspace(memberId) {
@@ -737,14 +870,16 @@ export async function getMemberWorkspace(memberId) {
   const feePayments = await readCollection('fee-payments', async () => []);
 
   const memberDonations = donations.filter(
-    (d) => d.memberId === memberId || (d.source === 'member' && d.email.toLowerCase() === found.email.toLowerCase())
+    (d) => !d.isSandbox && (d.memberId === memberId || (d.source === 'member' && d.email.toLowerCase() === found.email.toLowerCase()))
   );
   const memberFees = feePayments.filter((p) => p.memberId === memberId);
+  const [profile] = await applyMembershipFeeStatuses([found], memberFees);
 
   return {
-    ...sanitizeMember(found),
+    ...sanitizeMember(profile),
     donations: memberDonations,
     feePayments: memberFees,
+    certificates: [...(found.certificates || []), ...(await readCollection('certificates', buildInitialCertificates)).filter(c => isOfficialCertificate(c) && (c.memberRegNo === (found.regNo || found.id) || c.memberId === found.id)).map(c => ({ ...c, id: c.certNo || c.id, recipient: c.recipient || c.recipientName, issueDate: c.date || c.issuedDate }))],
   };
 }
 
@@ -760,7 +895,8 @@ export async function updateMemberProfile(memberId, patch) {
     const address = typeof patch?.address === 'string' ? patch.address.trim().slice(0, 300) : current.address;
     const bio = typeof patch?.bio === 'string' ? patch.bio.trim().slice(0, 500) : current.bio;
 
-    members[idx] = { ...current, name, phone, address, bio };
+    const photoSrc = typeof patch?.photoSrc === 'string' && /^\/api\/members\/photo\/[A-Za-z0-9_.-]+\/$/.test(patch.photoSrc) ? patch.photoSrc : current.photoSrc;
+    members[idx] = { ...current, name, phone, mobile: phone, address, bio, photoSrc };
     await writeCollection('members', members);
     return { ok: true, status: 200, member: await getMemberWorkspace(memberId) };
   });
@@ -871,6 +1007,10 @@ export async function submitMemberFeePayment(memberId, input) {
 
   return withLock('fee-payments', async () => {
     const payments = await readCollection('fee-payments', async () => []);
+    const [profile] = await applyMembershipFeeStatuses([member], payments);
+    if (profile.feeStatus === 'Paid' || profile.feeStatus === 'Pending Verification') {
+      return { ok: false, status: 409, error: 'This membership already has a paid or pending fee.' };
+    }
     if (payments.some((p) => normalizeUtr(p.utr) === utr && p.status !== 'Rejected')) {
       return { ok: false, status: 409, error: 'This UTR / transaction reference has already been submitted.' };
     }
@@ -879,7 +1019,7 @@ export async function submitMemberFeePayment(memberId, input) {
       id: `FEE-${randomBytes(4).toString('hex').toUpperCase()}`,
       memberId: member.id,
       memberName: member.name,
-      amount: Number(member.feeAmount || 1200),
+      amount: Number(member.feeAmount ?? 1200),
       paymentMode,
       utr,
       status: 'Pending Verification',
@@ -891,15 +1031,6 @@ export async function submitMemberFeePayment(memberId, input) {
     };
     payments.unshift(payment);
     await writeCollection('fee-payments', payments);
-
-    await withLock('members', async () => {
-      const mList = await readCollection('members', buildInitialMembers);
-      const mIdx = mList.findIndex((m) => m.id === memberId);
-      if (mIdx !== -1 && mList[mIdx].feeStatus !== 'Paid') {
-        mList[mIdx] = { ...mList[mIdx], feeStatus: 'Pending Verification' };
-        await writeCollection('members', mList);
-      }
-    });
 
     return { ok: true, status: 201, payment };
   });
@@ -1011,7 +1142,7 @@ export async function getDonorWorkspace(donorId) {
   const subscriptions = await readCollection('subscriptions', buildInitialSubscriptions);
 
   const donorDonations = donations.filter(
-    (d) => d.donorId === donorId || (d.source === 'donor' && d.email.toLowerCase() === found.email.toLowerCase())
+    (d) => !d.isSandbox && (d.donorId === donorId || (d.source === 'donor' && d.email.toLowerCase() === found.email.toLowerCase()))
   );
   const donorSubs = subscriptions.filter((s) => s.donorId === donorId);
   const verifiedDonations = donorDonations.filter((d) => d.status === 'Verified');
@@ -1319,6 +1450,7 @@ export async function createPendingDonation(input) {
       trackingId,
       receiptNo: null,
       source,
+      ...(input.campaignId ? { campaignId: input.campaignId, campaignLedgerTracked: true } : {}),
       memberId,
       donorId,
       donorName,
@@ -1360,10 +1492,9 @@ export async function lookupDonationStatus(trackingIdOrReceipt) {
     receiptNo: found.receiptNo,
     donorName: found.donorName,
     amount: found.amount,
-    program: found.program,
+    program: found.program || found.purpose,
     method: found.method,
-    utr: found.utr,
-    date: found.date,
+    date: found.date || found.createdAt?.slice(0, 10),
     status: found.status,
     receipt80gIssued: Boolean(found.receipt80gIssued),
     taxExemption: found.receipt80gIssued ? organization.tax80g : null,
@@ -1417,6 +1548,12 @@ export async function requestVisitorCertificate(input) {
   });
 }
 
+function isOfficialCertificate(certificate) {
+  if (certificate.isDemoSample || certificate.isDemoRecord || ['cert-ext-1', 'cert-ext-2'].includes(certificate.id)) return false;
+  const staffIssued = certificate.isVerifiedOfficial ?? Boolean(certificate.certNo && certificate.issuedBy && certificate.issuedDate);
+  return staffIssued && ['Verified', 'Active'].includes(certificate.status);
+}
+
 export async function verifyDocumentCode(rawCode) {
   const code = String(rawCode || '').trim().toUpperCase().slice(0, 100);
   if (!code) return { found: false, verified: false };
@@ -1425,23 +1562,24 @@ export async function verifyDocumentCode(rawCode) {
   const cert = certs.find(
     (c) =>
       (c.id && c.id.toUpperCase() === code) ||
+      (c.certNo && c.certNo.toUpperCase() === code) ||
       (c.requestId && c.requestId.toUpperCase() === code) ||
       (c.verificationCode && c.verificationCode.toUpperCase() === code)
   );
   if (cert) {
     return {
       found: true,
-      verified: Boolean(cert.isVerifiedOfficial && cert.status === 'Verified'),
+      verified: isOfficialCertificate(cert),
       status: cert.status,
       document: {
-        code: cert.id,
-        type: cert.type,
-        recipient: cert.recipient,
-        date: cert.date,
-        purpose: cert.purpose,
-        authority: cert.authority,
+        code: cert.certNo || cert.id,
+        type: cert.type || `${cert.kind || 'Foundation'} Certificate`,
+        recipient: cert.recipient || cert.recipientName,
+        date: cert.date || cert.issuedDate,
+        purpose: cert.purpose || cert.program,
+        authority: cert.authority || cert.issuedBy,
         status: cert.status,
-        isVerifiedOfficial: Boolean(cert.isVerifiedOfficial),
+        isVerifiedOfficial: isOfficialCertificate(cert),
       },
     };
   }
@@ -1451,7 +1589,7 @@ export async function verifyDocumentCode(rawCode) {
     (d) => (d.receiptNo && d.receiptNo.toUpperCase() === code) || (d.trackingId && d.trackingId.toUpperCase() === code)
   );
   if (donation) {
-    const verified = donation.status === 'Verified' && Boolean(donation.receipt80gIssued);
+    const verified = !donation.isSandbox && !donation.isDemoSample && !donation.isDemoRecord && ['Verified', 'Success', 'Paid', 'Completed'].includes(donation.status) && Boolean(donation.receiptNo && donation.receipt80gIssued);
     return {
       found: true,
       verified,
@@ -1459,9 +1597,9 @@ export async function verifyDocumentCode(rawCode) {
       document: {
         code: donation.receiptNo || donation.trackingId,
         type: verified ? 'Official 80G Donation Receipt' : 'Donation Submission (Unverified)',
-        recipient: `${donation.donorName}${donation.pan ? ` (PAN: ${donation.pan})` : ''}`,
-        date: donation.date,
-        purpose: `${donation.program} • Amount: ₹${Number(donation.amount).toLocaleString('en-IN')} • Status: ${donation.status}`,
+        recipient: donation.donorName,
+        date: donation.date || donation.createdAt?.slice(0, 10),
+        purpose: `${donation.program || donation.purpose || 'Donation'} • Amount: ₹${Number(donation.amount).toLocaleString('en-IN')} • Status: ${donation.status}`,
         authority: organization.legalName,
         status: donation.status,
         isVerifiedOfficial: verified,
@@ -1470,19 +1608,20 @@ export async function verifyDocumentCode(rawCode) {
   }
 
   const members = await readCollection('members', buildInitialMembers);
-  const member = members.find((m) => m.id.toUpperCase() === code);
+  const member = members.find(m => [m.id, m.regNo].some(ref => ref?.toUpperCase() === code));
   if (member) {
-    const verified = member.status === 'Active' && member.feeStatus === 'Paid';
+    const [{ feeStatus }] = await applyMembershipFeeStatuses([member]);
+    const verified = !member.isDemoAccount && member.status === 'Active' && feeStatus === 'Paid';
     return {
       found: true,
       verified,
-      status: verified ? 'Verified' : `Member Status: ${member.status} (Fee: ${member.feeStatus})`,
+      status: verified ? 'Verified' : `Member Status: ${member.status} (Fee: ${feeStatus})`,
       document: {
-        code: member.id,
+        code: member.regNo || member.id,
         type: 'Foundation Member ID',
         recipient: `${member.name} (${member.designation})`,
         date: member.joinDate,
-        purpose: `${member.category} • Fee Status: ${member.feeStatus}`,
+        purpose: `${member.category} • Fee Status: ${feeStatus}`,
         authority: 'Executive Body, GSDD Foundation',
         status: member.status,
         isVerifiedOfficial: verified,
@@ -1533,7 +1672,7 @@ export async function createInquiryTicket(input) {
   });
 }
 
-export async function createMembershipApplication(input) {
+export async function createMembershipApplication(input, { requireApproval = true } = {}) {
   const name = String(input?.name || '').trim().slice(0, 120);
   const fatherSpouse = String(input?.fatherSpouse || '').trim().slice(0, 120);
   const phone = String(input?.phone || '').trim().slice(0, 30);
@@ -1548,9 +1687,21 @@ export async function createMembershipApplication(input) {
     return { ok: false, status: 400, error: 'Name, phone, valid email, and address are required.' };
   }
 
-  return withLock('membership-applications', async () => {
-    const apps = await readCollection('membership-applications', async () => []);
-    const appId = `GSDD-M-APP-2026-${randomBytes(3).toString('hex').toUpperCase()}`;
+  if (!Object.hasOwn(membershipPlans, tier)) {
+    return { ok: false, status: 400, error: 'Choose an available membership plan.' };
+  }
+  const password = input?.password;
+  if (typeof password !== 'string' || password.length < 8 || password.length > 1024) {
+    return { ok: false, status: 400, error: 'Password must be 8 to 1024 characters.' };
+  }
+  const passwordHash = await hashPassword(password);
+
+  return withLock('members', async () => {
+    const members = await readMemberRecords();
+    if (members.some(member => member.email.toLowerCase() === email)) {
+      return { ok: false, status: 409, error: 'A member or application with this email already exists.' };
+    }
+    const appId = publicReference('GSDD-M-APP');
     const record = {
       appId,
       name,
@@ -1562,12 +1713,12 @@ export async function createMembershipApplication(input) {
       address,
       interest,
       bloodGroup,
-      status: 'Pending Committee Review',
+      status: requireApproval ? 'Pending Committee Review' : 'Active',
       appliedDate: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
       createdAt: new Date().toISOString(),
     };
-    apps.unshift(record);
-    await writeCollection('membership-applications', apps);
+    members.unshift(membershipApplicationAccount({ ...record, passwordHash }, requireApproval ? 'Pending' : 'Active'));
+    await writeCollection('members', members);
     return { ok: true, status: 201, application: record };
   });
 }
@@ -1590,10 +1741,10 @@ export async function listPendingReconciliations() {
   };
 }
 
-export async function reconcilePortalItem({ kind, id, action, adminUser = 'admin', bankRef = '' }) {
+export async function reconcilePortalItem({ kind, id, action, adminUser = 'admin', bankRef = '', changes = null }) {
   const approve = action === 'approve';
-  if (!['approve', 'reject'].includes(action)) {
-    return { ok: false, status: 400, error: 'action must be approve or reject' };
+  if (!['approve', 'reject'].includes(action) && !(kind === 'donation' && action === 'reopen')) {
+    return { ok: false, status: 400, error: 'Invalid reconciliation action.' };
   }
 
   if (kind === 'donation') {
@@ -1603,25 +1754,37 @@ export async function reconcilePortalItem({ kind, id, action, adminUser = 'admin
       if (idx === -1) return { ok: false, status: 404, error: 'Donation record not found' };
 
       const current = donations[idx];
+      if (current.isSandbox || current.isDemoSample || current.isDemoRecord) return { ok: false, status: 400, error: 'Test records cannot be reconciled into real payments.' };
+      const edited = { ...current, ...changes };
+      if (changes?.utr && normalizeUtr(changes.utr) !== normalizeUtr(current.utr) &&
+          donations.some((d, index) => index !== idx && normalizeUtr(d.utr) === normalizeUtr(changes.utr) && !['Rejected', 'Failed'].includes(d.status))) {
+        return { ok: false, status: 409, error: 'This transaction reference has already been submitted.' };
+      }
+      const alreadyVerified = ['Verified', 'Success', 'Paid', 'Completed'].includes(current.status);
       if (approve) {
-        if (current.status === 'Verified') {
-          return { ok: true, status: 200, donation: current };
+        if (alreadyVerified) {
+          if (changes) {
+            donations[idx] = edited;
+            await writeCollection('donations', donations);
+          }
+          return { ok: true, status: 200, donation: edited };
         }
         const receiptNo = current.receiptNo || `GSDD-REC-2026-${randomBytes(3).toString('hex').toUpperCase()}`;
         donations[idx] = {
-          ...current,
+          ...edited,
           status: 'Verified',
           receiptNo,
           receipt80gIssued: true,
           taxDeductible: true,
-          bankRef: bankRef || current.utr,
+          bankRef: String(bankRef || edited.utr || '').trim().slice(0, 80),
           verifiedAt: new Date().toISOString(),
           verifiedBy: adminUser,
         };
       } else {
         donations[idx] = {
-          ...current,
-          status: 'Rejected',
+          ...edited,
+          status: action === 'reopen' ? 'Pending Verification' : 'Rejected',
+          bankRef: null,
           receiptNo: null,
           receipt80gIssued: false,
           taxDeductible: false,
@@ -1664,7 +1827,7 @@ export async function reconcilePortalItem({ kind, id, action, adminUser = 'admin
         if (current.status === 'Verified') {
           return { ok: true, status: 200, payment: current };
         }
-        const receiptNo = current.receiptNo || `GSDD-FEE-2026-${randomBytes(3).toString('hex').toUpperCase()}`;
+        const receiptNo = current.receiptNo || publicReference('GSDD-FEE');
         payments[idx] = {
           ...current,
           status: 'Verified',
@@ -1674,16 +1837,6 @@ export async function reconcilePortalItem({ kind, id, action, adminUser = 'admin
           verifiedAt: new Date().toISOString(),
           verifiedBy: adminUser,
         };
-        await writeCollection('fee-payments', payments);
-
-        await withLock('members', async () => {
-          const members = await readCollection('members', buildInitialMembers);
-          const mIdx = members.findIndex((m) => m.id === current.memberId);
-          if (mIdx !== -1) {
-            members[mIdx] = { ...members[mIdx], feeStatus: 'Paid' };
-            await writeCollection('members', members);
-          }
-        });
       } else {
         payments[idx] = {
           ...current,
@@ -1693,17 +1846,8 @@ export async function reconcilePortalItem({ kind, id, action, adminUser = 'admin
           verifiedAt: new Date().toISOString(),
           verifiedBy: adminUser,
         };
-        await writeCollection('fee-payments', payments);
-
-        await withLock('members', async () => {
-          const members = await readCollection('members', buildInitialMembers);
-          const mIdx = members.findIndex((m) => m.id === current.memberId);
-          if (mIdx !== -1 && members[mIdx].feeStatus !== 'Paid') {
-            members[mIdx] = { ...members[mIdx], feeStatus: 'Pending' };
-            await writeCollection('members', members);
-          }
-        });
       }
+      await writeCollection('fee-payments', payments);
       return { ok: true, status: 200, payment: payments[idx] };
     });
   }
@@ -1711,11 +1855,12 @@ export async function reconcilePortalItem({ kind, id, action, adminUser = 'admin
   if (kind === 'certificate') {
     return withLock('certificates', async () => {
       const certs = await readCollection('certificates', buildInitialCertificates);
-      const idx = certs.findIndex((c) => c.id === id);
+      const idx = certs.findIndex(c => c.id === id || c.requestId === id);
       if (idx === -1) return { ok: false, status: 404, error: 'Certificate record not found' };
 
       const current = certs[idx];
       if (approve) {
+        if (isOfficialCertificate(current)) return { ok: true, status: 200, certificate: current };
         const officialId = current.id.startsWith('GSDD-REQ-')
           ? `GSDD-VIS-2026-${randomBytes(3).toString('hex').toUpperCase()}`
           : current.id;
@@ -1723,6 +1868,8 @@ export async function reconcilePortalItem({ kind, id, action, adminUser = 'admin
           ...current,
           id: officialId,
           requestId: current.requestId || current.id,
+          certNo: officialId,
+          issuedDate: todayIso(),
           type: 'Visitor Certificate of Participation & Honor',
           authority: 'Manoj Kumar Bishwas (Founder / CEO), GSDD Foundation',
           verificationCode: `VERIFIED-GSDD-${randomBytes(3).toString('hex').toUpperCase()}`,

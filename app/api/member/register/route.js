@@ -1,3 +1,4 @@
+import { getSoftwareSettings } from '../../../lib/admin-system-store';
 import {
   MEMBER_COOKIE_NAME,
   PORTAL_SESSION_MAX_AGE,
@@ -21,11 +22,16 @@ export async function POST(request) {
     if (!body || typeof body !== 'object') {
       return jsonNoStore({ ok: false, error: 'invalid_json' }, 400);
     }
-    const res = await registerMemberAccount(body);
+    const access = await getSoftwareSettings('access-settings') || {};
+    if (access.allowPublicRegistration === false) {
+      return jsonNoStore({ ok: false, error: 'Online membership registration is currently closed.' }, 403);
+    }
+    const res = await registerMemberAccount(body, { requireApproval: access.requireAdminApproval !== false });
     if (!res.ok) {
       return jsonNoStore({ ok: false, error: res.error }, res.status);
     }
 
+    if (res.member.status !== 'Active') return jsonNoStore({ ok: true, member: res.member }, 201);
     const token = createPortalSessionToken('member', res.member.id, res.member.tokenVersion || 1);
     const response = jsonNoStore({ ok: true, member: res.member }, 201);
     response.cookies.set({

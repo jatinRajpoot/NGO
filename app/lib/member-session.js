@@ -11,7 +11,7 @@ export async function requireAuthenticatedMember(request) {
   const session = await getPortalSessionFromRequest(request, 'member');
   if (!session) return null;
   const workspace = await getMemberWorkspace(session.subjectId);
-  if (!workspace || (workspace.tokenVersion || 1) !== session.tokenVersion) {
+  if (!workspace || (workspace.accountStatus || workspace.status) !== 'Active' || (workspace.tokenVersion || 1) !== session.tokenVersion) {
     return null;
   }
   return workspace;

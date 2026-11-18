@@ -1,3 +1,4 @@
+import { createJsonStore } from './json-store';
 // Server-only durable store for Activity/Press Posts, News Articles, and Post Images.
 // Persists JSON collections and uploaded images to GCS when GALLERY_BUCKET is configured,
 // or atomically to POSTS_DATA_DIR / PORTAL_DATA_DIR / ADMIN_DATA_DIR / .data/posts locally.
@@ -30,14 +31,8 @@ const ALLOWED_HTML_TAGS = new Set([
 const SAFE_IMAGE_FILENAME = /^[A-Za-z0-9_-]+\.(jpg|jpeg|png|gif|webp)$/i;
 
 let cachedGcsClient = null;
-const locks = new Map();
-
-function withLock(key, fn) {
-  const prev = locks.get(key) || Promise.resolve();
-  const next = prev.then(fn, fn);
-  locks.set(key, next.catch(() => {}));
-  return next;
-}
+const collectionStore = createJsonStore({ prefix: 'posts', getBucket: getGcsBucket, getDirectory: getDataDir });
+const withLock = collectionStore.run;
 
 function getDataDir() {
   const candidates = [
@@ -75,56 +70,8 @@ function getGcsBucket() {
   }
 }
 
-async function readJson(name, seedFn) {
-  const bucket = getGcsBucket();
-  if (bucket) {
-    const file = bucket.file(`posts/${name}.json`);
-    try {
-      const [buf] = await file.download();
-      return JSON.parse(buf.toString('utf8'));
-    } catch (err) {
-      if (err?.code === 404 || err?.status === 404 || err?.statusCode === 404) {
-        const initial = seedFn();
-        await writeJson(name, initial);
-        return initial;
-      }
-      throw err;
-    }
-  }
-
-  const filePath = path.join(getDataDir(), `${name}.json`);
-  if (!existsSync(filePath)) {
-    const initial = seedFn();
-    await writeJson(name, initial);
-    return initial;
-  }
-  return JSON.parse(readFileSync(filePath, 'utf8'));
-}
-
-async function writeJson(name, data) {
-  const payload = JSON.stringify(data, null, 2);
-  const bucket = getGcsBucket();
-  if (bucket) {
-    await bucket.file(`posts/${name}.json`).save(payload, {
-      contentType: 'application/json',
-      resumable: false,
-    });
-    return;
-  }
-
-  const dir = getDataDir();
-  const target = path.join(dir, `${name}.json`);
-  const temp = `${target}.tmp.${randomBytes(6).toString('hex')}`;
-  try {
-    writeFileSync(temp, payload, 'utf8');
-    renameSync(temp, target);
-  } catch (err) {
-    try {
-      unlinkSync(temp);
-    } catch {}
-    throw err;
-  }
-}
+const readJson = collectionStore.read;
+const writeJson = collectionStore.write;
 
 export function detectPostImageType(buffer, filename = '', declaredMime = '') {
   if (!Buffer.isBuffer(buffer) || buffer.length < 12) {
@@ -547,7 +494,8 @@ export async function updatePost(id, { type, title, descriptionHtml, deletedImag
     validatedNew.push({ ...file, ext: check.ext, contentType: check.contentType });
   }
 
-  return withLock('posts', async () => {
+  const uploadedNew = [];
+  const result = await withLock('posts', async () => {
     const posts = await readJson('posts', buildInitialPosts);
     const idx = posts.findIndex((p) => p.id === id);
     if (idx === -1) {
@@ -566,8 +514,7 @@ export async function updatePost(id, { type, title, descriptionHtml, deletedImag
       };
     }
 
-    const uploadedNew = [];
-    try {
+    if (uploadedNew.length === 0) try {
       for (const item of validatedNew) {
         uploadedNew.push(await savePostImageBuffer(item));
       }
@@ -577,10 +524,6 @@ export async function updatePost(id, { type, title, descriptionHtml, deletedImag
     }
 
     const removedImages = (current.images || []).filter((img) => deleteSet.has(img.id));
-    for (const img of removedImages) {
-      if (img.filename) await deleteStoredImageFile(img.filename);
-    }
-
     posts[idx] = {
       ...current,
       type: cleanType,
@@ -590,8 +533,15 @@ export async function updatePost(id, { type, title, descriptionHtml, deletedImag
       updatedAt: new Date().toISOString(),
     };
     await writeJson('posts', posts);
-    return { ok: true, status: 200, post: posts[idx] };
+    return { ok: true, status: 200, post: posts[idx], removedImages };
   });
+  if (!result.ok) {
+    for (const image of uploadedNew) await deleteStoredImageFile(image.filename);
+    return result;
+  }
+  const { removedImages, ...response } = result;
+  for (const image of removedImages) await deleteStoredImageFile(image.filename);
+  return response;
 }
 
 export async function deletePost(id) {
