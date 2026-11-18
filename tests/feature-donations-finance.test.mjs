@@ -208,6 +208,7 @@ async function main() {
       }),
     });
     assert.equal(cCreate.status, 201);
+    const { coordinator } = await cCreate.json();
 
     const cLogin = await req('/api/coordinator/login/', {
       method: 'POST',
@@ -245,6 +246,25 @@ async function main() {
     assert.equal((await cApprove.json()).donation.status, 'Completed');
 
     assert.equal((await req('/api/coordinator/logout/', { method: 'POST', cookie: coordCookie })).status, 200);
+    assert.equal((await req('/api/coordinator/me/', { cookie: coordCookie })).status, 401);
+
+    const secondLogin = await req('/api/coordinator/login/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'kiran.coord@example.org', password: coordPass }),
+    });
+    assert.equal(secondLogin.status, 200);
+    const secondSession = grabCookie(secondLogin);
+    for (const status of ['Inactive', 'Active']) {
+      const updated = await req('/api/admin/coordinators/', {
+        method: 'PATCH',
+        cookie: adminCookie,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: coordinator.id, status }),
+      });
+      assert.equal(updated.status, 200);
+      assert.equal((await req('/api/coordinator/me/', { cookie: secondSession })).status, 401);
+    }
 
     // 8. Other Item Donation + AutoPay registration & status lookup + CSV export
     const otherRes = await req('/api/admin/other-donations/', {

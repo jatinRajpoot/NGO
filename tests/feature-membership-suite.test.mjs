@@ -216,7 +216,23 @@ async function main() {
       }),
     });
     assert.equal(memRegRes.status, 201);
-    memberCookie = grabCookie(memRegRes);
+    assert.equal(grabCookie(memRegRes), '');
+    const { member: pendingMember } = await memRegRes.json();
+    assert.equal(pendingMember.status, 'Pending');
+    const approval = await req('/api/admin/membership-suite/members/', {
+      method: 'PATCH',
+      cookie: adminCookie,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: pendingMember.id, accountStatus: 'Active' }),
+    });
+    assert.equal(approval.status, 200);
+    const signIn = await req('/api/member/login/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'member.ext@example.org', password: 'StrongPassword123!' }),
+    });
+    assert.equal(signIn.status, 200);
+    memberCookie = grabCookie(signIn);
 
     const extGet = await req('/api/member/extensions/', { cookie: memberCookie });
     assert.equal(extGet.status, 200);
