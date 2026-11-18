@@ -922,9 +922,9 @@ export default function MemberDashboardPage() {
                   <div className="cert-badge-icon">
                     <Award size={32} />
                   </div>
-                  <h3 className="cert-org-title">{organization.name}</h3>
+                  <h3 className="cert-org-title">{organization.legalName}</h3>
                   <div className="cert-org-subtitle">
-                    Registered Section 8 Non-Profit &bull; CIN: {organization.cin} &bull; Reg: {organization.registrationNumber}
+                    Registered Section 8 Non-Profit &bull; CIN: {organization.cin} &bull; Reg: {organization.darpan}
                   </div>
 
                   <div className="cert-main-heading">Certificate of Membership</div>
@@ -933,7 +933,7 @@ export default function MemberDashboardPage() {
                   <div className="cert-recipient-name">{member.name}</div>
 
                   <div className="cert-body-text">
-                    Having duly fulfilled all enrollment qualifications under the foundation charter, is hereby certified and admitted as an esteemed <strong>{member.category}</strong> with portfolio designation of <strong>{member.designation}</strong> in Gurudev Shree Dhyanyogi Sharanam Foundation, entitled to all official privileges and representation rights.
+                    Having duly fulfilled all enrollment qualifications under the foundation charter, is hereby certified and admitted as an esteemed <strong>{member.category}</strong> with portfolio designation of <strong>{member.designation}</strong> in Global Skills &amp; Digital Development Foundation, entitled to all official privileges and representation rights.
                   </div>
 
                   <div className="cert-meta-grid">
@@ -977,7 +977,7 @@ export default function MemberDashboardPage() {
                 <div className="apt-header">
                   <div>
                     <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--gsdd-navy-dark)', fontFamily: 'var(--display)' }}>
-                      {organization.name}
+                      {organization.legalName}
                     </h3>
                     <small style={{ color: '#64748B' }}>
                       Section 8 Not-For-Profit Enterprise &bull; CIN: {organization.cin}
@@ -1008,7 +1008,7 @@ export default function MemberDashboardPage() {
                 <div className="apt-body">
                   <p>Dear {member.name},</p>
                   <p>
-                    On behalf of the Governing Board of <strong>Gurudev Shree Dhyanyogi Sharanam Foundation</strong>, we are delighted to officially convey your appointment as <strong>{member.designation}</strong> within our <strong>{member.category}</strong> cadre, effective from {member.joinDate}.
+                    On behalf of the Governing Board of <strong>Global Skills &amp; Digital Development Foundation</strong>, we are delighted to officially convey your appointment as <strong>{member.designation}</strong> within our <strong>{member.category}</strong> cadre, effective from {member.joinDate}.
                   </p>
                   <p>
                     As an appointed office-bearer, your key portfolio responsibilities and duties include:
@@ -1034,7 +1034,7 @@ export default function MemberDashboardPage() {
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ width: '160px', borderTop: '1px solid #0F172A', marginBottom: '6px' }} />
                     <div style={{ fontSize: '13px', fontWeight: '800', color: '#0F172A' }}>National President</div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>Gurudev Shree Dhyanyogi Sharanam Foundation</div>
+                    <div style={{ fontSize: '11px', color: '#64748B' }}>Global Skills & Digital Development Foundation</div>
                   </div>
                 </div>
               </div>
@@ -1047,7 +1047,7 @@ export default function MemberDashboardPage() {
                   <div className="cert-badge-icon">
                     <Award size={32} />
                   </div>
-                  <h3 className="cert-org-title">{organization.name}</h3>
+                  <h3 className="cert-org-title">{organization.legalName}</h3>
                   <div className="cert-org-subtitle">
                     Recognizing Selfless Public Service &bull; Registered Section 8 NGO
                   </div>
@@ -1058,7 +1058,7 @@ export default function MemberDashboardPage() {
                   <div className="cert-recipient-name">{member.name}</div>
 
                   <div className="cert-body-text">
-                    For exemplary leadership, relentless commitment, and exceptional contribution in social service, rural outreach camps, and community welfare programs conducted under Gurudev Shree Dhyanyogi Sharanam Foundation.
+                    For exemplary leadership, relentless commitment, and exceptional contribution in social service, rural outreach camps, and community welfare programs conducted under Global Skills & Digital Development Foundation.
                   </div>
 
                   <div className="cert-meta-grid">
@@ -1135,7 +1135,7 @@ export default function MemberDashboardPage() {
                   <div className="receipt-header-row">
                     <div>
                       <h3 style={{ margin: 0, fontSize: '17px', color: 'var(--gsdd-navy-dark)', fontFamily: 'var(--display)' }}>
-                        {organization.name}
+                        {organization.legalName}
                       </h3>
                       <small style={{ color: '#64748B', display: 'block', marginTop: '2px' }}>
                         Registered Section 8 NGO &bull; 80G Tax Exemption Certified
@@ -1504,7 +1504,7 @@ export default function MemberDashboardPage() {
                 </button>
                 <a
                   href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
-                    `Namaste! Join me as an active member of Gurudev Shree Dhyanyogi Sharanam Foundation. Register here: ${
+                    `Namaste! Join me as an active member of Global Skills & Digital Development Foundation. Register here: ${
                       typeof window !== 'undefined' ? window.location.origin : 'https://gsddfoundation.org'
                     }/member/register?ref=${member.referralCode || member.id}`
                   )}`}
