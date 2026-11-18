@@ -43,7 +43,7 @@ export default function PublicProjectTracker({ initialProjects = [] }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 20 }}>
         {filtered.map((p) => (
           <article key={p.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, display: 'grid', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>

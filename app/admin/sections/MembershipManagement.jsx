@@ -593,7 +593,7 @@ export default function MembershipManagement({ notify }) {
               </div>
 
               {/* Full details list */}
-              <div style={{ marginTop: '24px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px', fontSize: '13px' }}>
+              <div style={{ marginTop: '24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '14px', fontSize: '13px' }}>
                 <div>
                   <strong style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase' }}>Full Name</strong>
                   <div>{selectedMember.name}</div>

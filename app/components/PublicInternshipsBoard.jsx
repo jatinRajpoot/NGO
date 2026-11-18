@@ -53,7 +53,7 @@ export default function PublicInternshipsBoard({ initialInternships = [] }) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 20 }}>
         {internships.map((item) => (
           <article key={item.id} style={{ background: '#fff', border: '1px solid #e6e2d8', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>

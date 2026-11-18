@@ -626,7 +626,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .project-card-copy { padding: 18px; }
   .project-card-copy h3 { font-size: 17px; }
   .gallery-media { height: 215px; }
-  .gallery-filters { margin-right: -16px; overflow-x: auto; flex-wrap: nowrap; padding: 2px 16px 10px 2px; }
+  .gallery-filters { margin-right: 0; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; padding: 2px 4px 10px 2px; }
   .gallery-filters button { flex: 0 0 auto; }
   .gallery-social-links { flex-direction: column; gap: 12px; }
   .credential-card { min-height: 0; }

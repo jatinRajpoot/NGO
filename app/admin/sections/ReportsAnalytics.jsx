@@ -206,7 +206,7 @@ export default function ReportsAnalytics({ notify }) {
             <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
               Statutory Compliance &amp; 80G Filings
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '14px' }}>
               <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '8px' }}>
                 <span style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Section 80G Receipts</span>
                 <strong style={{ fontSize: '20px', color: '#1e40af' }}>{initialDonations.filter((d) => d.tax80g === 'Issued').length} Issued</strong>

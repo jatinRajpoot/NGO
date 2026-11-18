@@ -625,15 +625,17 @@ export function MemberBottomQuickBar({ activeTab, onNavigate }) {
         position: 'sticky',
         bottom: 12,
         zIndex: 45,
+        width: '100%',
         maxWidth: 680,
+        boxSizing: 'border-box',
         margin: '18px auto 8px',
-        padding: '8px 12px',
+        padding: '8px 6px',
         background: 'rgba(15,23,42,0.95)',
         color: '#fff',
         borderRadius: 14,
-        display: 'flex',
-        justifyContent: 'space-around',
-        gap: 6,
+        display: 'grid',
+        gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+        gap: 4,
         boxShadow: '0 14px 30px rgba(0,0,0,0.22)',
       }}
     >
@@ -648,18 +650,23 @@ export function MemberBottomQuickBar({ activeTab, onNavigate }) {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 3,
               border: 0,
               background: 'transparent',
               color: '#e2e8f0',
-              fontSize: 11,
+              fontSize: 'clamp(9px, 2.5vw, 11px)',
               fontWeight: 600,
               cursor: 'pointer',
-              padding: '4px 8px',
+              padding: '4px 2px',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
             <Icon size={16} />
-            <span>{btn.label}</span>
+            <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{btn.label}</span>
           </button>
         );
       })}
@@ -842,7 +849,7 @@ export function MemberPortalDrawers() {
 
             {activeDrawer === 'referrals' && (
               <div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10, marginBottom: 14 }}>
                   <div style={{ padding: 12, background: '#dcfce7', borderRadius: 8 }}>
                     <strong>Active Referrals:</strong> {ext.activeReferrals.length}
                   </div>
@@ -851,7 +858,7 @@ export function MemberPortalDrawers() {
                   </div>
                 </div>
                 <div style={{ padding: 12, background: '#f8fafc', borderRadius: 8, marginBottom: 14, fontSize: 13 }}>
-                  <strong>Personal Referral Link:</strong> <code>{referralUrl}</code>
+                  <strong>Personal Referral Link:</strong> <code style={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}>{referralUrl}</code>
                   {shareButtons('Join GSDD Foundation via my referral', referralUrl)}
                 </div>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
@@ -979,7 +986,7 @@ export function MemberPortalDrawers() {
 
             {activeDrawer === 'donate' && (
               <form onSubmit={handleMemberGatewayDonate} style={{ display: 'grid', gap: 10 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: 8 }}>
                   <button
                     type="button"
                     onClick={() => setGateway('phonepe')}
@@ -1027,7 +1034,7 @@ export function MemberPortalDrawers() {
                   style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}
                 />
                 {gateway === 'phonepe' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: 8 }}>
                     <input
                       required
                       value={nbUser}

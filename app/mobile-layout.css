@@ -144,6 +144,12 @@ img, video, canvas, svg {
   max-width: 100%;
 }
 
+input, select, textarea {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 .table-responsive,
 .table-responsive-wrapper,
 .donor-table-container,
@@ -152,6 +158,58 @@ img, video, canvas, svg {
   max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Team Management Portal Responsive Layout */
+.team-portal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.team-portal-workspace {
+  display: flex;
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 16px;
+  gap: 24px;
+  box-sizing: border-box;
+}
+
+.team-portal-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+}
+
+.team-portal-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .team-portal-workspace {
+    flex-direction: column;
+    padding: 16px 12px;
+    gap: 16px;
+  }
+  .team-portal-sidebar {
+    width: 100%;
+  }
+  .team-portal-sidebar-nav {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+  }
+  .team-portal-sidebar-nav > button {
+    width: auto !important;
+    flex: 1 1 130px;
+  }
 }
 
 @media (max-width: 768px) {

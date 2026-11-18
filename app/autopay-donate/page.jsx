@@ -120,7 +120,7 @@ export default function AutoPayDonatePage() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 12 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Email Address *</label>
                   <input
@@ -141,7 +141,7 @@ export default function AutoPayDonatePage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 12 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Monthly Amount (Min Rs. 50) *</label>
                   <input

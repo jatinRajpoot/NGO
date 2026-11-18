@@ -61,23 +61,23 @@ export default function PublicComplaintSubmitForm() {
           <Link href="/check-status" className="button button-blue">Check Ticket Status</Link>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 10 }}>
+        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 10, minWidth: 0 }}>
           {error && <div role="alert" style={{ padding: 10, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13 }}>{error}</div>}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <input required placeholder="Full Name *" value={form.complainantName} onChange={(e) => setForm({ ...form, complainantName: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-            <input type="email" placeholder="Email Address" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 10 }}>
+            <input required placeholder="Full Name *" value={form.complainantName} onChange={(e) => setForm({ ...form, complainantName: e.target.value })} style={{ width: '100%', minWidth: 0, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+            <input type="email" placeholder="Email Address" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ width: '100%', minWidth: 0, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <input placeholder="Phone / WhatsApp" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-            <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 10 }}>
+            <input placeholder="Phone / WhatsApp" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} style={{ width: '100%', minWidth: 0, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+            <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ width: '100%', minWidth: 0, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}>
               <option>Programme / Event Grievance</option>
               <option>Certificate / ID Delay</option>
               <option>Donation Receipt Issue</option>
               <option>Volunteer / Conduct Feedback</option>
             </select>
           </div>
-          <input required placeholder="Complaint Subject *" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-          <textarea required rows={3} placeholder="Detailed Complaint Description *" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+          <input required placeholder="Complaint Subject *" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} style={{ width: '100%', minWidth: 0, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+          <textarea required rows={3} placeholder="Detailed Complaint Description *" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ width: '100%', minWidth: 0, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
           <button type="submit" disabled={busy} className="button button-blue" style={{ justifyContent: 'center' }}>
             {busy ? <Loader2 size={15} className="spin" /> : <Send size={15} />} Submit Complaint Ticket
           </button>

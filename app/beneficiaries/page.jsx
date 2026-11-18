@@ -54,7 +54,7 @@ export default function PublicBeneficiariesPage() {
           {loading ? (
             <div style={{ padding: 40, textAlign: 'center' }}><Loader2 size={24} className="spin" /></div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: 18 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 18 }}>
               {list.map((b) => (
                 <article key={b.id} style={{ background: '#fff', border: '1px solid #e6e2d8', borderRadius: 12, padding: 20 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>

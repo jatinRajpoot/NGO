@@ -515,7 +515,7 @@ export default function PortalHome() {
                   src={area.image}
                   alt={area.alt}
                   fill
-                  sizes="(max-width: 390px) 100vw, (max-width: 680px) 48vw, (max-width: 1120px) 31vw, 250px)"
+                  sizes="(max-width: 390px) 100vw, (max-width: 680px) 48vw, (max-width: 1120px) 31vw, 250px"
                   loading="lazy"
                 />
                 <span aria-hidden="true">{area.number}</span>

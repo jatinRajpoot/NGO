@@ -205,13 +205,13 @@ export default function TeamMemberPortalPage() {
     <div style={{ minHeight: '90vh', background: '#F1F5F9', display: 'flex', flexDirection: 'column' }}>
       
       {/* Top Bar */}
-      <header style={{ background: '#0F172A', color: '#FFF', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1E293B' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: '#2563EB', display: 'grid', placeItems: 'center', fontWeight: '800', color: '#FFF' }}>
+      <header className="team-portal-header" style={{ background: '#0F172A', color: '#FFF', padding: '16px 20px', borderBottom: '1px solid #1E293B' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+          <div style={{ width: '38px', height: '38px', flexShrink: 0, borderRadius: '8px', background: '#2563EB', display: 'grid', placeItems: 'center', fontWeight: '800', color: '#FFF' }}>
             <Building2 size={20} />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '15px', fontWeight: '800', color: '#FFF' }}>GSDD Foundation</span>
               <span style={{ background: '#1E293B', color: '#93C5FD', fontSize: '10px', padding: '2px 8px', borderRadius: '12px', fontWeight: '700' }}>
                 Management Portal
@@ -270,10 +270,10 @@ export default function TeamMemberPortalPage() {
       )}
 
       {/* Main Workspace Layout */}
-      <div style={{ display: 'flex', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', padding: '24px 16px', gap: '24px', boxSizing: 'border-box' }}>
+      <div className="team-portal-workspace">
         
         {/* Sidebar */}
-        <aside style={{ width: '280px', flexShrink: 0 }}>
+        <aside className="team-portal-sidebar">
           
           {/* Member Card */}
           <div style={{ background: '#FFF', borderRadius: '12px', padding: '20px', border: '1px solid #E2E8F0', textAlign: 'center', marginBottom: '16px' }}>
@@ -290,7 +290,7 @@ export default function TeamMemberPortalPage() {
           </div>
 
           {/* Navigation Links */}
-          <nav style={{ background: '#FFF', borderRadius: '12px', border: '1px solid #E2E8F0', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <nav className="team-portal-sidebar-nav" style={{ background: '#FFF', borderRadius: '12px', border: '1px solid #E2E8F0', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {sidebarTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -329,8 +329,8 @@ export default function TeamMemberPortalPage() {
           
           {/* TAB 1: VIEW PROFILE */}
           {activeTab === 'profile' && (
-            <div style={{ background: '#FFF', borderRadius: '12px', border: '1px solid #E2E8F0', padding: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #E2E8F0', paddingBottom: '16px' }}>
+            <div style={{ background: '#FFF', borderRadius: '12px', border: '1px solid #E2E8F0', padding: 'clamp(16px, 3vw, 24px)' }}>
+              <div className="team-portal-card-head" style={{ marginBottom: '20px', borderBottom: '1px solid #E2E8F0', paddingBottom: '16px' }}>
                 <div>
                   <h2 style={{ margin: 0, fontSize: '20px', color: '#0F172A', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <User size={22} color="#2563EB" /> Official Management Profile
@@ -348,7 +348,7 @@ export default function TeamMemberPortalPage() {
                 </button>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '18px' }}>
                 <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                   <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
                     FULL LEGAL NAME
@@ -511,7 +511,7 @@ export default function TeamMemberPortalPage() {
               </div>
 
               {/* General Details Update Form */}
-              <form onSubmit={handleSaveProfile} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              <form onSubmit={handleSaveProfile} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '16px' }}>
                 <div>
                   <label style={{ fontSize: '13px', fontWeight: '700', color: '#0F172A', display: 'block', marginBottom: '6px' }}>
                     Full Name
@@ -665,7 +665,7 @@ export default function TeamMemberPortalPage() {
                 ))}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '16px' }}>
                 {teamList
                   .filter((tm) => {
                     if (teamDeptFilter === 'all') return true;

@@ -637,12 +637,12 @@ export default function OperationsManagementSection({ notify }) {
             <select value={eventForm.eventType} onChange={(e) => setEventForm({ ...eventForm, eventType: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}>
               {EVENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <input required type="date" value={eventForm.date} onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input placeholder="Time" value={eventForm.time} onChange={(e) => setEventForm({ ...eventForm, time: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             </div>
             <input required placeholder="Venue *" value={eventForm.venue} onChange={(e) => setEventForm({ ...eventForm, venue: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 8 }}>
               <input type="number" min="1" placeholder="Capacity" value={eventForm.capacity} onChange={(e) => setEventForm({ ...eventForm, capacity: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input type="number" min="0" placeholder="Fee Rs." value={eventForm.fee} onChange={(e) => setEventForm({ ...eventForm, fee: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <select value={eventForm.status} onChange={(e) => setEventForm({ ...eventForm, status: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}>
@@ -665,13 +665,13 @@ export default function OperationsManagementSection({ notify }) {
           <form onSubmit={async (e) => { e.preventDefault(); if (await jsonReq('/api/admin/operations/internships/', 'POST', internForm, 'Internship created.')) setInternModal(false); }} style={{ width: 'min(520px, 100%)', background: '#fff', borderRadius: 12, padding: 20, display: 'grid', gap: 10 }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: 0 }}>Add New Internship</h3>
             <input required placeholder="Internship Title *" value={internForm.title} onChange={(e) => setInternForm({ ...internForm, title: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <select value={internForm.type} onChange={(e) => setInternForm({ ...internForm, type: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}>
                 {INTERNSHIP_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
               <input required placeholder="Duration *" value={internForm.duration} onChange={(e) => setInternForm({ ...internForm, duration: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <input placeholder="City" value={internForm.city} onChange={(e) => setInternForm({ ...internForm, city: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <select value={internForm.stipend} onChange={(e) => setInternForm({ ...internForm, stipend: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}>
                 <option value="No">Unpaid / Volunteer</option>
@@ -692,7 +692,7 @@ export default function OperationsManagementSection({ notify }) {
           <form onSubmit={handleSaveExpense} style={{ width: 'min(500px, 100%)', background: '#fff', borderRadius: 12, padding: 20, display: 'grid', gap: 10 }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: 0 }}>Record Expense &amp; Voucher</h3>
             <input required placeholder="Expense Title *" value={expForm.title} onChange={(e) => setExpForm({ ...expForm, title: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <select value={expForm.category} onChange={(e) => setExpForm({ ...expForm, category: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}>
                 {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -700,7 +700,7 @@ export default function OperationsManagementSection({ notify }) {
                 {EXPENSE_PAYMENT_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <input required type="number" min="1" placeholder="Amount Rs. *" value={expForm.amount} onChange={(e) => setExpForm({ ...expForm, amount: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input type="date" value={expForm.date} onChange={(e) => setExpForm({ ...expForm, date: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             </div>
@@ -721,7 +721,7 @@ export default function OperationsManagementSection({ notify }) {
             <h3 style={{ margin: 0 }}>Post Career Opening</h3>
             <input required placeholder="Job Title *" value={jobForm.title} onChange={(e) => setJobForm({ ...jobForm, title: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             <input required placeholder="Location *" value={jobForm.location} onChange={(e) => setJobForm({ ...jobForm, location: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <input placeholder="Job Type (Full-Time)" value={jobForm.jobType} onChange={(e) => setJobForm({ ...jobForm, jobType: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input placeholder="Experience" value={jobForm.experience} onChange={(e) => setJobForm({ ...jobForm, experience: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             </div>
@@ -743,7 +743,7 @@ export default function OperationsManagementSection({ notify }) {
             <select value={prjForm.category} onChange={(e) => setPrjForm({ ...prjForm, category: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}>
               {PROJECT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <input required type="number" min="100" placeholder="Goal Rs. *" value={prjForm.goalAmount} onChange={(e) => setPrjForm({ ...prjForm, goalAmount: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input type="number" min="0" placeholder="Spent Rs." value={prjForm.spentAmount} onChange={(e) => setPrjForm({ ...prjForm, spentAmount: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             </div>

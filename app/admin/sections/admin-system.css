@@ -16,7 +16,8 @@
 
 .admin-global-search-wrap {
   position: relative;
-  flex: 1 1 280px;
+  flex: 1 1 220px;
+  min-width: 0;
   max-width: 440px;
 }
 
@@ -568,6 +569,16 @@
   .overview-analytics-grid,
   .overview-feeds-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-utility-strip {
+    padding: 10px 12px;
+  }
+  .admin-global-search-wrap {
+    flex-basis: 100%;
+    max-width: 100%;
   }
 }
 

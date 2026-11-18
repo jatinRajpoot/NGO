@@ -223,13 +223,14 @@ export default function MemberRegisterPage() {
 
               <div className="member-form-group">
                 <label>District &amp; State</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))', gap: '8px' }}>
                   <input
                     type="text"
                     name="district"
                     required
                     value={formData.district}
                     onChange={handleChange}
+                    style={{ width: '100%', minWidth: 0 }}
                   />
                   <input
                     type="text"
@@ -237,6 +238,7 @@ export default function MemberRegisterPage() {
                     required
                     value={formData.state}
                     onChange={handleChange}
+                    style={{ width: '100%', minWidth: 0 }}
                   />
                 </div>
               </div>
