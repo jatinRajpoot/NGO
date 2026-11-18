@@ -314,7 +314,7 @@ export default function AdminProfileSection({ notify, onGoToSecurity }) {
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '18px', fontSize: '13px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '18px', fontSize: '13px' }}>
               <div>
                 <span style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block' }}>
                   Legal Organization

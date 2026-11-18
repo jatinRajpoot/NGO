@@ -777,7 +777,7 @@ export default function DonationManagement({ notify }) {
             <select value={campForm.category} onChange={(e) => setCampForm({ ...campForm, category: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}>
               {CAMPAIGN_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <input required type="number" min="100" placeholder="Goal Rs. *" value={campForm.goalAmount} onChange={(e) => setCampForm({ ...campForm, goalAmount: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <select value={campForm.status} onChange={(e) => setCampForm({ ...campForm, status: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}>
                 <option value="Active">Active</option>
@@ -785,7 +785,7 @@ export default function DonationManagement({ notify }) {
                 <option value="Completed">Completed</option>
               </select>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <input type="date" value={campForm.startDate} onChange={(e) => setCampForm({ ...campForm, startDate: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input type="date" value={campForm.endDate} onChange={(e) => setCampForm({ ...campForm, endDate: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             </div>
@@ -804,7 +804,7 @@ export default function DonationManagement({ notify }) {
           <form onSubmit={saveOtherDonation} style={{ width: 'min(560px, 100%)', maxHeight: '90vh', overflowY: 'auto', background: '#fff', borderRadius: 12, padding: 20, display: 'grid', gap: 10 }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: 0 }}>Add Non-Monetary / Item Donation</h3>
             <input required placeholder="Donor Name *" value={otherForm.donorName} onChange={(e) => setOtherForm({ ...otherForm, donorName: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <input required placeholder="Category *" value={otherForm.category} onChange={(e) => setOtherForm({ ...otherForm, category: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <select value={otherForm.condition} onChange={(e) => setOtherForm({ ...otherForm, condition: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}>
                 <option value="New">New</option>
@@ -812,7 +812,7 @@ export default function DonationManagement({ notify }) {
                 <option value="Good">Good</option>
               </select>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <input placeholder="Received By" value={otherForm.receivedBy} onChange={(e) => setOtherForm({ ...otherForm, receivedBy: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input type="date" value={otherForm.date} onChange={(e) => setOtherForm({ ...otherForm, date: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             </div>

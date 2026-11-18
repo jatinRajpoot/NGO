@@ -264,7 +264,7 @@ export default function LetterHeadSection({ notify }) {
               </button>
             </div>
             <form onSubmit={handleSave} style={{ padding: 20 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 12 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
                     Recipient Name *

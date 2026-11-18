@@ -198,7 +198,7 @@ export default function GatewayCheckoutModal({
 
           {step === 'form' && (
             <form onSubmit={startSession} style={{ display: 'grid', gap: 12 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -237,7 +237,7 @@ export default function GatewayCheckoutModal({
                 </button>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
                     Donor Name *

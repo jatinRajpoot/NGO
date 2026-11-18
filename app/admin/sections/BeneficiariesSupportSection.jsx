@@ -475,22 +475,22 @@ export default function BeneficiariesSupportSection({ notify, initialSection = '
           >
             <h3 style={{ margin: 0 }}>Add Beneficiary</h3>
             <input required placeholder="Full Name *" value={benForm.name} onChange={(e) => setBenForm({ ...benForm, name: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 8 }}>
               <input placeholder="Age" type="number" value={benForm.age} onChange={(e) => setBenForm({ ...benForm, age: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <select value={benForm.gender} onChange={(e) => setBenForm({ ...benForm, gender: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}><option>Female</option><option>Male</option><option>Other</option></select>
               <select value={benForm.status} onChange={(e) => setBenForm({ ...benForm, status: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}><option>Active</option><option>Inactive</option><option>Direct Request</option><option>Completed</option></select>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <input required placeholder="Mobile *" value={benForm.phone} onChange={(e) => setBenForm({ ...benForm, phone: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input type="email" placeholder="Email" value={benForm.email} onChange={(e) => setBenForm({ ...benForm, email: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <select value={benForm.category} onChange={(e) => setBenForm({ ...benForm, category: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}>
                 {BENEFICIARY_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
               <input required placeholder="District *" value={benForm.district} onChange={(e) => setBenForm({ ...benForm, district: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <input placeholder="ID Doc 1 (e.g. Aadhaar)" value={benForm.idDocNo1} onChange={(e) => setBenForm({ ...benForm, idDocNo1: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input placeholder="ID Doc 2 (e.g. Ration Card)" value={benForm.idDocNo2} onChange={(e) => setBenForm({ ...benForm, idDocNo2: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             </div>
@@ -542,7 +542,7 @@ export default function BeneficiariesSupportSection({ notify, initialSection = '
             >
               <strong style={{ fontSize: 13 }}>Add Benefit Provided</strong>
               <input required placeholder="Benefit / Aid Provided *" value={benefitForm.benefitTitle} onChange={(e) => setBenefitForm({ ...benefitForm, benefitTitle: e.target.value })} style={{ padding: 8, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
                 <input placeholder="Value (e.g. Rs. 5,000 / Kit)" value={benefitForm.benefitValue} onChange={(e) => setBenefitForm({ ...benefitForm, benefitValue: e.target.value })} style={{ padding: 8, borderRadius: 8, border: '1px solid #cbd5e1' }} />
                 <input type="date" value={benefitForm.date} onChange={(e) => setBenefitForm({ ...benefitForm, date: e.target.value })} style={{ padding: 8, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               </div>

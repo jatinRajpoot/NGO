@@ -492,7 +492,7 @@ export default function CoordinatorSection({ notify }) {
               <input required placeholder="Full Name *" value={coordForm.name} onChange={(e) => setCoordForm({ ...coordForm, name: e.target.value })} style={{ padding: '9px 10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input required type="email" disabled={Boolean(editingCoordId)} placeholder="Email *" value={coordForm.email} onChange={(e) => setCoordForm({ ...coordForm, email: e.target.value })} style={{ padding: '9px 10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input placeholder="Phone" value={coordForm.phone} onChange={(e) => setCoordForm({ ...coordForm, phone: e.target.value })} style={{ padding: '9px 10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
                 <input placeholder="District" value={coordForm.district} onChange={(e) => setCoordForm({ ...coordForm, district: e.target.value })} style={{ padding: '9px 10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
                 <input placeholder="State" value={coordForm.state} onChange={(e) => setCoordForm({ ...coordForm, state: e.target.value })} style={{ padding: '9px 10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
               </div>

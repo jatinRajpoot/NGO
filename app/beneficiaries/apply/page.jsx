@@ -73,22 +73,22 @@ export default function ApplyBeneficiaryPage() {
               <Link href="/beneficiaries" className="button button-blue">View Beneficiaries Directory</Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} style={{ padding: 26, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, display: 'grid', gap: 12 }}>
+            <form onSubmit={handleSubmit} style={{ padding: 'clamp(16px, 4vw, 26px)', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, display: 'grid', gap: 12, minWidth: 0, boxSizing: 'border-box' }}>
               <h2 style={{ margin: 0, fontSize: 20 }}>Direct Beneficiary Application</h2>
               {error && <div role="alert" style={{ padding: 10, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13 }}>{error}</div>}
-              <input required placeholder="Applicant Full Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <input required placeholder="Mobile Number *" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-                <input type="email" placeholder="Email Address" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+              <input required placeholder="Applicant Full Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={{ width: '100%', minWidth: 0, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 10 }}>
+                <input required placeholder="Mobile Number *" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} style={{ width: '100%', minWidth: 0, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                <input type="email" placeholder="Email Address" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ width: '100%', minWidth: 0, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 10 }}>
+                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ width: '100%', minWidth: 0, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}>
                   {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
-                <input required placeholder="District *" value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                <input required placeholder="District *" value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })} style={{ width: '100%', minWidth: 0, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               </div>
-              <input placeholder="Village / Block Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-              <textarea required rows={3} placeholder="Describe support needed *" value={form.needSummary} onChange={(e) => setForm({ ...form, needSummary: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+              <input placeholder="Village / Block Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} style={{ width: '100%', minWidth: 0, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
+              <textarea required rows={3} placeholder="Describe support needed *" value={form.needSummary} onChange={(e) => setForm({ ...form, needSummary: e.target.value })} style={{ width: '100%', minWidth: 0, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <button type="submit" disabled={busy} className="button button-blue" style={{ justifyContent: 'center' }}>
                 {busy ? <Loader2 size={15} className="spin" /> : <HeartHandshake size={15} />} Submit Application
               </button>

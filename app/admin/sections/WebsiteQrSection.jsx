@@ -155,7 +155,7 @@ export default function WebsiteQrSection({ notify }) {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 12, marginBottom: 18 }}>
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
                 Foreground Color

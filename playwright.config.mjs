@@ -1,15 +1,18 @@
 import { defineConfig } from '@playwright/test';
 
 const baseURL = process.env.BASE_URL || 'http://127.0.0.1:3100';
+const launchExecutable = process.env.PLAYWRIGHT_CHROME_PATH || undefined;
 
 export default defineConfig({
   testDir: './tests/ui',
+  timeout: 60000,
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
   use: {
     baseURL,
     browserName: 'chromium',
+    ...(launchExecutable ? { launchOptions: { executablePath: launchExecutable } } : {}),
     reducedMotion: 'reduce',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',

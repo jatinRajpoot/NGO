@@ -642,16 +642,16 @@ export default function MembershipSuiteSection({ notify, initialModule = 'member
           >
             <h3 style={{ margin: 0 }}>Enroll Member (Full Demographics)</h3>
             <input required placeholder="Full Name *" value={memForm.name} onChange={(e) => setMemForm({ ...memForm, name: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <input required type="email" placeholder="Email *" value={memForm.email} onChange={(e) => setMemForm({ ...memForm, email: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input required placeholder="Mobile *" value={memForm.mobile} onChange={(e) => setMemForm({ ...memForm, mobile: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 8 }}>
               <select value={memForm.gender} onChange={(e) => setMemForm({ ...memForm, gender: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}><option>Male</option><option>Female</option><option>Other</option></select>
               <select value={memForm.maritalStatus} onChange={(e) => setMemForm({ ...memForm, maritalStatus: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}><option>Single</option><option>Married</option></select>
               <input placeholder="Blood Group" value={memForm.bloodGroup} onChange={(e) => setMemForm({ ...memForm, bloodGroup: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <input placeholder="Designation" value={memForm.designation} onChange={(e) => setMemForm({ ...memForm, designation: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <select value={memForm.paymentMode} onChange={(e) => setMemForm({ ...memForm, paymentMode: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }}>
                 <option>Cash/UPI Received by Admin</option>
@@ -677,7 +677,7 @@ export default function MembershipSuiteSection({ notify, initialModule = 'member
           >
             <h3 style={{ margin: 0 }}>Designation Settings</h3>
             <input required placeholder="Designation Title *" value={desForm.title} onChange={(e) => setDesForm({ ...desForm, title: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 8 }}>
               <input type="number" placeholder="Fee Rs." value={desForm.feeRs} onChange={(e) => setDesForm({ ...desForm, feeRs: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input type="number" placeholder="Years" value={desForm.validityYears} onChange={(e) => setDesForm({ ...desForm, validityYears: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />
               <input type="number" placeholder="Renewal Rs." value={desForm.renewalFeeRs} onChange={(e) => setDesForm({ ...desForm, renewalFeeRs: e.target.value })} style={{ padding: 9, borderRadius: 8, border: '1px solid #cbd5e1' }} />

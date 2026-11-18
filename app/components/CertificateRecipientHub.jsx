@@ -437,12 +437,15 @@ export default function CertificateRecipientHub() {
               background: '#FFFDF9',
               border: '10px double #D97706',
               borderRadius: '12px',
-              padding: '40px 30px',
+              padding: 'clamp(18px, 4vw, 40px) clamp(14px, 4vw, 30px)',
               textAlign: 'center',
               boxShadow: '0 10px 25px -5px rgba(217, 119, 6, 0.15)',
               position: 'relative',
+              width: '100%',
               maxWidth: '820px',
               margin: '0 auto',
+              boxSizing: 'border-box',
+              overflowWrap: 'break-word',
             }}
           >
             {/* Top Emblem and Header */}
@@ -492,12 +495,12 @@ export default function CertificateRecipientHub() {
 
             {/* Verification Metadata & QR Code */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '1px dashed #CBD5E1', paddingTop: '20px', marginTop: '20px', flexWrap: 'wrap', gap: '16px', textAlign: 'left' }}>
-              <div>
-                <div style={{ fontSize: '12px', color: '#64748B', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <span>Certificate ID: <strong style={{ fontFamily: 'monospace', color: '#1E40AF' }}>{currentCert.id}</strong></span>
+              <div style={{ minWidth: 0, maxWidth: '100%', flex: '1 1 200px' }}>
+                <div style={{ fontSize: '12px', color: '#64748B', display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, maxWidth: '100%' }}>
+                  <span>Certificate ID: <strong style={{ fontFamily: 'monospace', color: '#1E40AF', overflowWrap: 'anywhere' }}>{currentCert.id}</strong></span>
                   <span>Issue Date: <strong>{currentCert.issueDate}</strong></span>
                   <span>Validity: <strong style={{ color: '#16A34A' }}>{currentCert.validity}</strong></span>
-                  <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#94A3B8' }}>{currentCert.hash}</span>
+                  <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#94A3B8', overflowWrap: 'anywhere', wordBreak: 'break-all' }}>{currentCert.hash}</span>
                 </div>
               </div>
 
@@ -540,14 +543,14 @@ export default function CertificateRecipientHub() {
             </p>
           </div>
 
-          <form onSubmit={handleEmailLookup} style={{ display: 'flex', gap: '10px', maxWidth: '520px', marginBottom: '24px' }}>
+          <form onSubmit={handleEmailLookup} style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', maxWidth: '520px', marginBottom: '24px' }}>
             <input
               type="text"
               required
               placeholder="Enter your account email"
               value={recipientEmail}
               onChange={(e) => setRecipientEmail(e.target.value)}
-              style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px' }}
+              style={{ flex: '1 1 200px', minWidth: 0, padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px' }}
             />
             <button
               type="submit"
@@ -637,14 +640,14 @@ export default function CertificateRecipientHub() {
             </p>
           </div>
 
-          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', maxWidth: '520px', marginBottom: '20px' }}>
+          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', maxWidth: '520px', marginBottom: '20px' }}>
             <input
               type="text"
               required
               placeholder="e.g. GSDD-ACH-2026-081 or GSDD-APT-2026-001"
               value={searchId}
               onChange={(e) => setSearchId(e.target.value)}
-              style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', textTransform: 'uppercase' }}
+              style={{ flex: '1 1 200px', minWidth: 0, padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', textTransform: 'uppercase' }}
             />
             <button
               type="submit"
@@ -685,7 +688,7 @@ export default function CertificateRecipientHub() {
                 <strong style={{ fontSize: '15px' }}>Official Record Found: Authentic & Valid Certificate</strong>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '16px', marginBottom: '20px' }}>
                 <div style={{ background: '#FFF', padding: '14px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                   <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '700' }}>RECIPIENT FULL NAME</span>
                   <strong style={{ fontSize: '15px', color: '#0F172A', display: 'block' }}>{verificationResult.cert.recipient}</strong>
@@ -761,7 +764,7 @@ export default function CertificateRecipientHub() {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '24px', marginBottom: '24px' }}>
             
             {/* Camera Scanner Simulator Card */}
             <div style={{ background: '#0F172A', color: '#FFF', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>

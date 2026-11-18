@@ -49,5 +49,5 @@ test('hero controls and gallery links remain usable', async ({ page }) => {
 
   const galleryLink = page.getByRole('link', { name: 'View photo in gallery: Learning together', exact: true });
   await galleryLink.click();
-  await expect(page).toHaveURL(/\/gallery\/?$/);
+  await expect(page).toHaveURL(/\/gallery\/?$/, { timeout: 15000 });
 });

@@ -20,7 +20,7 @@ export default async function ManagementBodyPage() {
       />
       <section className="section-pad">
         <div className="container">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 22 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 22 }}>
             {leaders.map((leader) => (
               <article key={leader.id} style={{ background: '#fff', border: '1px solid #e6e2d8', borderRadius: 12, padding: 22 }}>
                 <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 999, background: '#eff6ff', color: '#1d4ed8', fontSize: 11, fontWeight: 700, marginBottom: 10 }}>

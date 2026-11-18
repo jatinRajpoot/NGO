@@ -466,7 +466,7 @@ export default function CertificateManagement({ notify }) {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', fontSize: '13px', background: '#ffffff', padding: '16px', borderRadius: '8px', border: '1px solid #d1fae5' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '12px', fontSize: '13px', background: '#ffffff', padding: '16px', borderRadius: '8px', border: '1px solid #d1fae5' }}>
                       <div>
                         <span style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Certificate ID</span>
                         <strong style={{ color: '#1e40af', fontFamily: 'monospace' }}>{verifyResult.cert.certNo}</strong>

@@ -1374,7 +1374,7 @@ export default function MemberDashboardPage() {
                       Donation History &amp; Verified Receipts
                     </h3>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '12px', marginBottom: '16px' }}>
                       <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '12px', borderRadius: '8px' }}>
                         <div style={{ fontSize: '11px', color: '#1E40AF', fontWeight: '700' }}>VERIFIED DONATIONS</div>
                         <div style={{ fontSize: '20px', fontWeight: '800', color: '#1E3A8A' }}>
@@ -1593,7 +1593,7 @@ export default function MemberDashboardPage() {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '24px' }}>
               <div>
                 <h3 style={{ margin: '0 0 14px', fontSize: '15px', color: 'var(--gsdd-navy-dark)' }}>
                   Delivery Channels & Preferences

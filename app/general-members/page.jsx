@@ -53,7 +53,7 @@ export default function GeneralMembersDirectoryPage() {
           {loading ? (
             <div style={{ padding: 40, textAlign: 'center' }}><Loader2 size={24} className="spin" /></div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: 18 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: 18 }}>
               {members.map((m) => (
                 <article key={m.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 18 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
