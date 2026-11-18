@@ -61,6 +61,11 @@ try {
   const extendedLogin = await req('/api/member/login/', { email, password: oldPassword });
   assert.equal(extendedLogin.status, 200);
   record('membership_registration_split', { registrationStatus: extended.status, approvalStatus: approved.status, loginStatus: extendedLogin.status });
+  const plan = await req('/api/members/apply/', { ...memberFields, email: 'plan-applicant@example.invalid', tier: 'volunteer-member' });
+  assert.equal(plan.status, 201);
+  const planQueue = await req('/api/admin/membership-suite/members/?tab=inactive', undefined, admin);
+  assert.ok(planQueue.data.members.some(member => member.id === plan.data.application.appId && member.membershipFee === 500));
+  assert.equal((await req('/api/member/login/', { email: 'plan-applicant@example.invalid', password: oldPassword })).status, 401);
   const duplicate = await req('/api/member/register/', memberFields);
   assert.equal(duplicate.status, 409);
   const reset = await req('/api/public/forgot-password/', { email, phone: '3210', newPassword });
@@ -73,6 +78,11 @@ try {
   const oldLogin = await req('/api/member/login/', { email, password: oldPassword });
   assert.equal(newLogin.status, 200); assert.equal(oldLogin.status, 401);
   record('password_reset_split', { emailedSingleUseCodeRequired: true, phoneOnlyAttemptStatus: reset.status, resetStatus: reset.status, newPasswordLoginStatus: newLogin.status, oldPasswordLoginStatus: oldLogin.status });
+  const fee = await req('/api/member/fee-payment/', { utr: 'REVIEW-FEE-123456' }, newLogin.cookie);
+  assert.equal(fee.status, 201);
+  assert.equal(fee.data.member.feeStatus, 'Pending Verification');
+  const visitor = await req('/api/certificates/', { name: 'Review Visitor Request', purpose: 'Programme visit', date: '2026-01-01' });
+  assert.equal(visitor.status, 201);
   const photoForm = new FormData();
   photoForm.append('photo', new Blob([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9AAAAABJRU5ErkJggg==', 'base64')], { type: 'image/png' }), 'review.png');
   const photoRes = await fetch(base + '/api/member/extensions/', { method: 'POST', headers: { Origin: base, Cookie: newLogin.cookie }, body: photoForm });
@@ -90,7 +100,7 @@ try {
   assert.equal(inquiryFound, true);
   record('enquiry_queue_split', { submissionStatus: ticket.status, adminListStatus: enquiries.status, submittedTicketVisibleInAdmin: inquiryFound });
   const beforeOverview = await req('/api/admin/overview/', undefined, admin);
-  const pending = await req('/api/donations/', { donorName: 'Review Real Donation', email: 'review-real@example.invalid', amount: 1234, method: 'UPI', utr: 'REVIEW-UNIQUE-UTR-123456' });
+  const pending = await req('/api/donations/', { donorName: 'Review Real Donation', email: 'review-real@example.invalid', amount: 1234, method: 'UPI', purpose: 'Review programme purpose', pan: 'ABCDE1234F', utr: 'REVIEW-UNIQUE-UTR-123456' });
   assert.equal(pending.status, 201);
   const reconciles = await req('/api/admin/reconcile/', undefined, admin);
   assert.ok(reconciles.data.pendingDonations.some(x => x.id === pending.data.donation.id));
@@ -101,6 +111,11 @@ try {
   const approvedDonation = await req('/api/admin/reconcile/', { kind: 'donation', id: pending.data.donation.id, action: 'approve', bankRef: 'REVIEW-MATCHED-BANK-123456' }, admin);
   assert.equal(approvedDonation.status, 200);
   assert.ok(approvedDonation.data.donation.receiptNo);
+  const receipt = await req('/api/certificates/verify/?code=' + approvedDonation.data.donation.receiptNo);
+  assert.equal(receipt.data.verified, true);
+  assert.equal(receipt.data.document.recipient, 'Review Real Donation');
+  const visibleDonations = await req('/api/public/donations/?q=Review%20programme%20purpose');
+  assert.ok(visibleDonations.data.donations.some(donation => donation.purpose === 'Review programme purpose'));
   record('donation_queue_split', { submissionStatus: pending.status, reconciliationApiContainsDonation: true, financeAdminListContainsDonation: pendingVisible });
   const gateway = await req('/api/payments/sandbox/', { gateway: 'razorpay', donorName: 'Review Simulated Donation', email: 'review-sandbox@example.invalid', amount: 9876 });
   assert.equal(gateway.status, 201);
@@ -117,6 +132,27 @@ try {
   const total = r => r.data.overview?.kpis?.totalDonations || r.data.kpis?.totalDonations;
   assert.equal(total(afterOverview).amount - total(beforeOverview).amount, 1234);
   record('overview_ignores_finance', { beforeDonationKpi: total(beforeOverview), afterDonationKpi: total(afterOverview), afterKeys: Object.keys(afterOverview.data), returnedMonthlyDonations: (afterOverview.data.overview || afterOverview.data).monthlyDonations });
+  const campaign = await req('/api/admin/campaigns/', { title: 'Review Campaign', goalAmount: 1000, status: 'Active' }, admin);
+  assert.equal(campaign.status, 201);
+  const campaignId = campaign.data.campaign.id;
+  const pledge = await req('/api/donations/', { campaignId, donorName: 'Review Campaign Donor', email: 'campaign-donor@example.invalid', amount: 600, utr: 'REVIEW-CAMPAIGN-UTR' });
+  assert.equal(pledge.status, 201);
+  const donationId = pledge.data.donation.id;
+  const campaignTotal = async () => (await req('/api/public/campaigns/')).data.campaigns.find(row => row.id === campaignId).raisedAmount;
+  assert.equal(await campaignTotal(), 0);
+  const edited = await req('/api/admin/finance/donations/', { id: donationId, amount: 700, donorName: 'Corrected Campaign Donor', status: 'Success' }, admin, 'PATCH');
+  assert.equal(edited.status, 200);
+  assert.equal(edited.data.donation.amount, 700);
+  assert.equal(edited.data.donation.donorName, 'Corrected Campaign Donor');
+  assert.equal(await campaignTotal(), 700);
+  const reopened = await req('/api/admin/finance/donations/', { id: donationId, status: 'Pending' }, admin, 'PATCH');
+  assert.equal(reopened.data.donation.status, 'Pending Verification');
+  assert.equal(reopened.data.donation.receiptNo, null);
+  assert.equal(await campaignTotal(), 0);
+  assert.equal((await req('/api/admin/finance/donations/', { id: donationId, status: 'Success' }, admin, 'PATCH')).status, 200);
+  assert.equal(await campaignTotal(), 700);
+  assert.equal((await req('/api/admin/finance/donations/', { ids: [donationId] }, admin, 'DELETE')).status, 200);
+  assert.equal(await campaignTotal(), 0);
   const certificate = await req('/api/admin/membership-suite/certificates/', { kind: 'Visitor', recipientName: 'HTTP Recipient', program: 'Real issuance' }, admin);
   assert.equal(certificate.status, 201);
   const verification = await req('/api/certificates/verify/?code=' + encodeURIComponent(certificate.data.certificate.certNo));
@@ -166,6 +202,25 @@ try {
         ]);
         assert.equal(response.status(), 200, `${section} must use the durable API`);
       }
+      await page.getByRole('button', { name: 'Membership Management', exact: true }).click();
+      await page.getByRole('button', { name: 'Fee Payments', exact: true }).click();
+      page.once('dialog', dialog => dialog.accept());
+      await page.getByRole('row', { name: /REVIEW-FEE-123456/ }).getByRole('button', { name: 'Verify payment' }).click();
+      await expect(page.getByText('No pending records.', { exact: true })).toBeVisible();
+      const paid = await req('/api/member/me/', undefined, newLogin.cookie);
+      assert.equal(paid.data.member.paymentStatus, 'Paid');
+      assert.equal(paid.data.member.feeStatus, 'Paid');
+      const memberDocument = await req('/api/certificates/verify/?code=' + encodeURIComponent(extended.data.member.regNo));
+      assert.equal(memberDocument.data.verified, true);
+      const rejected = await req('/api/admin/reconcile/', { id: fee.data.payment.id, kind: 'fee_payment', action: 'reject' }, admin);
+      assert.equal(rejected.data.payment.receiptNo, null);
+      assert.equal((await req('/api/member/me/', undefined, newLogin.cookie)).data.member.feeStatus, 'Pending');
+
+      await page.getByRole('button', { name: 'Certificate Management', exact: true }).click();
+      await page.getByRole('button', { name: 'Visitor Requests', exact: true }).click();
+      await page.getByRole('row', { name: /Review Visitor Request/ }).getByRole('button', { name: 'Issue certificate' }).click();
+      await expect(page.getByText('No pending records.', { exact: true })).toBeVisible();
+      assert.equal((await req('/api/certificates/verify/?code=' + visitor.data.certificate.id)).data.verified, true);
       console.log('PASS: admin browser controls use live member/certificate/notice/report modules and disable unsupported actions.');
     } finally { await browser.close(); }
   }

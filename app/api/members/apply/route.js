@@ -1,3 +1,4 @@
+import { getSoftwareSettings } from '../../../lib/admin-system-store';
 import { NextResponse } from 'next/server';
 import { isSameOrigin } from '../../../lib/portal-auth';
 import { createMembershipApplication } from '../../../lib/portal-store';
@@ -19,7 +20,11 @@ export async function POST(request) {
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ ok: false, error: 'invalid_json' }, { status: 400, headers: NO_STORE });
     }
-    const res = await createMembershipApplication(body);
+    const access = await getSoftwareSettings('access-settings') || {};
+    if (access.allowPublicRegistration === false) {
+      return NextResponse.json({ ok: false, error: 'Online membership registration is currently closed.' }, { status: 403, headers: NO_STORE });
+    }
+    const res = await createMembershipApplication(body, { requireApproval: access.requireAdminApproval !== false });
     if (!res.ok) {
       return NextResponse.json({ ok: false, error: res.error }, { status: res.status, headers: NO_STORE });
     }

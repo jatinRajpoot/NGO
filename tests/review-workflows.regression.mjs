@@ -39,7 +39,7 @@ try {
 
   // Existing portal credentials win over a legacy application with the same email.
   const { hashPassword } = await import('../app/lib/portal-auth.js');
-  await portal.registerMemberAccount({ name: 'Existing', email: 'existing@example.invalid', phone: '9000000001', address: 'Fixture', password: 'ExistingSecret123!' });
+  await portal.registerMemberAccount({ name: 'Existing', email: 'existing@example.invalid', phone: '9000000001', address: 'Fixture', password: 'ExistingSecret123!' }, { requireApproval: false });
   await writeFile(path.join(directory, 'membership-suite', 'members-ext.json'), JSON.stringify([
     { id: 'ext-existing', name: 'Duplicate', email: 'existing@example.invalid', mobile: '9000000001', accountStatus: 'Blocked', passwordHash: await hashPassword('WrongLegacySecret123!') },
     { id: 'ext-legacy', name: 'Legacy', email: 'legacy@example.invalid', mobile: '9000000002', accountStatus: 'Active', passwordHash: await hashPassword('LegacySecret123!') },
@@ -49,6 +49,20 @@ try {
   assert.ok(await portal.authenticateMemberAccount('legacy@example.invalid', 'LegacySecret123!'));
   await membership.deleteExtendedMembers(['ext-legacy']);
   assert.ok(!(await portal.memberAccountStore.read()).some(m => m.id === 'ext-legacy'), 'Migrated deleted records must not return');
+  const legacyApp = { appId: 'GSDD-M-APP-LEGACY-FIXTURE', name: 'Legacy Applicant', email: 'legacy-applicant@example.invalid',
+    phone: '9000000009', tier: 'volunteer-member', status: 'Pending Committee Review', createdAt: '2026-02-15T00:00:00.000Z' };
+  await writeFile(path.join(directory, 'membership-applications.json'), JSON.stringify([legacyApp]));
+  const [legacyPending] = (await membership.listExtendedMembers({ tab: 'inactive' })).filter(m => m.id === legacyApp.appId);
+  assert.equal(legacyPending.membershipFee, 500);
+  assert.equal(legacyPending.hasPassword, false);
+  await membership.updateExtendedMember(legacyApp.appId, { accountStatus: 'Active', initialPassword: 'LegacyFixtureStart123!' });
+  assert.ok(await portal.authenticateMemberAccount(legacyApp.email, 'LegacyFixtureStart123!'));
+
+  const oldCertificate = { id: 'cert-ext-old-fixture', certNo: 'GSDD-VIS-2026-OLD-FIXTURE', status: 'Active', kind: 'Visitor',
+    recipientName: 'Legacy Certificate Recipient', issuedBy: 'Foundation Administrator', issuedDate: '2026-02-15' };
+  await writeFile(path.join(directory, 'membership-suite', 'certificates-ext.json'), JSON.stringify([oldCertificate]));
+  assert.equal((await portal.verifyDocumentCode(oldCertificate.certNo)).verified, true);
+
   await writeFile(path.join(directory, 'finance', 'donations.json'), JSON.stringify([{ id: 'legacy-simulation', donorName: 'Old Simulation', email: 'old@example.invalid', amount: 9999, status: 'Success', utr: 'OLD-SANDBOX-REF', campaignId: 'legacy-campaign' }]));
   await writeFile(path.join(directory, 'finance', 'gateway-sessions.json'), JSON.stringify([{ status: 'Completed', txRef: 'OLD-SANDBOX-REF' }]));
   assert.equal((await finance.listFinanceDonations()).length, 0, 'Historical sandbox transactions with recorded sessions must be excluded');
@@ -90,6 +104,9 @@ try {
 
   await portal.updateMemberProfile(created.member.id, { photoSrc: '/api/members/photo/mem-photo-fixture.png/' });
   assert.equal((await portal.getMemberWorkspace(created.member.id)).photoSrc, '/api/members/photo/mem-photo-fixture.png/');
+  await portal.updateMemberProfile(created.member.id, { phone: '9876543211' });
+  await membership.updateExtendedMember(created.member.id, { name: 'Edited by Reviewer' });
+  assert.equal((await portal.getMemberWorkspace(created.member.id)).phone, '9876543211');
   const inquiry = await portal.createInquiryTicket({ name: 'Workflow Sender', email: 'sender@example.invalid', message: 'Real enquiry content' });
   assert.ok((await support.listEnquiries()).some(r => r.id === inquiry.ticket.ticketId));
   await support.replyToEnquiry(inquiry.ticket.ticketId, { adminReply: 'Saved reply' });
@@ -127,6 +144,14 @@ try {
   assert.equal((await operations.verifyInternshipCertificate(issued.application.certificateId)).verified, true);
   await operations.issueInternshipCertificate(application.application.id, 'Rejected');
   assert.equal((await operations.verifyInternshipCertificate(issued.application.certificateId)).found, false);
+  const closed = await operations.createInternship({ title: 'Closed internship', duration: '1 month', status: 'Completed' });
+  assert.equal((await operations.applyForInternship({ internshipId: closed.internship.id, name: 'Fixture', email: 'fixture@example.invalid', phone: '9000000001' })).status, 404);
+  const past = await operations.createEvent({ title: 'Past event', date: '2020-01-01', venue: 'Fixture' });
+  assert.equal((await operations.registerEventApplicant({ eventId: past.event.id, name: 'Fixture', email: 'fixture@example.invalid', phone: '9000000001' })).status, 409);
+  const { resetWebsiteSystemData, listLetterHeads, listBirthdays } = await import('../app/lib/admin-system-store.js');
+  assert.equal((await resetWebsiteSystemData({ confirmationText: 'RESET GSDD DATA', targets: ['letterheads', 'birthdays'] })).ok, true);
+  assert.deepEqual(await listLetterHeads(), []);
+  assert.deepEqual(await listBirthdays(), []);
   console.log('PASS: account approval/reset/photo, enquiry and donation queues, real overview, isolated simulations, unpaid mandates and certificate revocation.');
 } finally {
   await new Promise(resolve => notification.close(resolve));

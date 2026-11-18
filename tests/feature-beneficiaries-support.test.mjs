@@ -172,7 +172,9 @@ async function main() {
 
     const statusLookup = await (await req(`/api/public/complaints/?query=${encodeURIComponent(createdCmp.ticketNo)}`)).json();
     assert.equal(statusLookup.complaints[0].status, 'Resolved');
-    assert.match(statusLookup.complaints[0].adminRemark, /reissued/);
+    assert.equal(statusLookup.complaints[0].adminRemark, undefined);
+    assert.equal(statusLookup.complaints[0].subject, undefined);
+    assert.equal(statusLookup.complaints[0].complainantName, undefined);
 
     assert.equal(
       (await req('/api/admin/support/complaints/', {

@@ -403,7 +403,7 @@ export async function listFinanceDonations({
 } = {}) {
   const items = (await readJson('donations', buildInitialDonations)).filter(d => !d.isSandbox && !d.isDemoSample && !d.isDemoRecord).map(d => ({ ...d, purpose: d.purpose || d.program,
     requiresReconciliation: ['Pending Verification', 'Pending Settlement', 'Pending'].includes(d.status),
-    status: d.status === 'Verified' ? 'Success' : ['Pending Verification', 'Pending Settlement', 'Pending'].includes(d.status) ? 'Pending' : d.status }));
+    status: ['Verified', 'Success', 'Paid', 'Completed'].includes(d.status) ? 'Success' : ['Pending Verification', 'Pending Settlement', 'Pending'].includes(d.status) ? 'Pending' : d.status === 'Rejected' ? 'Failed' : d.status }));
   const sSrc = String(source || 'all').toLowerCase();
   const sStat = String(status || 'all').toLowerCase();
   const q = String(search || '').trim().toLowerCase();
@@ -434,7 +434,7 @@ export async function searchPublicDonations(query = '') {
   );
   const filtered = q
     ? paidOnly.filter((d) =>
-        `${d.receiptNo} ${d.donorName} ${d.purpose}`.toLowerCase().includes(q)
+        `${d.receiptNo} ${d.donorName} ${d.purpose || d.program || ''}`.toLowerCase().includes(q)
       )
     : paidOnly;
 
@@ -443,10 +443,10 @@ export async function searchPublicDonations(query = '') {
     receiptNo: d.receiptNo,
     donorName: d.donorName,
     amount: Number(d.amount || 0),
-    purpose: d.purpose,
+    purpose: d.purpose || d.program,
     method: d.method,
     status: d.status,
-    date: String(d.createdAt || '').slice(0, 10),
+    date: String(d.date || d.createdAt || '').slice(0, 10),
   }));
 }
 
@@ -482,15 +482,23 @@ export async function createFinanceDonation(payload = {}) {
       referralCode: String(payload.referralCode || '').trim().slice(0, 64),
       utr: String(payload.utr || '').trim().slice(0, 80),
       campaignId: String(payload.campaignId || '').trim().slice(0, 60),
+      campaignLedgerTracked: true,
       createdAt: payload.createdAt || now,
     };
     list.unshift(record);
     await writeJson('donations', list);
 
-    if (record.campaignId && record.status === 'Verified') {
-      await applyDonationToCampaign(record.campaignId, record.amount);
-    }
     return { ok: true, status: 201, donation: record };
+  });
+}
+
+export async function reconcileFinanceDonation(input) {
+  return withLock('donations', async () => {
+    const records = await readJson('donations', buildInitialDonations);
+    if (records.some(d => (d.id === input.id || d.trackingId === input.id) && d.campaignId)) {
+      await readCampaignBalances(records);
+    }
+    return reconcilePortalItem({ ...input, kind: 'donation' });
   });
 }
 
@@ -501,9 +509,8 @@ export async function updateFinanceDonation(id, patch = {}) {
     if (idx === -1) return { ok: false, status: 404, error: 'Donation record not found.' };
 
     const cur = list[idx];
-    if (patch.status === 'Failed' || (patch.status === 'Success' && cur.status !== 'Verified')) return reconcilePortalItem({ kind: 'donation', id, action: patch.status === 'Success' ? 'approve' : 'reject', bankRef: patch.utr || cur.utr });
-    const next = {
-      ...cur,
+    if (cur.campaignId) await readCampaignBalances(list);
+    const changes = {
       donorName: typeof patch.donorName === 'string' && patch.donorName.trim()
         ? patch.donorName.trim().slice(0, 140) : cur.donorName,
       amount: Number.isFinite(Number(patch.amount)) && Number(patch.amount) >= 1
@@ -512,13 +519,16 @@ export async function updateFinanceDonation(id, patch = {}) {
         ? patch.purpose.trim().slice(0, 120) : cur.purpose,
       method: typeof patch.method === 'string' && patch.method.trim()
         ? patch.method.trim().slice(0, 60) : cur.method,
-      status: cur.status,
       utr: typeof patch.utr === 'string' && patch.utr.trim() ? patch.utr.trim().slice(0, 80) : cur.utr,
       pan: typeof patch.pan === 'string' ? patch.pan.trim().toUpperCase().slice(0, 20) : cur.pan,
     };
-    list[idx] = next;
+    if (patch.status === 'Failed' || ['Pending', 'Success'].includes(patch.status)) {
+      const action = patch.status === 'Failed' ? 'reject' : patch.status === 'Pending' ? 'reopen' : 'approve';
+      return reconcilePortalItem({ kind: 'donation', id, action, bankRef: changes.utr, changes });
+    }
+    list[idx] = { ...cur, ...changes };
     await writeJson('donations', list);
-    return { ok: true, status: 200, donation: next };
+    return { ok: true, status: 200, donation: list[idx] };
   });
 }
 
@@ -528,6 +538,7 @@ export async function deleteFinanceDonations(ids = []) {
 
   return withLock('donations', async () => {
     const list = await readJson('donations', buildInitialDonations);
+    if (list.some(d => idSet.has(d.id) && d.campaignId)) await readCampaignBalances(list);
     const remaining = list.filter((d) => !idSet.has(d.id));
     if (remaining.length === list.length) return { ok: false, status: 404, error: 'No matching donations found.' };
     await writeJson('donations', remaining);
@@ -636,25 +647,44 @@ export async function verifyGatewaySession({ sessionId, username = '', password 
 // Crowdfunding Campaigns CRUD
 // ---------------------------------------------------------------------------
 
-async function applyDonationToCampaign(campaignId, amount) {
+function isPaidDonation(row) {
+  return !row.isSandbox && !row.isDemoRecord && !row.isDemoSample &&
+    ['Verified', 'Success', 'Paid', 'Completed'].includes(row.status);
+}
+
+async function readCampaignBalances(donations) {
+  const current = await readJson('campaigns', buildInitialCampaigns);
+  if (current.every(campaign => campaign.balanceFromLedger)) return current;
   return withLock('campaigns', async () => {
-    const list = await readJson('campaigns', buildInitialCampaigns);
-    const idx = list.findIndex((c) => c.id === campaignId);
-    if (idx === -1) return;
-    list[idx].raisedAmount = Number(list[idx].raisedAmount || 0) + Number(amount || 0);
-    list[idx].donorsCount = Number(list[idx].donorsCount || 0) + 1;
-    if (list[idx].raisedAmount >= list[idx].goalAmount) {
-      list[idx].status = 'Completed';
-    }
-    await writeJson('campaigns', list);
+    const campaigns = await readJson('campaigns', buildInitialCampaigns);
+    let changed = false;
+    const balances = campaigns.map(campaign => {
+      if (campaign.balanceFromLedger) return campaign;
+      // The previous implementation incremented saved totals for gateway
+      // simulations and directly verified staff entries. Retain the balance
+      // that has no matching ledger record, such as opening contributions.
+      const alreadyCounted = donations.filter(d => d.campaignId === campaign.id &&
+        (d.isSandbox || (!d.campaignLedgerTracked && !d.trackingId && !d.verifiedAt && isPaidDonation(d))));
+      changed = true;
+      return {
+        ...campaign,
+        raisedAmount: Math.max(0, Number(campaign.raisedAmount || 0) - alreadyCounted.reduce((sum, d) => sum + Number(d.amount || 0), 0)),
+        donorsCount: Math.max(0, Number(campaign.donorsCount || 0) - alreadyCounted.length),
+        balanceFromLedger: true,
+      };
+    });
+    if (changed) await writeJson('campaigns', balances);
+    return balances;
   });
 }
 
 export async function listCampaigns({ tab = 'all' } = {}) {
   const donations = await donationRecordStore.read();
-  const items = (await readJson('campaigns', buildInitialCampaigns)).map(campaign => {
-    const simulations = donations.filter(d => d.isSandbox && d.campaignId === campaign.id);
-    return { ...campaign, raisedAmount: Math.max(0, Number(campaign.raisedAmount || 0) - simulations.reduce((sum, d) => sum + Number(d.amount || 0), 0)), donorsCount: Math.max(0, Number(campaign.donorsCount || 0) - simulations.length) };
+  const items = (await readCampaignBalances(donations)).map(campaign => {
+    const verified = donations.filter(d => d.campaignId === campaign.id && isPaidDonation(d));
+    const raisedAmount = Number(campaign.raisedAmount || 0) + verified.reduce((sum, d) => sum + Number(d.amount || 0), 0);
+    const status = campaign.status === 'Active' && raisedAmount >= campaign.goalAmount ? 'Completed' : campaign.status;
+    return { ...campaign, raisedAmount, donorsCount: Number(campaign.donorsCount || 0) + verified.length, status };
   });
   const t = String(tab || 'all').toLowerCase();
   if (t === 'active') return items.filter((c) => c.status === 'Active');
@@ -685,6 +715,7 @@ export async function createCampaign(payload = {}) {
       goalAmount: Math.round(goalAmount),
       raisedAmount: Math.max(0, Math.round(Number(payload.raisedAmount || 0))),
       donorsCount: 0,
+      balanceFromLedger: true,
       status: ['Active', 'Draft', 'Completed'].includes(payload.status) ? payload.status : 'Active',
       startDate: String(payload.startDate || new Date().toISOString().slice(0, 10)),
       endDate: String(payload.endDate || '2026-12-31'),
@@ -801,6 +832,8 @@ export async function updateCoordinator(id, patch = {}) {
       passwordHash = `${salt}:${derived.toString('hex')}`;
     }
 
+    const status = ['Active', 'Inactive'].includes(patch.status) ? patch.status : cur.status;
+    const tokenVersion = cur.tokenVersion || 1;
     list[idx] = {
       ...cur,
       name: typeof patch.name === 'string' && patch.name.trim() ? patch.name.trim().slice(0, 120) : cur.name,
@@ -809,7 +842,8 @@ export async function updateCoordinator(id, patch = {}) {
       state: typeof patch.state === 'string' ? patch.state.trim().slice(0, 80) : cur.state,
       designation: typeof patch.designation === 'string' && patch.designation.trim()
         ? patch.designation.trim().slice(0, 100) : cur.designation,
-      status: ['Active', 'Inactive'].includes(patch.status) ? patch.status : cur.status,
+      status,
+      tokenVersion: status !== cur.status || passwordHash !== cur.passwordHash ? tokenVersion + 1 : tokenVersion,
       passwordHash,
     };
     await writeJson('coordinators', list);

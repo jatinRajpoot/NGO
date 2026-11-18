@@ -76,7 +76,7 @@ export default function ExtendedMembershipForm() {
         <p style={{ margin: '0 0 10px', fontSize: 13 }}>
           Registration No: <strong>{created.regNo}</strong> • Designation: {created.designation} • Status: {created.accountStatus}
         </p>
-        <Link href="/member/login" className="button button-blue">Sign in after administrator approval <ArrowRight size={15} /></Link>
+        <Link href="/member/login" className="button button-blue">{created.accountStatus === 'Active' ? 'Sign in to your member account' : 'Sign in after administrator approval'} <ArrowRight size={15} /></Link>
       </div>
     );
   }

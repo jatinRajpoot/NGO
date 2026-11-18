@@ -65,7 +65,7 @@ export default function CareersPage() {
           {loading ? (
             <div style={{ padding: 40, textAlign: 'center' }}><Loader2 size={24} className="spin" /></div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: 20 }}>
               {jobs.map((job) => (
                 <article key={job.id} style={{ background: '#fff', border: '1px solid #e6e2d8', borderRadius: 12, padding: 22, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>

@@ -518,6 +518,8 @@ export async function listEventApplicants() {
   return readJson('event-applicants', buildInitialEventApplicants);
 }
 
+const eventCalendar = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Kolkata' });
+
 export async function registerEventApplicant(payload = {}) {
   const eventId = String(payload.eventId || '').trim();
   const name = String(payload.name || '').trim().slice(0, 120);
@@ -532,6 +534,16 @@ export async function registerEventApplicant(payload = {}) {
 
   return withLock('event-applicants', async () => {
     const apps = await readJson('event-applicants', buildInitialEventApplicants);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(evt.date) || evt.date < eventCalendar.format(new Date())) {
+      return { ok: false, status: 409, error: 'Registration for this event has closed.' };
+    }
+    const attendees = apps.filter(app => app.eventId === eventId && app.status === 'Confirmed');
+    if (attendees.some(app => app.email?.toLowerCase() === email)) {
+      return { ok: false, status: 409, error: 'This email is already registered for the event.' };
+    }
+    if (evt.capacity > 0 && attendees.length >= evt.capacity) {
+      return { ok: false, status: 409, error: 'This event is full.' };
+    }
     const rec = {
       id: `evapp-${randomUUID().slice(0, 8)}`,
       eventId: evt.id,
@@ -621,7 +633,7 @@ export async function applyForInternship(payload = {}) {
     return { ok: false, status: 400, error: 'Internship track, full name, email, and mobile are required.' };
   }
   const internships = await readJson('internships', buildInitialInternships);
-  const track = internships.find((i) => i.id === internshipId);
+  const track = internships.find(i => i.id === internshipId && ['Active', 'Ongoing'].includes(i.status));
   if (!track) return { ok: false, status: 404, error: 'Internship not found.' };
 
   return withLock('internship-apps', async () => {

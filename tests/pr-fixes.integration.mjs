@@ -183,6 +183,14 @@ try {
   assert.equal(fakeVerifyJson.found, false);
   assert.equal(fakeVerifyJson.verified, false);
 
+  const adminLoginRes = await api('/api/admin/auth/login/', {
+    method: 'POST',
+    body: { username: adminUsername, password: adminPassword },
+  });
+  assert.equal(adminLoginRes.status, 200);
+  const adminCookie = extractCookie(adminLoginRes, 'gsdd_admin_session');
+  assert.ok(adminCookie, 'Admin login must return gsdd_admin_session');
+
   // 5. Member Register, Fee Pending Verification, Message, Password Change + Session Revocation
   const memEmail = `member-${Date.now()}@example.com`;
   const memRegRes = await api('/api/member/register/', {
@@ -196,10 +204,18 @@ try {
     },
   });
   assert.equal(memRegRes.status, 201);
-  let memCookie = extractCookie(memRegRes, 'gsdd_member_session');
-  assert.ok(memCookie, 'Member registration must set HttpOnly session cookie');
+  assert.equal(extractCookie(memRegRes, 'gsdd_member_session'), null, 'Pending members must wait for approval');
   const memRegJson = await memRegRes.json();
+  assert.equal(memRegJson.member.status, 'Pending');
   assert.equal(memRegJson.member.feeStatus, 'Pending');
+  const approval = await api('/api/admin/membership-suite/members/', {
+    method: 'PATCH', cookie: adminCookie, body: { id: memRegJson.member.id, accountStatus: 'Active' },
+  });
+  assert.equal(approval.status, 200);
+  const login = await api('/api/member/login/', { method: 'POST', body: { email: memEmail, password: 'Password123!' } });
+  assert.equal(login.status, 200);
+  let memCookie = extractCookie(login, 'gsdd_member_session');
+  assert.ok(memCookie);
 
   const feeRes = await api('/api/member/fee-payment/', {
     method: 'POST',
@@ -255,14 +271,6 @@ try {
   // 6. Admin Login & Reconciliation
   const unauthReconcile = await api('/api/admin/reconcile/');
   assert.equal(unauthReconcile.status, 401);
-
-  const adminLoginRes = await api('/api/admin/auth/login/', {
-    method: 'POST',
-    body: { username: adminUsername, password: adminPassword },
-  });
-  assert.equal(adminLoginRes.status, 200);
-  const adminCookie = extractCookie(adminLoginRes, 'gsdd_admin_session');
-  assert.ok(adminCookie, 'Admin login must return gsdd_admin_session');
 
   const recDonRes = await api('/api/admin/reconcile/', {
     method: 'POST',

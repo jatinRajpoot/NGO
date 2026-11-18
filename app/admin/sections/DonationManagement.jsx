@@ -177,7 +177,8 @@ export default function DonationManagement({ notify }) {
       const response = await fetch('/api/admin/reconcile/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'donation', id: donation.id, action, bankRef: donation.utr }) });
       const data = await response.json();
       if (!response.ok) { notify?.(data.error || 'Reconciliation failed.'); return; }
-      await loadDonations();
+      if (moduleTab === 'campaigns') await loadCampaigns();
+      else await loadDonations();
       notify?.(action === 'approve' ? 'Donation verified and receipt saved.' : 'Donation rejected.');
     } catch { notify?.('Unable to reconcile donation. Try again.'); }
   };
@@ -383,6 +384,7 @@ export default function DonationManagement({ notify }) {
                     <th>Amount</th>
                     <th>Method</th>
                     <th>Status</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -393,7 +395,13 @@ export default function DonationManagement({ notify }) {
                       <td>{d.purpose}</td>
                       <td>Rs. {Number(d.amount).toLocaleString('en-IN')}</td>
                       <td>{d.method}</td>
-                      <td><span className="adm-badge green">{d.status}</span></td>
+                      <td>{d.status}</td>
+                      <td>{d.requiresReconciliation && (
+                        <>
+                          <button type="button" className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => handleReconcile(d, 'approve')}>Verify</button>{' '}
+                          <button type="button" className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => handleReconcile(d, 'reject')}>Reject</button>
+                        </>
+                      )}</td>
                     </tr>
                   ))}
                 </tbody>

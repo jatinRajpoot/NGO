@@ -5,7 +5,7 @@ import { dispatchNotification, getConfiguredDeliveryChannels } from './notifier'
 
 const digest = value => createHash('sha256').update(value).digest('hex');
 const collection = 'member-password-resets';
-const genericMessage = 'If that account exists, a password reset code has been sent to its email address.';
+const genericMessage = 'If the account exists and email delivery is available, a code will arrive shortly. If it does not arrive, try again in one minute or contact the foundation office.';
 
 export async function requestMemberPasswordReset(rawEmail) {
   const email = String(rawEmail || '').trim().toLowerCase();
@@ -21,9 +21,13 @@ export async function requestMemberPasswordReset(rawEmail) {
     const token = randomBytes(32).toString('base64url');
     resets.push({ emailHash, tokenHash: digest(token), memberId: account?.id || null, requestedAt: now, expiresAt: now + 30 * 60000, used: false });
     await portalRecordStore.write(collection, resets.slice(-10000));
-    if (account) await dispatchNotification({ channel: 'email', recipient: account.email, subject: 'Reset your GSDD Member Portal password',
+    if (account) {
+      const delivery = await dispatchNotification({ channel: 'email', recipient: account.email, subject: 'Reset your GSDD Member Portal password',
       text: `Your password reset code is:\n${token}\n\nEnter this code on the password recovery page within 30 minutes. If you did not request a reset, ignore this email.`,
-      metadata: { kind: 'member_password_reset', resetToken: token } });
+        metadata: { kind: 'member_password_reset', resetToken: token },
+      });
+      if (!delivery.delivered) console.warn('Member password reset delivery failed', delivery.provider);
+    }
     return { ok: true, status: 200, message: genericMessage };
   });
 }

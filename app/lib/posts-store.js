@@ -494,7 +494,8 @@ export async function updatePost(id, { type, title, descriptionHtml, deletedImag
     validatedNew.push({ ...file, ext: check.ext, contentType: check.contentType });
   }
 
-  return withLock('posts', async () => {
+  const uploadedNew = [];
+  const result = await withLock('posts', async () => {
     const posts = await readJson('posts', buildInitialPosts);
     const idx = posts.findIndex((p) => p.id === id);
     if (idx === -1) {
@@ -513,8 +514,7 @@ export async function updatePost(id, { type, title, descriptionHtml, deletedImag
       };
     }
 
-    const uploadedNew = [];
-    try {
+    if (uploadedNew.length === 0) try {
       for (const item of validatedNew) {
         uploadedNew.push(await savePostImageBuffer(item));
       }
@@ -524,10 +524,6 @@ export async function updatePost(id, { type, title, descriptionHtml, deletedImag
     }
 
     const removedImages = (current.images || []).filter((img) => deleteSet.has(img.id));
-    for (const img of removedImages) {
-      if (img.filename) await deleteStoredImageFile(img.filename);
-    }
-
     posts[idx] = {
       ...current,
       type: cleanType,
@@ -537,8 +533,15 @@ export async function updatePost(id, { type, title, descriptionHtml, deletedImag
       updatedAt: new Date().toISOString(),
     };
     await writeJson('posts', posts);
-    return { ok: true, status: 200, post: posts[idx] };
+    return { ok: true, status: 200, post: posts[idx], removedImages };
   });
+  if (!result.ok) {
+    for (const image of uploadedNew) await deleteStoredImageFile(image.filename);
+    return result;
+  }
+  const { removedImages, ...response } = result;
+  for (const image of removedImages) await deleteStoredImageFile(image.filename);
+  return response;
 }
 
 export async function deletePost(id) {

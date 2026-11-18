@@ -122,7 +122,7 @@ async function main() {
       method: 'POST',
       useAdmin: true,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'Raniganj Career Camp', eventType: 'Workshops', date: '2026-06-15', venue: 'Raniganj Hall' }),
+      body: JSON.stringify({ title: 'Raniganj Career Camp', eventType: 'Workshops', date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10), venue: 'Raniganj Hall', capacity: 1 }),
     });
     assert.equal(evtCreate.status, 201);
     const { event } = await evtCreate.json();
@@ -133,6 +133,15 @@ async function main() {
       body: JSON.stringify({ eventId: event.id, name: 'Pooja Rani', email: 'pooja@example.org', phone: '9835011122' }),
     });
     assert.equal(evtReg.status, 201);
+
+    for (const email of ['pooja@example.org', 'other@example.org']) {
+      const duplicateOrFull = await req('/api/public/events/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: event.id, name: 'Test Visitor', email, phone: '9835011122' }),
+      });
+      assert.equal(duplicateOrFull.status, 409);
+    }
 
     const appsRes = await (await req('/api/admin/operations/events/?tab=applicants', { useAdmin: true })).json();
     assert.ok(appsRes.applicants.some((a) => a.email === 'pooja@example.org'));

@@ -102,9 +102,9 @@ export default function MemberRegisterPage() {
               Registration Successful!
             </h2>
             <p style={{ fontSize: '14px', color: 'var(--gsdd-text-muted)' }}>
-              Welcome, <strong>{success.name}</strong>! Your official Member ID is <code>{success.id}</code>.
+              Welcome, <strong>{success.name}</strong>! Your registration reference is <code>{success.id}</code>.
             </p>
-            <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            {success.status === 'Pending' ? <p>You can sign in after a foundation administrator approves your registration.</p> : <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'center' }}>
               <button
                 type="button"
                 className="button button-blue"
@@ -112,7 +112,7 @@ export default function MemberRegisterPage() {
               >
                 Go to Member Dashboard <ArrowRight size={16} />
               </button>
-            </div>
+            </div>}
           </div>
         ) : (
           <form onSubmit={handleRegister}>

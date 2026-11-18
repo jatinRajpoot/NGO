@@ -194,11 +194,8 @@ export async function saveAdminPhoto({ buffer, filename, contentType }) {
     renameSync(temp, filePath);
   }
 
-  return withLock('admin-profile', async () => {
+  const { profile, previous } = await withLock('admin-profile', async () => {
     const current = await readJson('admin-profile', buildInitialAdminProfile);
-    if (current.photoFilename) {
-      await deletePhotoObject(current.photoFilename);
-    }
     const next = {
       ...current,
       photoFilename: storedName,
@@ -206,8 +203,10 @@ export async function saveAdminPhoto({ buffer, filename, contentType }) {
       updatedAt: new Date().toISOString(),
     };
     await writeJson('admin-profile', next);
-    return { ok: true, profile: next };
+    return { profile: next, previous: current.photoFilename };
   });
+  if (previous) await deletePhotoObject(previous);
+  return { ok: true, profile };
 }
 
 async function deletePhotoObject(storedName) {
@@ -226,11 +225,8 @@ async function deletePhotoObject(storedName) {
 }
 
 export async function removeAdminPhoto() {
-  return withLock('admin-profile', async () => {
+  const { profile, previous } = await withLock('admin-profile', async () => {
     const current = await readJson('admin-profile', buildInitialAdminProfile);
-    if (current.photoFilename) {
-      await deletePhotoObject(current.photoFilename);
-    }
     const next = {
       ...current,
       photoFilename: null,
@@ -238,8 +234,10 @@ export async function removeAdminPhoto() {
       updatedAt: new Date().toISOString(),
     };
     await writeJson('admin-profile', next);
-    return { ok: true, profile: next };
+    return { profile: next, previous: current.photoFilename };
   });
+  if (previous) await deletePhotoObject(previous);
+  return { ok: true, profile };
 }
 
 export async function readAdminPhoto(storedName) {
@@ -718,10 +716,10 @@ export async function resetWebsiteSystemData({ confirmationText, targets = [] })
   }
 
   if (resetSet.has('letterheads')) {
-    await withLock('letterheads', () => writeJson('letterheads', buildInitialLetterHeads()));
+    await withLock('letterheads', () => writeJson('letterheads', process.env.GSDD_DEMO_DATA === '1' ? buildInitialLetterHeads() : []));
   }
   if (resetSet.has('birthdays')) {
-    await withLock('birthdays', () => writeJson('birthdays', buildInitialBirthdayRecords()));
+    await withLock('birthdays', () => writeJson('birthdays', process.env.GSDD_DEMO_DATA === '1' ? buildInitialBirthdayRecords() : []));
   }
   if (resetSet.has('settings')) {
     await withLock('software-settings', async () => {

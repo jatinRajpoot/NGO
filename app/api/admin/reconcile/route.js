@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { reconcileFinanceDonation } from '../../../lib/finance-store';
 import { isSameOrigin, requireAdminSession } from '../../../lib/admin-auth';
 import { listPendingReconciliations, reconcilePortalItem } from '../../../lib/portal-store';
 
@@ -36,7 +37,8 @@ export async function POST(request) {
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ ok: false, error: 'invalid_json' }, { status: 400, headers: NO_STORE });
     }
-    const res = await reconcilePortalItem({
+    const reconcile = body.kind === 'donation' ? reconcileFinanceDonation : reconcilePortalItem;
+    const res = await reconcile({
       kind: body.kind,
       id: body.id,
       action: body.action,
